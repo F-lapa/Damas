@@ -718,50 +718,112 @@ function countPieces(board, color){
   return {men:n-k, kings:k, total:n};
 }
 
-function evaluateBoard(board, forColor){
-  // Positive = good for white. Stronger positional + material evaluation for Coach Supremo.
-  var score=0;
-  var wMen=0, bMen=0, wK=0, bK=0;
+function boardHash(board){
+  // Fast Zobrist-like hash for transposition
+  var h=0;
   for(var r=0;r<8;r++) for(var c=0;c<8;c++){
     var p=board[r][c]; if(!p) continue;
-    var isW=p>0, king=isKing(p);
-    var val = king ? 48 : 12;
-    if(!king){
-      val += isW ? (7-r)*1.8 : r*1.8;
-      if((c===0||c===7) && !king) val -= 0.6;
-    } else {
-      val += (3.5-Math.abs(3.5-r))*0.8 + (3.5-Math.abs(3.5-c))*0.8;
-    }
-    if(c>=2 && c<=5 && r>=2 && r<=5) val += 2.2;
-    if(isW && r===7 && !king) val += 3.5;
-    if(!isW && r===0 && !king) val += 3.5;
-    if(isW && r<=1 && !king) val += 4;
-    if(!isW && r>=6 && !king) val += 4;
-    score += isW ? val : -val;
-    if(isW){ if(king) wK++; else wMen++; } else { if(king) bK++; else bMen++; }
+    h = ((h<<5)-h + (p+3)*97 + r*11 + c*13)|0;
   }
-  var wMoves=legalMoves(board,'w').length;
-  var bMoves=legalMoves(board,'b').length;
-  score += (wMoves - bMoves)*0.55;
-  var mat = (wMen-bMen)*12 + (wK-bK)*48;
-  score += mat*0.15;
-  if(wMen+wK <= 3 || bMen+bK <= 3) score += (wMoves-bMoves)*0.8;
+  return h;
+}
+
+function evaluateBoard(board, forColor){
+  // Fast leaf eval — NO legalMoves calls (critical for speed)
+  var score=0;
+  var wMen=0,bMen=0,wK=0,bK=0;
+  for(var r=0;r<8;r++){
+    for(var c=0;c<8;c++){
+      var p=board[r][c]; if(!p) continue;
+      var isW=p>0, king=Math.abs(p)===2;
+      var val;
+      if(king){
+        val = 55 + (3.5-Math.abs(3.5-r))*1.1 + (3.5-Math.abs(3.5-c))*1.1;
+      } else {
+        val = 14;
+        // advancement + promotion race
+        val += isW ? (7-r)*2.4 : r*2.4;
+        // near-promotion bonus
+        if(isW && r<=1) val += 8;
+        if(!isW && r>=6) val += 8;
+        // back rank defenders
+        if(isW && r===7) val += 4.5;
+        if(!isW && r===0) val += 4.5;
+        // edge penalty for men
+        if(c===0||c===7) val -= 0.8;
+      }
+      // center control
+      if(c>=2&&c<=5&&r>=2&&r<=5) val += 2.8;
+      // strong squares (dark-square center bias for American checkers)
+      if((r+c)%2===1 && c>=2&&c<=5&&r>=2&&r<=5) val += 0.6;
+      score += isW ? val : -val;
+      if(isW){ if(king) wK++; else wMen++; } else { if(king) bK++; else bMen++; }
+    }
+  }
+  // Material imbalance pressure
+  score += ((wMen-bMen)*14 + (wK-bK)*55)*0.12;
+  // Endgame: mobility proxy via piece count (kings more valuable when few pieces)
+  var total=wMen+bMen+wK+bK;
+  if(total<=6){
+    score += (wK-bK)*6;
+    // runaway men toward promotion
+    for(var r=0;r<8;r++) for(var c=0;c<8;c++){
+      var p=board[r][c];
+      if(Math.abs(p)===1){
+        if(p>0) score += (7-r)*1.5;
+        else score -= r*1.5;
+      }
+    }
+  }
   return forColor==='w' ? score : -score;
 }
 
+// Shared TT for coach / AI within one search
+var _tt = null;
+var _nodes = 0;
+var _deadline = 0;
+
 function minimax(board, depth, alpha, beta, maximizing, color){
+  _nodes++;
+  if(_deadline && Date.now()>_deadline) return evaluateBoard(board, maximizing?color:(color==='w'?'b':'w'));
+
   var moves=legalMoves(board, color);
-  var inCheckCapture = moves.length && (moves[0].captures||0)>0;
-  if((depth<=0 && !inCheckCapture) || !moves.length){
-    if(!moves.length){
-      return maximizing ? -99999+depth : 99999-depth;
+  var hasCap = moves.length && (moves[0].captures||0)>0;
+
+  // Quiescence: at leaves only expand captures
+  if(depth<=0){
+    if(!hasCap || !moves.length){
+      if(!moves.length) return maximizing ? -90000+depth : 90000-depth;
+      return evaluateBoard(board, maximizing?color:(color==='w'?'b':'w'));
     }
-    return evaluateBoard(board, maximizing ? color : (color==='w'?'b':'w'));
+    // qsearch — only capture moves
+    moves = moves.filter(function(m){return (m.captures||0)>0});
+    if(!moves.length) return evaluateBoard(board, maximizing?color:(color==='w'?'b':'w'));
   }
-  moves.sort(function(a,b){ return (b.captures||0)-(a.captures||0); });
+
+  if(!moves.length){
+    return maximizing ? -90000+depth : 90000-depth;
+  }
+
+  // TT probe
+  var key = boardHash(board)+'|'+depth+'|'+color+'|'+(maximizing?1:0);
+  if(_tt){
+    var hit=_tt.get(key);
+    if(hit!==undefined) return hit;
+  }
+
+  // Move ordering: more captures first, then promotions
+  moves.sort(function(a,b){
+    var dc=(b.captures||0)-(a.captures||0);
+    if(dc) return dc;
+    // rough: prefer moves landing deeper for men
+    return 0;
+  });
+
   var nextDepth = depth>0 ? depth-1 : 0;
+  var best;
   if(maximizing){
-    var best=-1e9;
+    best=-1e9;
     for(var i=0;i<moves.length;i++){
       var nb=applyMove(board, moves[i]);
       var v=minimax(nb, nextDepth, alpha, beta, false, color==='w'?'b':'w');
@@ -769,35 +831,61 @@ function minimax(board, depth, alpha, beta, maximizing, color){
       if(v>alpha) alpha=v;
       if(beta<=alpha) break;
     }
-    return best;
   } else {
-    var best2=1e9;
+    best=1e9;
     for(var i=0;i<moves.length;i++){
       var nb=applyMove(board, moves[i]);
       var v=minimax(nb, nextDepth, alpha, beta, true, color==='w'?'b':'w');
-      if(v<best2) best2=v;
+      if(v<best) best=v;
       if(v<beta) beta=v;
       if(beta<=alpha) break;
     }
-    return best2;
   }
+  if(_tt && _tt.size<80000) _tt.set(key, best);
+  return best;
 }
 
-function searchBestMove(board, color, depth){
+function searchBestMove(board, color, depth, timeMs){
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
   moves.sort(function(a,b){return (b.captures||0)-(a.captures||0)});
+
+  // Instant capture forced — still search a bit for best multi-jump
+  _tt = new Map();
+  _nodes = 0;
+  var maxDepth = depth||6;
+  var budget = timeMs||0;
+  _deadline = budget ? (Date.now()+budget) : 0;
+
   var best=moves[0], bestScore=-1e9;
-  for(var i=0;i<moves.length;i++){
-    var nb=applyMove(board, moves[i]);
-    var sc=minimax(nb, depth-1, -1e9, 1e9, false, color==='w'?'b':'w');
-    sc += (moves[i].captures||0)*12;
-    var to=parseSq(moves[i].to);
-    var landed=nb[to.r][to.c];
-    if(Math.abs(landed)===2 && (moves[i].captures||0)===0) sc += 6;
-    if(sc>bestScore){ bestScore=sc; best=moves[i]; }
+
+  // Iterative deepening for quality + responsiveness
+  var startD = Math.min(2, maxDepth);
+  for(var d=startD; d<=maxDepth; d++){
+    if(_deadline && Date.now()>_deadline) break;
+    var localBest=null, localScore=-1e9;
+    // re-order with previous best first
+    if(best){
+      moves.sort(function(a,b){
+        if(a.from===best.from && a.to===best.to) return -1;
+        if(b.from===best.from && b.to===best.to) return 1;
+        return (b.captures||0)-(a.captures||0);
+      });
+    }
+    for(var i=0;i<moves.length;i++){
+      if(_deadline && Date.now()>_deadline) break;
+      var nb=applyMove(board, moves[i]);
+      var sc=minimax(nb, d-1, -1e9, 1e9, false, color==='w'?'b':'w');
+      sc += (moves[i].captures||0)*18;
+      var to=parseSq(moves[i].to);
+      var landed=nb[to.r][to.c];
+      if(Math.abs(landed)===2) sc += 10; // promotion bias
+      if(sc>localScore){ localScore=sc; localBest=moves[i]; }
+    }
+    if(localBest){ best=localBest; bestScore=localScore; }
   }
-  return {move:best, score:bestScore};
+  _deadline = 0;
+  return {move:best, score:bestScore, nodes:_nodes};
 }
 
 /* ===== STATE ===== */
@@ -1460,12 +1548,13 @@ function aiPlay(){
   if(!board || mode!=='ai') return;
   var el=document.getElementById('status');
   if(el){ el.textContent='🤖 Computador pensando…'; el.classList.add('chk'); }
-  var depth=diff==='easy'?3:diff==='hard'?6:4;
+  var depth=diff==='easy'?4:diff==='hard'?9:6;
+  var budget=diff==='easy'?40:diff==='hard'?180:90;
   setTimeout(function(){
-    var res=searchBestMove(board, turn, depth);
+    var res=searchBestMove(board, turn, depth, budget);
     if(res && res.move) doMove(res.move, false);
     else status();
-  }, 80);
+  }, 30);
 }
 function status(){
   var el=document.getElementById('status'); if(!el) return;
@@ -1623,9 +1712,10 @@ function coachBest(auto){
     return;
   }
   document.getElementById('coach-move').textContent='…';
-  document.getElementById('coach-text').textContent='Coach Supremo analisando em profundidade…';
+  document.getElementById('coach-text').textContent='Coach Supremo calculando…';
   setTimeout(function(){
-    var res=searchBestMove(board, turn, 10);
+    // Depth 12 with 120ms budget — iterative deepening keeps it snappy
+    var res=searchBestMove(board, turn, 12, 120);
     if(!res||!res.move){
       document.getElementById('coach-move').textContent='—';
       document.getElementById('coach-text').textContent='Sem lances disponíveis.';
@@ -1633,23 +1723,20 @@ function coachBest(auto){
     }
     var m=res.move;
     document.getElementById('coach-move').textContent=m.from.toUpperCase()+' → '+m.to.toUpperCase()+(m.captures?' ×'+m.captures:'');
-    var why='✦ Jogada perfeita (eval '+Math.round(res.score)+').';
     var to=parseSq(m.to);
-    var landed=m.board ? m.board[to.r][to.c] : 0;
-    if(m.captures>1) why='♛ Sequência de captura máxima ('+m.captures+'x)! Execute todos os saltos na ordem.';
-    else if(m.captures===1) why='✦ Melhor captura tática. Ganha material e mantém a iniciativa.';
-    else if(Math.abs(landed)===2) why='♛ Promoção! Transforme em dama — controle o tabuleiro com a peça mais forte.';
-    else {
-      var center = (to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5);
-      if(center) why='✦ Lance posicional de elite: ocupa o centro e restringe o adversário.';
-      else why='✦ Melhor lance posicional. Jogue '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+' (prep. de promoção/restrição).';
-    }
+    var landed = m.board ? m.board[to.r][to.c] : 0;
+    var why;
+    if(m.captures>1) why='♛ Captura múltipla forçada ('+m.captures+'x). Execute a sequência completa — é a linha vencedora.';
+    else if(m.captures===1) why='✦ Melhor captura. Ganha material e mantém a iniciativa (eval '+Math.round(res.score)+').';
+    else if(Math.abs(landed)===2) why='♛ Promoção para dama! A peça mais forte do tabuleiro — use-a para controlar e eliminar.';
+    else if(to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5) why='✦ Centro dominado. Restringe o adversário e prepara promoções (eval '+Math.round(res.score)+').';
+    else why='✦ Lance de elite. Jogue '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+' · eval '+Math.round(res.score)+(res.nodes?' · '+res.nodes+' nós':'')+'.';
     document.getElementById('coach-text').textContent=why;
     sel=m.from;
     legal=[m];
     last={from:m.from, to:m.to};
     render();
-  }, 40);
+  }, 10);
 }
 function coachPlan(){
   if(!canUseCoach()||!board) return;
