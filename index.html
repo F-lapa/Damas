@@ -591,7 +591,7 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
             <h3>🤝 Amigos</h3>
             <div id="friends-list"><div class="empty" style="padding:.35rem 0">Carregando…</div></div>
           </div>
-          <p class="note">Captura obrigatória · lei da maioria · dama voadora · pedra captura p/ frente e trás.</p>
+          <p class="note">Captura obrigatória · lei da maioria · pedra só come p/ trás em sequência (2+).</p>
         </div>
         <div class="card">
           <h2>🎯 Treino local</h2>
@@ -853,7 +853,7 @@ async function createHashedPassword(password){
    - Casas escuras apenas · 12 pedras cada · Brancas começam
    - Pedra: anda 1 casa na diagonal somente para FRENTE
    - Captura OBRIGATÓRIA (sem sopro)
-   - Pedra pode capturar para FRENTE e para TRÁS (qualquer diagonal)
+   - Pedra captura para FRENTE; para TRÁS só se a sequência comer 2+ peças
    - Lei da maioria: se há várias capturas, obrigatório a sequência com MAIS peças
    - Dama (voadora): anda várias casas na diagonal (frente/trás)
    - Dama captura à distância e pode continuar a sequência
@@ -967,7 +967,7 @@ function getAllJumpSequences(board, r, c){
         }
       }
     } else {
-      // Man: jump adjacent enemy to empty square — all 4 diagonals (backwards allowed in captures)
+      // Man: all 4 diagonals na geração; filtro final proíbe captura simples para trás
       var dirs2=ALL_DIRS();
       for(var j=0;j<dirs2.length;j++){
         var dr2=dirs2[j][0], dc2=dirs2[j][1];
@@ -989,13 +989,31 @@ function getAllJumpSequences(board, r, c){
     }
 
     if(!extended && path.length){
-      sequences.push({
-        steps: path,
-        from: sqName(path[0].r, path[0].c),
-        to: sqName(path[path.length-1].toR, path[path.length-1].toC),
-        board: brd,
-        captures: path.length
-      });
+      // Pedra: captura simples (1 peça) NÃO pode ser para trás.
+      // Capturar para trás só é legal se a sequência comer 2+ peças.
+      if(path.length===1 && Math.abs(p0)===1){
+        var st0=path[0];
+        var isBack = (color==='w') ? (st0.toR > st0.r) : (st0.toR < st0.r);
+        if(isBack) {
+          // sequência inválida — descarta
+        } else {
+          sequences.push({
+            steps: path,
+            from: sqName(path[0].r, path[0].c),
+            to: sqName(path[path.length-1].toR, path[path.length-1].toC),
+            board: brd,
+            captures: path.length
+          });
+        }
+      } else {
+        sequences.push({
+          steps: path,
+          from: sqName(path[0].r, path[0].c),
+          to: sqName(path[path.length-1].toR, path[path.length-1].toC),
+          board: brd,
+          captures: path.length
+        });
+      }
     }
   }
 
@@ -1172,7 +1190,7 @@ function negamax(board, depth, alpha, beta, color, qply){
   if(_deadline && (_nodes&63)===0 && Date.now()>_deadline) return evaluateBoard(board, color);
 
   var alphaOrig=alpha;
-  var key=boardHash(board)+'|'+depth+'|'+color+'|'+qply;
+  var key=(boardHash(board)*131 + depth*17 + (color==='w'?1:3)*101 + qply)|0;
   if(_tt && depth>=0 && qply===0){
     var e=_tt.get(key);
     if(e){
@@ -1190,7 +1208,7 @@ function negamax(board, depth, alpha, beta, color, qply){
   // Quiescence: stand-pat + capturas
   if(depth<=0){
     var stand=evaluateBoard(board, color);
-    if(qply>=12) return stand;
+    if(qply>=14) return stand;
     var caps=[];
     for(var i=0;i<moves.length;i++) if((moves[i].captures||0)>0) caps.push(moves[i]);
     if(!caps.length) return stand;
@@ -1316,9 +1334,9 @@ function searchCoachMove(board, color){
   if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
 
   _tt=new Map(); _nodes=0; _killers=[]; _history={}; _pvMove=null;
-  var maxDepth=28;
-  // Coach tem tempo real para pensar — bem acima dos ~120ms do Difícil
-  var totalBudget=6500;
+  var maxDepth=32;
+  // Rápido o bastante para a UI + profundo o suficiente para superar humano/PC
+  var totalBudget=4500;
   _deadline=Date.now()+totalBudget;
   var best=moves[0], bestScore=-1e15, completedDepth=0;
 
@@ -1330,8 +1348,8 @@ function searchCoachMove(board, color){
     _pvMove=best;
 
     var alpha, beta, window;
-    if(d>=4 && bestScore>-1e14 && bestScore<1e14){
-      window = d<=8 ? 45 : 70;
+    if(d>=3 && bestScore>-1e14 && bestScore<1e14){
+      window = d<=6 ? 35 : (d<=12 ? 55 : 80);
       alpha = bestScore - window;
       beta = bestScore + window;
     } else {
@@ -1351,21 +1369,21 @@ function searchCoachMove(board, color){
         if(Date.now()>_deadline){ timedOut=true; break; }
         var nb=applyMove(board, moves[i]);
         var sc=-negamax(nb, d-1, -b, -a, color==='w'?'b':'w', 0);
-        sc += (moves[i].captures||0)*0.05;
+        // Preferir sequências longas em empate técnico
+        sc += (moves[i].captures||0)*0.08;
         if(sc>localScore){ localScore=sc; localBest=moves[i]; }
         if(sc>a) a=sc;
       }
       if(timedOut) break;
-      if(d>=4 && window<1e14 && localScore<=(bestScore-window) && research<2){
+      if(d>=3 && window<1e14 && localScore<=(bestScore-window) && research<2){
         alpha=-1e15; beta=localScore+1; research++; continue;
       }
-      if(d>=4 && window<1e14 && localScore>=(bestScore+window) && research<2){
+      if(d>=3 && window<1e14 && localScore>=(bestScore+window) && research<2){
         alpha=localScore-1; beta=1e15; research++; continue;
       }
       break;
     }
 
-    // CRÍTICO: só atualiza o melhor se a iteração terminou (sem timeout no meio)
     if(!timedOut && localBest){
       best=localBest;
       bestScore=localScore;
@@ -1377,20 +1395,23 @@ function searchCoachMove(board, color){
     }
 
     if(Math.abs(bestScore)>90000) break;
+    // Se já está muito vantajoso e profundidade ok, pode parar cedo (mais rápido)
+    if(d>=12 && bestScore>400) break;
+    if(d>=14 && bestScore>200) break;
   }
 
-  // Refinamento final: top 6 lances com profundidade extra
+  // Refino rápido do top 4
   var left = _deadline - Date.now();
-  if(left>600){
-    orderMoves(moves, completedDepth||12, best);
-    var top=moves.slice(0, Math.min(6, moves.length));
-    var refineDepth=Math.max(completedDepth+1, Math.min(18, completedDepth+3));
-    _deadline=Date.now()+Math.min(left, 2500);
+  if(left>400){
+    orderMoves(moves, completedDepth||10, best);
+    var top=moves.slice(0, Math.min(4, moves.length));
+    var refineDepth=Math.min(20, Math.max(completedDepth+1, completedDepth+2));
+    _deadline=Date.now()+Math.min(left, 1800);
     for(var t=0;t<top.length;t++){
       if(Date.now()>_deadline) break;
       var nb2=applyMove(board, top[t]);
       var sc2=-negamax(nb2, refineDepth-1, -1e15, 1e15, color==='w'?'b':'w', 0);
-      sc2 += (top[t].captures||0)*0.05;
+      sc2 += (top[t].captures||0)*0.08;
       if(sc2>bestScore){ bestScore=sc2; best=top[t]; }
     }
   }
@@ -2305,13 +2326,20 @@ function setupCoach(){
   if(!canUseCoach()){coach.style.display='none';return}
   coach.style.display='block';
   document.getElementById('coach-move').textContent='—';
-  document.getElementById('coach-text').textContent='Coach Supremo ativo · elite (muito acima do nível Difícil) · calcula na sua vez.';
-  setTimeout(function(){
-    if(canUseCoach() && board && legalMoves(board,turn).length){
-      if((mode==='ai'||mode==='online') && turn!==myColor) return;
-      coachBest(true);
-    }
-  }, 350);
+  document.getElementById('coach-text').textContent='Coach Supremo · jogada perfeita a cada lance · acima de humanos e do PC.';
+  setTimeout(function(){ try{ scheduleCoach(); }catch(e){} }, 200);
+}
+var _coachTimer=null;
+function scheduleCoach(){
+  if(!canUseCoach()||!board) return;
+  if(mode==='review'||mode==='spectate') return;
+  if((mode==='ai'||mode==='online') && turn!==myColor){
+    document.getElementById('coach-move').textContent='…';
+    document.getElementById('coach-text').textContent='Aguardando o adversário…';
+    return;
+  }
+  if(_coachTimer) clearTimeout(_coachTimer);
+  _coachTimer=setTimeout(function(){ coachBest(true); }, 80);
 }
 
 var _boardHtmlCache='';
@@ -2406,7 +2434,7 @@ function pick(sq){
     // Com captura obrigatória / lei da maioria, esta peça não pode jogar agora
     sel=null; legal=[];
     var anyCap=moves.some(function(m){return (m.captures||0)>0});
-    if(anyCap) toast('Captura obrigatória — escolha a sequência com mais peças');
+    if(anyCap) toast('Captura obrigatória · lei da maioria · trás só em sequência 2+');
     render();
     return;
   }
@@ -2566,7 +2594,7 @@ function doMove(move, remote){
       return;
     }
     if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 200);
-    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 200);
+    else if(canUseCoach() && turn===myColor) scheduleCoach();
   }
 
   // Flyer using pre-measured rects (doesn't depend on empty from-cell)
@@ -3140,13 +3168,26 @@ function coachBest(auto){
   if(!canUseCoach()||!board) return;
   if((mode==='ai'||mode==='online') && turn!==myColor){
     document.getElementById('coach-move').textContent='…';
-    document.getElementById('coach-text').textContent='Aguarde a sua vez.';
+    document.getElementById('coach-text').textContent='Aguardando o adversário…';
+    return;
+  }
+  var movesNow=legalMoves(board, turn);
+  if(!movesNow.length){
+    document.getElementById('coach-move').textContent='—';
+    document.getElementById('coach-text').textContent='Sem lances — posição terminal.';
+    return;
+  }
+  // Lance único: responde na hora
+  if(movesNow.length===1){
+    var only=movesNow[0];
+    document.getElementById('coach-move').textContent=only.from.toUpperCase()+' → '+only.to.toUpperCase()+(only.captures?' ×'+only.captures:'');
+    document.getElementById('coach-text').textContent='Único lance legal (regras: captura/maioria).';
+    sel=only.from; legal=[only]; render();
     return;
   }
   document.getElementById('coach-move').textContent='…';
-  document.getElementById('coach-text').textContent='♛ Coach Supremo analisando (busca profunda em damas brasileiras)…';
+  document.getElementById('coach-text').textContent='♛ Calculando a jogada perfeita…';
   setTimeout(function(){
-    // Coach Supremo: iterative deepening ~6.5s + refine — bem acima do Difícil (d7 / 120ms)
     var res=searchCoachMove(board, turn);
     if(!res||!res.move){
       document.getElementById('coach-move').textContent='—';
@@ -3959,7 +4000,7 @@ function restoreActiveGame(){
   toast('Partida restaurada');
   // If AI to move after restore
   if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 400);
-  else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 300);
+  else if(canUseCoach() && turn===myColor) scheduleCoach();
   return true;
 }
 
