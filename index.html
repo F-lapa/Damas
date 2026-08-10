@@ -591,7 +591,7 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
             <h3>🤝 Amigos</h3>
             <div id="friends-list"><div class="empty" style="padding:.35rem 0">Carregando…</div></div>
           </div>
-          <p class="note">Captura obrigatória · lei da maioria · pedra só come p/ trás em sequência (2+).</p>
+          <p class="note">Captura obrigatória · lei da maioria · pedra: 1ª captura p/ frente, depois pode p/ trás.</p>
         </div>
         <div class="card">
           <h2>🎯 Treino local</h2>
@@ -853,7 +853,8 @@ async function createHashedPassword(password){
    - Casas escuras apenas · 12 pedras cada · Brancas começam
    - Pedra: anda 1 casa na diagonal somente para FRENTE
    - Captura OBRIGATÓRIA (sem sopro)
-   - Pedra captura para FRENTE; para TRÁS só se a sequência comer 2+ peças
+   - Pedra: a 1ª captura da sequência DEVE ser para FRENTE;
+     só depois pode capturar para TRÁS (nunca começa a sequência para trás)
    - Lei da maioria: se há várias capturas, obrigatório a sequência com MAIS peças
    - Dama (voadora): anda várias casas na diagonal (frente/trás)
    - Dama captura à distância e pode continuar a sequência
@@ -967,8 +968,10 @@ function getAllJumpSequences(board, r, c){
         }
       }
     } else {
-      // Man: all 4 diagonals na geração; filtro final proíbe captura simples para trás
-      var dirs2=ALL_DIRS();
+      // Pedra: 1ª captura da sequência OBRIGATORIAMENTE para frente.
+      // Só a partir da 2ª captura pode ir para trás (qualquer diagonal).
+      // Nunca: começar para trás e depois comer na frente.
+      var dirs2 = (path.length===0) ? manForwardDirs(piece) : ALL_DIRS();
       for(var j=0;j<dirs2.length;j++){
         var dr2=dirs2[j][0], dc2=dirs2[j][1];
         var mr=rr+dr2, mc=cc+dc2;
@@ -989,31 +992,13 @@ function getAllJumpSequences(board, r, c){
     }
 
     if(!extended && path.length){
-      // Pedra: captura simples (1 peça) NÃO pode ser para trás.
-      // Capturar para trás só é legal se a sequência comer 2+ peças.
-      if(path.length===1 && Math.abs(p0)===1){
-        var st0=path[0];
-        var isBack = (color==='w') ? (st0.toR > st0.r) : (st0.toR < st0.r);
-        if(isBack) {
-          // sequência inválida — descarta
-        } else {
-          sequences.push({
-            steps: path,
-            from: sqName(path[0].r, path[0].c),
-            to: sqName(path[path.length-1].toR, path[path.length-1].toC),
-            board: brd,
-            captures: path.length
-          });
-        }
-      } else {
-        sequences.push({
-          steps: path,
-          from: sqName(path[0].r, path[0].c),
-          to: sqName(path[path.length-1].toR, path[path.length-1].toC),
-          board: brd,
-          captures: path.length
-        });
-      }
+      sequences.push({
+        steps: path,
+        from: sqName(path[0].r, path[0].c),
+        to: sqName(path[path.length-1].toR, path[path.length-1].toC),
+        board: brd,
+        captures: path.length
+      });
     }
   }
 
@@ -2434,7 +2419,7 @@ function pick(sq){
     // Com captura obrigatória / lei da maioria, esta peça não pode jogar agora
     sel=null; legal=[];
     var anyCap=moves.some(function(m){return (m.captures||0)>0});
-    if(anyCap) toast('Captura obrigatória · lei da maioria · trás só em sequência 2+');
+    if(anyCap) toast('Captura obrigatória · 1ª captura da pedra deve ser para frente');
     render();
     return;
   }
@@ -3219,7 +3204,7 @@ function coachPlan(){
   var total=w.total+b.total;
   var plan;
   if(n<6) plan='Abertura: avance o centro e prepare promoção. Captura é obrigatória — calcule trocas e a lei da maioria (sempre a sequência com mais peças).';
-  else if(total>10) plan='Meio-jogo: force sequências longas (pedra captura também para trás). Use a lei da maioria a seu favor e priorize promover a dama voadora.';
+  else if(total>10) plan='Meio-jogo: force sequências longas (1ª captura da pedra para frente; depois pode ir para trás). Lei da maioria e promoção a dama.';
   else if(total>4) plan='Final: a dama corre várias casas — domine diagonais longas, restrinja a dama rival e force promoções.';
   else plan='Final técnico: com dama voadora, centralize, varra as diagonais e deixe o adversário sem casas seguras.';
   if(w.kings+b.kings) plan+=' Dama ativa vale mais do que material parado.';
