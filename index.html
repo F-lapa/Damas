@@ -868,49 +868,52 @@ function evaluateBoard(board, forColor){
   // Fast leaf eval — NO legalMoves calls (critical for speed)
   var score=0;
   var wMen=0,bMen=0,wK=0,bK=0;
+  var wMob=0, bMob=0;
   for(var r=0;r<8;r++){
     for(var c=0;c<8;c++){
       var p=board[r][c]; if(!p) continue;
       var isW=p>0, king=Math.abs(p)===2;
       var val;
       if(king){
-        val = 90 + (3.5-Math.abs(3.5-r))*1.4 + (3.5-Math.abs(3.5-c))*1.4; // flying king (brasileira)
+        // Flying king dominates Brazilian draughts
+        val = 110 + (3.5-Math.abs(3.5-r))*2.2 + (3.5-Math.abs(3.5-c))*2.2;
+        var dirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
+        var mob=0;
+        for(var d=0;d<4;d++){
+          var nr=r+dirs[d][0], nc=c+dirs[d][1];
+          while(nr>=0&&nr<=7&&nc>=0&&nc<=7&&board[nr][nc]===0){ mob++; nr+=dirs[d][0]; nc+=dirs[d][1]; }
+        }
+        val += mob*1.8;
+        if(isW) wMob+=mob; else bMob+=mob;
       } else {
-        val = 14;
-        // advancement + promotion race
-        val += isW ? (7-r)*2.4 : r*2.4;
-        // near-promotion bonus
-        if(isW && r<=1) val += 8;
-        if(!isW && r>=6) val += 8;
-        // back rank defenders
-        if(isW && r===7) val += 4.5;
-        if(!isW && r===0) val += 4.5;
-        // edge penalty for men
-        if(c===0||c===7) val -= 0.8;
+        val = 16;
+        val += isW ? (7-r)*2.8 : r*2.8;
+        if(isW && r<=1) val += 12;
+        if(!isW && r>=6) val += 12;
+        if(isW && r===7) val += 5;
+        if(!isW && r===0) val += 5;
+        if(c===0||c===7) val -= 1.1;
       }
-      // center control
-      if(c>=2&&c<=5&&r>=2&&r<=5) val += 2.8;
-      // strong squares (dark-square center bias for American checkers)
-      if((r+c)%2===1 && c>=2&&c<=5&&r>=2&&r<=5) val += 0.6;
+      if(c>=2&&c<=5&&r>=2&&r<=5) val += 3.2;
+      if((r+c)%2===1 && c>=2&&c<=5&&r>=2&&r<=5) val += 0.8;
       score += isW ? val : -val;
       if(isW){ if(king) wK++; else wMen++; } else { if(king) bK++; else bMen++; }
     }
   }
-  // Material imbalance pressure
-  score += ((wMen-bMen)*14 + (wK-bK)*55)*0.12;
-  // Endgame: mobility proxy via piece count (kings more valuable when few pieces)
+  score += ((wMen-bMen)*18 + (wK-bK)*70)*0.15;
+  score += (wMob-bMob)*1.2;
   var total=wMen+bMen+wK+bK;
-  if(total<=6){
-    score += (wK-bK)*6;
-    // runaway men toward promotion
-    for(var r=0;r<8;r++) for(var c=0;c<8;c++){
-      var p=board[r][c];
-      if(Math.abs(p)===1){
-        if(p>0) score += (7-r)*1.5;
-        else score -= r*1.5;
+  if(total<=8){
+    score += (wK-bK)*10;
+    for(var r2=0;r2<8;r2++) for(var c2=0;c2<8;c2++){
+      var p2=board[r2][c2];
+      if(Math.abs(p2)===1){
+        if(p2>0) score += (7-r2)*2.2;
+        else score -= r2*2.2;
       }
     }
   }
+  if(total<=4 && (wK+bK)>0) score += (wMob-bMob)*2.5;
   return forColor==='w' ? score : -score;
 }
 
@@ -1028,6 +1031,70 @@ function searchBestMove(board, color, depth, timeMs){
   _deadline = 0;
   return {move:best, score:bestScore, nodes:_nodes};
 }
+
+/** Coach-only search: much stronger than hard AI (depth 9 / 180ms).
+ *  Deeper iterative deepening, longer time, root verification of top lines. */
+function searchCoachMove(board, color){
+  var moves=legalMoves(board, color);
+  if(!moves.length) return null;
+  moves.sort(function(a,b){ return (b.captures||0)-(a.captures||0); });
+
+  _tt = new Map();
+  _nodes = 0;
+  var maxDepth = 16;
+  var budget = 1400;
+  _deadline = Date.now() + budget;
+  var best=moves[0], bestScore=-1e9;
+  var rootScores = [];
+
+  for(var d=2; d<=maxDepth; d++){
+    if(Date.now()>_deadline) break;
+    var localBest=null, localScore=-1e9;
+    var scored=[];
+    if(best){
+      moves.sort(function(a,b){
+        if(a.from===best.from && a.to===best.to) return -1;
+        if(b.from===best.from && b.to===best.to) return 1;
+        return (b.captures||0)-(a.captures||0);
+      });
+    }
+    for(var i=0;i<moves.length;i++){
+      if(Date.now()>_deadline) break;
+      var nb=applyMove(board, moves[i]);
+      var sc=minimax(nb, d-1, -1e9, 1e9, false, color==='w'?'b':'w');
+      sc += (moves[i].captures||0)*32;
+      var to=parseSq(moves[i].to);
+      var landed=nb[to.r][to.c];
+      if(Math.abs(landed)===2) sc += 18;
+      if(Math.abs(landed)===2 && !(moves[i].captures)){
+        var fr=parseSq(moves[i].from);
+        if(Math.abs(fr.r-to.r)>=3) sc += 5;
+      }
+      scored.push({m:moves[i], sc:sc});
+      if(sc>localScore){ localScore=sc; localBest=moves[i]; }
+    }
+    if(localBest){ best=localBest; bestScore=localScore; rootScores=scored; }
+  }
+
+  // Verify top 3 candidates deeper
+  if(rootScores.length){
+    rootScores.sort(function(a,b){ return b.sc-a.sc; });
+    var top=rootScores.slice(0, Math.min(3, rootScores.length));
+    var verifyDeadline = Date.now() + 450;
+    _deadline = verifyDeadline;
+    for(var t=0;t<top.length;t++){
+      if(Date.now()>_deadline) break;
+      var nb2=applyMove(board, top[t].m);
+      var sc2=minimax(nb2, 11, -1e9, 1e9, false, color==='w'?'b':'w');
+      sc2 += (top[t].m.captures||0)*32;
+      if(sc2>bestScore){ bestScore=sc2; best=top[t].m; }
+    }
+  }
+
+  _deadline = 0;
+  return {move:best, score:bestScore, nodes:_nodes, coach:true};
+}
+
 
 /* ===== STATE ===== */
 let sb=null, lobbyCh=null, gameCh=null, liveCh=null;
@@ -1805,7 +1872,7 @@ function setupCoach(){
   if(!canUseCoach()){coach.style.display='none';return}
   coach.style.display='block';
   document.getElementById('coach-move').textContent='—';
-  document.getElementById('coach-text').textContent='Coach Supremo ativo · análise automática na sua vez.';
+  document.getElementById('coach-text').textContent='Coach Supremo ativo · busca profunda (acima do nível Difícil) na sua vez.';
   setTimeout(function(){
     if(canUseCoach() && board && legalMoves(board,turn).length){
       if((mode==='ai'||mode==='online') && turn!==myColor) return;
@@ -2215,8 +2282,8 @@ function coachBest(auto){
   document.getElementById('coach-move').textContent='…';
   document.getElementById('coach-text').textContent='Coach Supremo (damas brasileiras) calculando a linha perfeita…';
   setTimeout(function(){
-    // Depth 12 with 120ms budget — iterative deepening keeps it snappy
-    var res=searchBestMove(board, turn, 12, 120);
+    // Coach Supremo: busca dedicada >> nível Difícil (9 / 180ms)
+    var res=searchCoachMove(board, turn);
     if(!res||!res.move){
       document.getElementById('coach-move').textContent='—';
       document.getElementById('coach-text').textContent='Sem lances disponíveis.';
@@ -2227,11 +2294,11 @@ function coachBest(auto){
     var to=parseSq(m.to);
     var landed = m.board ? m.board[to.r][to.c] : 0;
     var why;
-    if(m.captures>1) why='♛ Captura múltipla forçada ('+m.captures+'x). Execute a sequência completa — é a linha vencedora.';
-    else if(m.captures===1) why='✦ Melhor captura. Ganha material e mantém a iniciativa (eval '+Math.round(res.score)+').';
-    else if(Math.abs(landed)===2) why='♛ Promoção para dama! A peça mais forte do tabuleiro — use-a para controlar e eliminar.';
-    else if(to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5) why='✦ Centro dominado. Restringe o adversário e prepara promoções (eval '+Math.round(res.score)+').';
-    else why='✦ Lance de elite. Jogue '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+' · eval '+Math.round(res.score)+(res.nodes?' · '+res.nodes+' nós':'')+'.';
+    if(m.captures>1) why='♛ Sequência perfeita ('+m.captures+'x). Coach Supremo — execute até o fim.';
+    else if(m.captures===1) why='✦ Melhor captura da posição. Ganha material limpo (eval '+Math.round(res.score)+', '+res.nodes+' nós).';
+    else if(Math.abs(landed)===2) why='♛ Promoção! Dama voadora muda o final — priorize diagonais longas.';
+    else if(to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5) why='✦ Domínio do centro. Prepara promoções e restringe o rival (eval '+Math.round(res.score)+').';
+    else why='✦ Lance ótimo do Coach Supremo: '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+' · eval '+Math.round(res.score)+(res.nodes?' · '+res.nodes+' nós':'')+'.';
     document.getElementById('coach-text').textContent=why;
     sel=m.from;
     legal=[m];
