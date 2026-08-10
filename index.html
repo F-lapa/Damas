@@ -333,6 +333,15 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 .cell .coord.file{bottom:2px;right:3px}
 .cell .coord.rank{top:2px;left:3px}
 .must-capture{box-shadow:inset 0 0 0 999px rgba(251,113,133,.18)!important}
+.live-games{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.85rem}
+.live-card{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border-radius:14px;border:1px solid rgba(251,113,133,.25);background:linear-gradient(120deg,rgba(251,113,133,.08),rgba(91,157,255,.06));cursor:pointer;transition:.18s}
+.live-card:hover{transform:translateX(3px);border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.12)}
+.live-card .live-dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.2s infinite;flex-shrink:0}
+.live-card .live-vs{flex:1;min-width:0;font-weight:800;font-size:.88rem}
+.live-card .live-vs span{color:var(--muted);font-weight:700;font-size:.78rem}
+.live-card .live-watch{font-size:.72rem;font-weight:900;padding:.28rem .55rem;border-radius:999px;background:rgba(251,113,133,.15);border:1px solid rgba(251,113,133,.3);color:#fecdd3;white-space:nowrap}
+.spectate-banner{text-align:center;padding:.55rem .85rem;border-radius:12px;font-weight:800;font-size:.84rem;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3);color:#fecdd3;margin-bottom:.35rem}
+
 </style>
 </head>
 <body>
@@ -404,7 +413,9 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
       </div>
       <div class="grid-2">
         <div class="card">
-          <div class="panel-title"><h2>🟢 Online agora</h2><span class="chip-soft" id="online-count">0</span></div>
+          <div class="panel-title"><h2>🔴 Partidas ao vivo</h2><span class="chip-soft" id="live-count">0</span></div>
+          <div class="live-games" id="live-games"><div class="empty" style="padding:.5rem 0">Nenhuma partida rolando agora</div></div>
+          <div class="panel-title" style="margin-top:.5rem"><h2>🟢 Online agora</h2><span class="chip-soft" id="online-count">0</span></div>
           <div class="search-box">
             <input id="user-search" type="text" placeholder="Pesquisar jogador…" maxlength="24" onkeydown="if(event.key==='Enter')searchUser()"/>
             <button type="button" onclick="searchUser()">🔍 Buscar</button>
@@ -1176,8 +1187,11 @@ function enter(user){
   document.getElementById('h-master').classList.toggle('hidden', !me.isMaster);
   document.getElementById('nav-admin').classList.toggle('hidden', !me.isMaster);
   joinLobby();
-  go('home');
   paintAll();
+  // Resume unfinished game after refresh
+  var resumed=false;
+  try{ resumed=restoreActiveGame(); }catch(e){ console.warn(e); }
+  if(!resumed) go('home');
 }
 
 /* ===== LOBBY / ONLINE ===== */
@@ -1193,14 +1207,21 @@ function joinLobby(){
         var arr=state[k];
         if(arr&&arr[0]){
           var av=arr[0].avatar||'';
-          onlinePlayers.push({user:k, status:arr[0].status||'available', gameId:arr[0].gameId||'', avatar:av});
-          // Cache peer photo so it shows in lobby, game and profile
+          onlinePlayers.push({
+            user:k,
+            status:arr[0].status||'available',
+            gameId:arr[0].gameId||'',
+            avatar:av,
+            opp:arr[0].opp||'',
+            color:arr[0].color||''
+          });
           if(av && me && !sameUser(k, me.name)){
             try{ localStorage.setItem(PEER_AV_KEY+k, av); }catch(e){}
           }
         }
       });
       renderOnline();
+      renderLiveGames();
       renderFriends();
     });
     lobbyCh.on('broadcast',{event:'challenge'}, function(p){
@@ -1253,10 +1274,16 @@ function joinLobby(){
     });
   }catch(e){console.error(e);setConn(false,'lobby erro')}
 }
-function setPresence(status, gameId){
+function setPresence(status, gameId, opponent){
   presenceStatus=status;
   if(!lobbyCh||!me) return;
-  var payload={status:status, gameId:gameId||'', avatar:getPublicAvatar(me.name)||''};
+  var payload={
+    status:status,
+    gameId:gameId||'',
+    avatar:getPublicAvatar(me.name)||'',
+    opp: opponent || (status==='in_game' ? (oppName||'') : ''),
+    color: status==='in_game' ? (myColor||'') : ''
+  };
   lobbyCh.track(payload);
 }
 function renderOnline(){
@@ -1269,12 +1296,53 @@ function renderOnline(){
   list.innerHTML=others.map(function(p){
     var busy=p.status==='in_game';
     var muted=isMuted(p.user);
-    return '<div class="player-row '+(busy?'busy':'available')+'" onclick="'+(busy?'':'challengePlayer(\''+p.user+'\')')+'">'+
+    var click = busy
+      ? (p.gameId ? "spectateGame('"+p.gameId+"','"+p.user+"','"+(p.opp||'')+"')" : "")
+      : "challengePlayer('"+p.user+"')";
+    return '<div class="player-row '+(busy?'busy':'available')+'" '+(click?'onclick="'+click+'"':'')+'>'+
       '<div class="avatar">'+avatarHtml(p.user)+'</div>'+
       '<div class="p-info"><div class="p-name">'+escapeHtml(p.user)+'</div>'+
-      '<div class="p-meta">'+(busy?'Em partida':'Disponível')+(muted?' · silenciado':'')+'</div></div>'+
-      (busy?'<span class="badge busy">Ocupado</span>':'<span class="badge ok">Livre</span>')+
+      '<div class="p-meta">'+(busy?('Em partida'+(p.opp?' vs '+escapeHtml(p.opp):'')):'Disponível')+(muted?' · silenciado':'')+'</div></div>'+
+      (busy?'<span class="badge busy">👁 Ver</span>':'<span class="badge ok">Livre</span>')+
       '</div>';
+  }).join('');
+}
+function renderLiveGames(){
+  var box=document.getElementById('live-games');
+  var cnt=document.getElementById('live-count');
+  if(!box) return;
+  // Group players in_game by gameId
+  var map={};
+  (onlinePlayers||[]).forEach(function(p){
+    if(p.status!=='in_game' || !p.gameId) return;
+    if(me && sameUser(p.user, me.name)) return; // don't list own game as watch target from self presence alone
+    if(!map[p.gameId]) map[p.gameId]={id:p.gameId, players:[], opps:[]};
+    map[p.gameId].players.push(p.user);
+    if(p.opp) map[p.gameId].opps.push(p.opp);
+  });
+  // Also include games where only opp is known via presence of one side
+  var games=Object.keys(map).map(function(id){
+    var g=map[id];
+    var a=g.players[0]||'';
+    var b=g.players[1]||g.opps[0]||'';
+    // dedupe
+    if(b && sameUser(a,b)) b=g.players[1]||g.opps.find(function(x){return !sameUser(x,a)})||'';
+    return {id:id, a:a, b:b||'?'};
+  }).filter(function(g){
+    // hide if I'm one of the players
+    if(me && (sameUser(g.a,me.name)||sameUser(g.b,me.name))) return false;
+    return true;
+  });
+  if(cnt) cnt.textContent=games.length;
+  if(!games.length){
+    box.innerHTML='<div class="empty" style="padding:.5rem 0">Nenhuma partida rolando agora</div>';
+    return;
+  }
+  box.innerHTML=games.map(function(g){
+    return '<div class="live-card" onclick="spectateGame(\''+g.id+'\',\''+g.a+'\',\''+g.b+'\')">'+
+      '<span class="live-dot"></span>'+
+      '<div class="live-vs">'+escapeHtml(g.a)+' <span>vs</span> '+escapeHtml(g.b)+'</div>'+
+      '<span class="live-watch">👁 Assistir</span></div>';
   }).join('');
 }
 function challengePlayer(user){
@@ -1313,10 +1381,86 @@ function startOnlineGame(gid, opponent, color){
   document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : oppName;
   document.getElementById('chat').classList.add('on');
   setupCoach(); render(); status(); movesUI(); updateCaps(); initClocks();
-  setPresence('in_game', gameId);
-  joinGameChannel();
+  setPresence('in_game', gameId, opponent);
+  joinGameChannel(false);
+  saveActiveGame();
 }
-function joinGameChannel(){
+function serializeBoard(b){
+  var out=[];
+  for(var r=0;r<8;r++) for(var c=0;c<8;c++) if(b[r][c]) out.push({r:r,c:c,p:b[r][c]});
+  return out;
+}
+function deserializeBoard(cells){
+  var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
+  (cells||[]).forEach(function(x){ if(x&&x.r!=null) b[x.r][x.c]=x.p; });
+  return b;
+}
+function buildGameState(){
+  return {
+    by: me?me.name:'',
+    board: serializeBoard(board),
+    turn: turn,
+    hist: hist.slice(),
+    capW: capW.slice(),
+    capB: capB.slice(),
+    nameW: document.getElementById('n-w')?document.getElementById('n-w').textContent:'',
+    nameB: document.getElementById('n-b')?document.getElementById('n-b').textContent:'',
+    clockW: clockW,
+    clockB: clockB,
+    timeControl: timeControl,
+    white: myColor==='w' ? me.name : oppName,
+    black: myColor==='b' ? me.name : oppName
+  };
+}
+function applyGameState(d){
+  if(!d||!d.board) return;
+  board=deserializeBoard(d.board);
+  turn=d.turn||'w';
+  hist=d.hist||[];
+  capW=d.capW||[];
+  capB=d.capB||[];
+  if(d.nameW) document.getElementById('n-w').textContent=d.nameW.replace(/\s*\(você\)\s*/i,'');
+  if(d.nameB) document.getElementById('n-b').textContent=d.nameB.replace(/\s*\(você\)\s*/i,'');
+  // Prefer explicit colors
+  if(d.white) document.getElementById('n-w').textContent=d.white+(mode==='spectate'?'':'');
+  if(d.black) document.getElementById('n-b').textContent=d.black+(mode==='spectate'?'':'');
+  if(typeof d.clockW==='number') clockW=d.clockW;
+  if(typeof d.clockB==='number') clockB=d.clockB;
+  if(typeof d.timeControl==='number') timeControl=d.timeControl;
+  last=hist.length?{from:hist[hist.length-1].from,to:hist[hist.length-1].to}:null;
+  sel=null; legal=[];
+  render(); status(); movesUI(); updateCaps(); updateClocksUI(); refreshGameAvatars();
+}
+function spectateGame(gid, p1, p2){
+  if(!gid||!sb||!me) return;
+  if(mode==='online'||mode==='spectate'){ toast('Saia da partida atual primeiro'); return; }
+  mode='spectate'; gameId=gid; oppName=''; myColor='';
+  board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[];
+  boardFlipped=false; lastEndMode='spectate'; lastEndResult=null;
+  openGameUI();
+  document.getElementById('btn-undo').style.display='none';
+  var bd=document.getElementById('btn-draw'); if(bd) bd.classList.add('hidden');
+  document.getElementById('n-w').textContent=p1||'Brancas';
+  document.getElementById('n-b').textContent=(p2&&p2!=='?')?p2:'Pretas';
+  document.getElementById('chat').classList.add('on');
+  // Spectate banner in status
+  var st=document.getElementById('status');
+  if(st){ st.className='side-status'; st.textContent='👁 Assistindo · sincronizando…'; }
+  // Inject banner above board if missing
+  var main=document.querySelector('.game-main');
+  if(main && !document.getElementById('spectate-banner')){
+    var ban=document.createElement('div');
+    ban.id='spectate-banner';
+    ban.className='spectate-banner';
+    ban.textContent='👁 Modo espectador — você não pode jogar';
+    main.insertBefore(ban, main.firstChild);
+  }
+  setupCoach(); render(); movesUI(); updateCaps(); stopClock(); updateClocksUI();
+  refreshGameAvatars();
+  joinGameChannel(true);
+  toast('Assistindo partida ao vivo');
+}
+function joinGameChannel(asSpectator){
   if(!sb||!gameId) return;
   try{
     if(gameCh){try{sb.removeChannel(gameCh)}catch(e){}}
@@ -1324,6 +1468,11 @@ function joinGameChannel(){
     gameCh.on('broadcast',{event:'move'}, function(p){
       var d=p.payload||{};
       if(sameUser(d.by, me.name)) return;
+      if(mode==='spectate'){
+        // Spectators apply any move for the side to move
+        applySpectateMove(d);
+        return;
+      }
       applyRemoteMove(d);
     });
     gameCh.on('broadcast',{event:'chat'}, function(p){
@@ -1333,17 +1482,26 @@ function joinGameChannel(){
     });
     gameCh.on('broadcast',{event:'resign'}, function(p){
       var d=p.payload||{};
+      if(mode==='spectate'){
+        showEnd('Fim de jogo', (d.by||'Jogador')+' desistiu.');
+        return;
+      }
       if(sameUser(d.by, me.name)) return;
       finishOnline('win','Adversário desistiu.');
     });
     gameCh.on('broadcast',{event:'draw_offer'}, function(p){
       var d=p.payload||{};
+      if(mode==='spectate') return;
       if(sameUser(d.by, me.name)) return;
       document.getElementById('draw-text').textContent=d.by+' oferece empate.';
       document.getElementById('ov-draw').style.display='flex';
     });
     gameCh.on('broadcast',{event:'draw_response'}, function(p){
       var d=p.payload||{};
+      if(mode==='spectate'){
+        if(d.accept) showEnd('Empate','Empate acordado.');
+        return;
+      }
       if(sameUser(d.by, me.name)) return;
       if(d.accept) finishOnline('draw','Empate acordado.');
       else toast('Empate recusado');
@@ -1358,20 +1516,103 @@ function joinGameChannel(){
       if(sameUser(d.by, me.name)) return;
       if(d.avatar){ cachePeerAvatar(d.by, d.avatar); refreshGameAvatars(); }
     });
+    // State sync for spectators
+    gameCh.on('broadcast',{event:'state_request'}, function(p){
+      var d=p.payload||{};
+      if(mode!=='online' || !board) return;
+      // Only active players answer
+      try{
+        gameCh.send({type:'broadcast', event:'state', payload: buildGameState()});
+      }catch(e){}
+    });
+    gameCh.on('broadcast',{event:'state'}, function(p){
+      var d=p.payload||{};
+      if(sameUser(d.by, me.name)) return;
+      if(mode==='spectate'){
+        applyGameState(d);
+        var st=document.getElementById('status');
+        if(st) st.textContent='👁 Assistindo · vez das '+(turn==='w'?'Brancas':'Pretas');
+        return;
+      }
+      // Online player resuming after refresh — take opponent snapshot if newer
+      if(mode==='online' && d.board){
+        var remotePlies=(d.hist||[]).length;
+        if(remotePlies >= (hist||[]).length){
+          applyGameState(d);
+          // keep our name labels with (você)
+          document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : (oppName||d.white||'Brancas');
+          document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : (oppName||d.black||'Pretas');
+          refreshGameAvatars();
+          saveActiveGame();
+          if(timeControl>0) startClockTick();
+        }
+      }
+    });
+    gameCh.on('broadcast',{event:'game_over'}, function(p){
+      var d=p.payload||{};
+      if(mode==='spectate'){
+        showEnd('Fim de jogo', d.msg||'Partida encerrada');
+      }
+    });
     gameCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
         try{
-          gameCh.send({type:'broadcast', event:'ready', payload:{by:me.name, color:myColor, avatar:getPublicAvatar(me.name)||''}});
-          // re-send avatar shortly after in case peer joined late
+          gameCh.send({type:'broadcast', event:'ready', payload:{by:me.name, color:myColor, avatar:getPublicAvatar(me.name)||'', spectator:!!asSpectator}});
           setTimeout(function(){
             try{ gameCh.send({type:'broadcast', event:'avatar', payload:{by:me.name, avatar:getPublicAvatar(me.name)||''}}); }catch(e){}
           }, 400);
+          if(asSpectator){
+            // Ask players for current board
+            setTimeout(function(){
+              try{ gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
+            }, 250);
+            setTimeout(function(){
+              try{ gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
+            }, 1200);
+          } else if(mode==='online' && board){
+            // Players occasionally publish state for late spectators
+            setTimeout(function(){
+              try{ gameCh.send({type:'broadcast', event:'state', payload: buildGameState()}); }catch(e){}
+            }, 600);
+          }
         }catch(e){}
       }
     });
   }catch(e){console.error(e)}
 }
-function applyRemoteMove(d){
+function applySpectateMove(d){
+  if(!d.from||!d.to||!board) return;
+  var moves=legalMoves(board, turn);
+  var match=null;
+  for(var i=0;i<moves.length;i++){
+    if(moves[i].from===d.from && moves[i].to===d.to){ match=moves[i]; break; }
+  }
+  if(!match && d.steps && d.steps.length){
+    match={from:d.from, to:d.to, board:null, captures:d.captures||0, steps:d.steps};
+    var nb=cloneBoard(board);
+    for(var s=0;s<(d.steps||[]).length;s++){
+      var st=d.steps[s];
+      var pr=st.r, pc=st.c, tr=st.toR, tc=st.toC;
+      if(pr==null||tr==null) continue;
+      nb[tr][tc]=nb[pr][pc]; nb[pr][pc]=0;
+      if(st.capR!=null && st.capC!=null) nb[st.capR][st.capC]=0;
+      if(Math.abs(nb[tr][tc])===1){
+        if(turn==='w' && tr===0) nb[tr][tc]=2;
+        if(turn==='b' && tr===7) nb[tr][tc]=-2;
+      }
+    }
+    match.board=nb;
+  }
+  if(!match) return;
+  doMove(match, true);
+  var st=document.getElementById('status');
+  if(st){
+    var next=legalMoves(board, turn);
+    if(!next.length) st.textContent='👁 Fim — '+(turn==='w'?'Pretas':'Brancas')+' venceram';
+    else st.textContent='👁 Assistindo · vez das '+(turn==='w'?'Brancas':'Pretas');
+  }
+}
+function applyRemoteMovefunction applyRemoteMove(d){
   if(!d.from||!d.to || !board) return;
   // Only accept moves when it is the opponent's turn
   if(turn === myColor) return;
@@ -1422,8 +1663,9 @@ function startLocal(m){
     chatMsgs=[{who:'Sistema',text:'Chat local.'}]; renderChat();
   }
   setupCoach(); render(); status(); movesUI(); updateCaps(); initClocks();
+  saveActiveGame();
 }
-function startPuzzle(){
+function startPuzzlefunction startPuzzle(){
   if(!PUZZLES.length) return toast('Sem puzzles');
   puzzleIdx=Math.floor(Math.random()*PUZZLES.length);
   loadPuzzle(puzzleIdx);
@@ -1450,6 +1692,7 @@ function loadPuzzle(idx){
   st.innerHTML='🧩 <strong>'+pz.title+'</strong>';
   stopClock(); clockW=0; clockB=0; updateClocksUI();
   toast('Puzzle '+(puzzleIdx+1)+'/'+PUZZLES.length);
+  saveActiveGame();
 }
 function openGameUI(){
   applyPrefs();
@@ -1631,6 +1874,7 @@ function doMove(move, remote){
       if(cell) cell.classList.add('promote-anim');
     }
     status(); movesUI(); updateCaps();
+    saveActiveGame();
     if(mode==='online' && gameCh && !remote){
       gameCh.send({type:'broadcast', event:'move', payload:{
         by:me.name, from:move.from, to:move.to, captures:caps,
@@ -1800,10 +2044,14 @@ function endOnlineFromBoard(){
 async function finishOnline(result, msg){
   stopClock();
   lastEndResult=result; lastEndMode='online';
+  try{
+    if(gameCh) gameCh.send({type:'broadcast', event:'game_over', payload:{by:me.name, result:result, msg:msg||''}});
+  }catch(e){}
   await applyRank(result);
   setPresence('available');
   if(gameCh&&sb){try{await sb.removeChannel(gameCh)}catch(e){} gameCh=null}
   gameId=''; mode=null;
+  clearActiveGame();
   showEnd('Fim de jogo', msg);
 }
 async function applyRank(result){
@@ -1829,7 +2077,9 @@ function showEnd(t,m){
   document.getElementById('end-m').innerHTML='<div>'+escapeHtml(m||'')+'</div>';
   var br=document.getElementById('btn-rematch');
   if(br) br.style.display=(lastEndMode==='ai'||lastEndMode==='local'||lastEndMode==='puzzle'||(lastEndMode==='online'&&oppName))?'':'none';
+  if(lastEndMode==='spectate' && br) br.style.display='none';
   document.getElementById('ov-end').style.display='flex';
+  clearActiveGame();
   try{
     var list=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
     list.unshift({at:new Date().toISOString(),mode:lastEndMode,result:lastEndResult,msg:m,opp:oppName||''});
@@ -1843,8 +2093,10 @@ function toHome(){
   document.getElementById('game').style.display='none';
   document.getElementById('nav').style.display='flex';
   if(gameCh&&sb){try{sb.removeChannel(gameCh)}catch(e){} gameCh=null}
-  mode=null; gameId='';
+  mode=null; gameId=''; oppName='';
+  clearActiveGame();
   var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
+  var ban=document.getElementById('spectate-banner'); if(ban&&ban.parentNode) ban.parentNode.removeChild(ban);
   setPresence('available');
   go('home');
 }
@@ -2367,6 +2619,126 @@ async function adminDelete(username){
   }catch(e){toast('Falha ao excluir')}
 }
 
+
+/* ===== ACTIVE GAME PERSISTENCE ===== */
+function saveActiveGame(){
+  if(!me||!board||!mode) return;
+  if(mode==='spectate') return; // don't resume spectate as player
+  try{
+    var payload={
+      v:2,
+      user: me.name,
+      mode: mode,
+      gameId: gameId||'',
+      oppName: oppName||'',
+      myColor: myColor||'w',
+      turn: turn,
+      board: serializeBoard(board),
+      hist: hist||[],
+      capW: capW||[],
+      capB: capB||[],
+      last: last,
+      boardFlipped: !!boardFlipped,
+      diff: diff,
+      timeControl: timeControl||0,
+      clockW: clockW||0,
+      clockB: clockB||0,
+      puzzleIdx: puzzleIdx,
+      puzzleActive: puzzleActive,
+      puzzleAwarded: !!puzzleAwarded,
+      chatMsgs: (chatMsgs||[]).slice(-40),
+      savedAt: Date.now()
+    };
+    localStorage.setItem(GAMEKEY, JSON.stringify(payload));
+  }catch(e){ console.warn('saveActiveGame', e); }
+}
+function clearActiveGame(){
+  try{ localStorage.removeItem(GAMEKEY); }catch(e){}
+}
+function loadActiveGameRaw(){
+  try{
+    var raw=localStorage.getItem(GAMEKEY);
+    if(!raw) return null;
+    var data=JSON.parse(raw);
+    if(!data||data.v!==2) return null;
+    // expire after 6 hours
+    if(data.savedAt && Date.now()-data.savedAt > 6*60*60*1000){ clearActiveGame(); return null; }
+    return data;
+  }catch(e){ return null; }
+}
+function restoreActiveGame(){
+  var data=loadActiveGameRaw();
+  if(!data||!me) return false;
+  if(!sameUser(data.user, me.name)) return false;
+  if(!data.mode || data.mode==='spectate') return false;
+
+  mode=data.mode;
+  gameId=data.gameId||'';
+  oppName=data.oppName||'';
+  myColor=data.myColor||'w';
+  board=deserializeBoard(data.board);
+  turn=data.turn||'w';
+  hist=data.hist||[];
+  capW=data.capW||[];
+  capB=data.capB||[];
+  last=data.last||null;
+  boardFlipped=!!data.boardFlipped;
+  if(data.diff) diff=data.diff;
+  timeControl=data.timeControl||0;
+  clockW=data.clockW||0;
+  clockB=data.clockB||0;
+  puzzleIdx=data.puzzleIdx||0;
+  puzzleActive=data.puzzleActive||null;
+  puzzleAwarded=!!data.puzzleAwarded;
+  chatMsgs=data.chatMsgs||[];
+  sel=null; legal=[];
+  lastEndMode=mode; lastEndResult=null;
+
+  openGameUI();
+
+  // UI labels
+  document.getElementById('btn-undo').style.display=(mode==='online'||mode==='spectate')?'none':'inline-block';
+  var bd=document.getElementById('btn-draw');
+  if(bd){ if(mode==='online') bd.classList.remove('hidden'); else bd.classList.add('hidden'); }
+
+  if(mode==='online'){
+    document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : oppName;
+    document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : oppName;
+    document.getElementById('chat').classList.add('on');
+    setPresence('in_game', gameId, oppName);
+    joinGameChannel(false);
+    // Ask opponent for freshest state (in case they moved while we were away)
+    setTimeout(function(){
+      try{ if(gameCh) gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
+    }, 500);
+    setTimeout(function(){
+      try{ if(gameCh) gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
+    }, 1500);
+  } else if(mode==='ai'){
+    document.getElementById('n-w').textContent=me.name+' (você)';
+    document.getElementById('n-b').textContent='Computador · '+(diff==='easy'?'Fácil':diff==='hard'?'Difícil':'Médio');
+    document.getElementById('chat').classList.remove('on');
+  } else if(mode==='local'){
+    document.getElementById('n-w').textContent='Brancas';
+    document.getElementById('n-b').textContent='Pretas';
+    document.getElementById('chat').classList.add('on');
+  } else if(mode==='puzzle'){
+    document.getElementById('n-w').textContent=myColor==='w'?me.name+' (você)':'Brancas';
+    document.getElementById('n-b').textContent=myColor==='b'?me.name+' (você)':'Pretas';
+    document.getElementById('chat').classList.remove('on');
+  }
+
+  setupCoach();
+  render(); status(); movesUI(); updateCaps(); refreshGameAvatars(); renderChat();
+  updateClocksUI();
+  if(timeControl>0 && mode!=='puzzle') startClockTick();
+  toast('Partida restaurada');
+  // If AI to move after restore
+  if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 400);
+  else if(canUseCoach() && turn===myColor && mode!=='puzzle') setTimeout(function(){coachBest(true)}, 300);
+  return true;
+}
+
 /* ===== INIT ===== */
 window.addEventListener('DOMContentLoaded', async function(){
   loadPrefs();
@@ -2380,6 +2752,11 @@ window.addEventListener('DOMContentLoaded', async function(){
       else localStorage.removeItem(SESSION);
     }catch(e){localStorage.removeItem(SESSION)}
   }
+});
+window.addEventListener('pagehide', function(){ try{ saveActiveGame(); }catch(e){} });
+window.addEventListener('beforeunload', function(){ try{ saveActiveGame(); }catch(e){} });
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden') try{ saveActiveGame(); }catch(e){}
 });
 document.addEventListener('keydown', function(e){
   if(e.key==='Enter' && document.activeElement && document.activeElement.id==='chat-in'){e.preventDefault(); sendChat()}
