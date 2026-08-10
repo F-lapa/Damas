@@ -14,7 +14,7 @@
 :root{
   --bg:#06080f;--card:rgba(14,18,32,.88);--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.13);
   --text:#f5f7fb;--muted:#8b9bb8;--blue:#5b9dff;--violet:#a78bfa;--cyan:#22d3ee;
-  --gold:#f5c542;--green:#34d399;--red:#fb7185;--sq-l:#f0d9b5;--sq-d:#b58863;
+  --gold:#f5c542;--green:#34d399;--red:#fb7185;--sq-l:#ecd9b0;--sq-d:#b06a3b;
   --radius:20px;--shadow:0 20px 60px rgba(0,0,0,.45);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -293,37 +293,37 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .cell.cap-hint .ring{position:absolute;inset:12%;border-radius:50%;border:3px solid rgba(52,211,153,.65);pointer-events:none;box-shadow:0 0 12px rgba(52,211,153,.35)}
 .cell .dot{position:absolute;width:20%;height:20%;border-radius:50%;background:rgba(0,0,0,.28);pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .piece{
-  width:74%;height:74%;border-radius:50%;
+  width:80%;height:80%;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:clamp(.7rem,2.8vw,1.15rem);
+  font-weight:900;font-size:clamp(.75rem,3vw,1.2rem);
   pointer-events:none;user-select:none;position:relative;
   backface-visibility:hidden;
 }
-/* 3D white piece — ivory */
+/* 3D white piece — polished ivory */
 .piece.w{
   background:
-    radial-gradient(circle at 30% 24%, #ffffff 0%, #fff8ee 22%, #f0e2cc 48%, #d9c6a8 72%, #bba68a 100%);
-  color:#4a3a28;
-  border:2.5px solid #c4b090;
+    radial-gradient(circle at 28% 22%, #ffffff 0%, #fffaf2 18%, #f5e8d4 40%, #e2cfae 65%, #c9b08e 88%, #a89070 100%) !important;
+  color:#4a3a28 !important;
+  border:3px solid #d4c0a0 !important;
   box-shadow:
-    0 8px 18px rgba(0,0,0,.42),
-    0 3px 6px rgba(0,0,0,.28),
-    inset 0 4px 8px rgba(255,255,255,.65),
-    inset 0 -5px 10px rgba(90,70,40,.2),
-    inset 0 0 0 1px rgba(255,255,255,.25);
+    0 10px 22px rgba(0,0,0,.48),
+    0 4px 8px rgba(0,0,0,.3),
+    inset 0 5px 10px rgba(255,255,255,.7),
+    inset 0 -6px 12px rgba(90,70,40,.22),
+    inset 0 0 0 1px rgba(255,255,255,.3) !important;
 }
-/* 3D black piece — espresso */
+/* 3D black piece — deep mahogany */
 .piece.b{
   background:
-    radial-gradient(circle at 30% 24%, #7a6250 0%, #4a3528 28%, #241810 55%, #100c08 82%, #080504 100%);
-  color:#f0e0c8;
-  border:2.5px solid #1a120c;
+    radial-gradient(circle at 28% 22%, #8a6e58 0%, #5a4030 22%, #2e1e14 48%, #160e0a 75%, #0a0604 100%) !important;
+  color:#f0e0c8 !important;
+  border:3px solid #1a100a !important;
   box-shadow:
-    0 8px 18px rgba(0,0,0,.58),
-    0 3px 6px rgba(0,0,0,.4),
-    inset 0 4px 7px rgba(255,210,160,.16),
-    inset 0 -5px 12px rgba(0,0,0,.55),
-    inset 0 0 0 1px rgba(255,200,140,.08);
+    0 10px 22px rgba(0,0,0,.62),
+    0 4px 8px rgba(0,0,0,.42),
+    inset 0 5px 9px rgba(255,210,160,.2),
+    inset 0 -6px 14px rgba(0,0,0,.6),
+    inset 0 0 0 1px rgba(255,200,140,.1) !important;
 }
 /* inner carved ring */
 .piece::before{
@@ -349,23 +349,23 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
   z-index:3;border:none;
 }
 .piece.w.king{
-  color:#8b6910;
+  color:#8b6910 !important;
   background:
-    radial-gradient(circle at 30% 24%, #fffcef 0%, #f8ecc0 25%, #efd070 52%, #d4a820 78%, #b8860b 100%);
-  border-color:#c9a027;
+    radial-gradient(circle at 28% 22%, #fffcef 0%, #f8ecc0 25%, #efd070 52%, #d4a820 78%, #b8860b 100%) !important;
+  border-color:#c9a027 !important;
   box-shadow:
-    0 8px 20px rgba(180,140,20,.4),
-    0 3px 6px rgba(0,0,0,.28),
-    inset 0 4px 8px rgba(255,255,255,.55),
-    inset 0 -5px 10px rgba(120,80,10,.25);
+    0 10px 24px rgba(180,140,20,.45),
+    0 4px 8px rgba(0,0,0,.28),
+    inset 0 5px 10px rgba(255,255,255,.6),
+    inset 0 -6px 12px rgba(120,80,10,.28) !important;
 }
 .piece.b.king{
-  color:#f5c542;
+  color:#f5c542 !important;
   box-shadow:
-    0 8px 18px rgba(0,0,0,.55),
-    0 0 14px rgba(245,197,66,.22),
-    inset 0 4px 7px rgba(255,210,160,.18),
-    inset 0 -5px 12px rgba(0,0,0,.5);
+    0 10px 22px rgba(0,0,0,.58),
+    0 0 16px rgba(245,197,66,.28),
+    inset 0 5px 9px rgba(255,210,160,.2),
+    inset 0 -6px 14px rgba(0,0,0,.55) !important;
 }
 .piece.moving{animation:piece-land .28s ease}
 .piece:not(.flying){will-change:auto}
@@ -442,12 +442,12 @@ body.theme-midnight{--bg:#03050a;--card:rgba(12,18,32,.94)}
 body.theme-royal{--bg:#0b0614;--card:rgba(28,18,48,.92);--blue:#8b5cf6;--violet:#c084fc}
 body.theme-forest{--bg:#06110c;--card:rgba(14,28,22,.92);--blue:#34d399;--violet:#6ee7b7}
 body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet:#f472b6}
-.board-frame.board-classic{--sq-l:#f0d9b5;--sq-d:#b58863}
-.board-frame.board-emerald{--sq-l:#e8f0d4;--sq-d:#5a8f45}
+.board-frame.board-classic{--sq-l:#ecd9b0;--sq-d:#b06a3b}
+.board-frame.board-emerald{--sq-l:#e5f2d3;--sq-d:#4f8a3a}
 .board-frame.board-ocean{--sq-l:#d4e8f7;--sq-d:#2f6fad}
 .board-frame.board-midnight{--sq-l:#3d4f66;--sq-d:#0d1520}
 .board-frame.board-rose{--sq-l:#ffe4e8;--sq-d:#c91d45}
-.board-frame.board-chesscom{--sq-l:#eeeed2;--sq-d:#769656}
+.board-frame.board-chesscom{--sq-l:#f0f0c8;--sq-d:#6a9b4e}
 .settings-grid{display:grid;gap:.85rem}
 .settings-grid label{display:block;font-size:.78rem;color:var(--muted);font-weight:700;margin-bottom:.35rem}
 .theme-swatches{display:flex;flex-wrap:wrap;gap:.4rem}
@@ -1230,12 +1230,14 @@ function simpleMinimax(board, depth, alpha, beta, maximizing, color){
 function searchBestMove(board, color, depth, timeMs){
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
+  // Prefer captures first — often the winning final move is a capture
   moves.sort(function(a,b){ return (b.captures||0)-(a.captures||0); });
+  if(moves.length===1) return {move:moves[0], score:0, nodes:1};
   _nodes=0;
-  var maxDepth=depth||6;
-  _deadline=Date.now()+(timeMs||80);
+  var maxDepth=depth||5;
+  var budget=Math.min(timeMs||70, 140); // hard cap so UI never freezes
+  _deadline=Date.now()+budget;
   var best=moves[0], bestScore=-1e15;
-  // No iterative deepening beyond maxDepth, no TT, no quiescence — weaker than coach
   for(var i=0;i<moves.length;i++){
     if(Date.now()>_deadline) break;
     var nb=applyMove(board, moves[i]);
@@ -2250,7 +2252,12 @@ function animatePieceMove(fromSq, toSq, pieceClass, onDone, duration){
   if(typeof onDone==='function') onDone();
 }
 function doMove(move, remote){
-  if(!move || animatingMove) return;
+  if(!move) return;
+  if(animatingMove){
+    // Queue the move so AI final move is never lost
+    setTimeout(function(){ doMove(move, remote); }, 50);
+    return;
+  }
   var caps=move.captures||0;
   if(caps) sfxCapture(); else sfxMove();
   var capturer=turn;
@@ -2330,15 +2337,18 @@ function doMove(move, remote){
       var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
       if(cellPromo) cellPromo.classList.add('promote-anim');
     }
-    var nextMoves=legalMoves(board, turn);
-    if(!nextMoves.length){
+    // Quick emptiness check without full capture-tree when possible
+    var nextMoves;
+    try{ nextMoves=legalMoves(board, turn); }catch(e){ nextMoves=[]; }
+    if(!nextMoves || !nextMoves.length){
       stopClock();
-      sfxWin();
-      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 180);
-      else setTimeout(function(){ endLocal(); }, 180);
+      try{ sfxWin(); }catch(e){}
+      // Longer delay so last animation paints cleanly before modal
+      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 350);
+      else setTimeout(function(){ endLocal(); }, 350);
       return;
     }
-    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 280);
+    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 200);
     else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 200);
   }
 
@@ -2377,15 +2387,28 @@ function doMove(move, remote){
 
 function aiPlay(){
   if(!board || mode!=='ai') return;
+  // Wait until current piece animation finishes — never drop the AI move
+  if(animatingMove){
+    setTimeout(aiPlay, 80);
+    return;
+  }
   var el=document.getElementById('status');
   if(el){ el.textContent='🤖 Computador pensando…'; el.classList.add('chk'); }
-  var depth=diff==='easy'?4:diff==='hard'?9:6;
-  var budget=diff==='easy'?40:diff==='hard'?180:90;
+  var depth=diff==='easy'?3:diff==='hard'?7:5;
+  var budget=diff==='easy'?35:diff==='hard'?120:70;
+  // Yield to browser so UI stays responsive, then search
   setTimeout(function(){
-    var res=searchBestMove(board, turn, depth, budget);
-    if(res && res.move) doMove(res.move, false);
-    else status();
-  }, 30);
+    try{
+      var res=searchBestMove(board, turn, depth, budget);
+      if(res && res.move){
+        // small yield before applying move so paint can flush
+        setTimeout(function(){ doMove(res.move, false); }, 16);
+      } else status();
+    }catch(e){
+      console.error(e);
+      status();
+    }
+  }, 20);
 }
 function status(){
   if(mode==='review'){ statusReview(); return; }
@@ -2490,12 +2513,18 @@ function endLocal(){
   lastEndResult = (winner===myColor)?'win':'loss';
   var msg = winner==='w'?'Brancas vencem.':'Pretas vencem.';
   if(mode==='ai'){
-    recordAiResult(lastEndResult);
-    awardAiPoints(lastEndResult);
-    var d=aiPointsDelta(lastEndResult);
-    if(d) msg += (d>0?' · +'+d:' · '+d)+' pts';
+    try{ recordAiResult(lastEndResult); }catch(e){}
+    try{
+      var d=aiPointsDelta(lastEndResult);
+      if(d) msg += (d>0?' · +'+d:' · '+d)+' pts';
+    }catch(e){}
+    // award points async — never block the end screen
+    setTimeout(function(){ try{ awardAiPoints(lastEndResult); }catch(e){} }, 100);
   }
-  showEnd('Fim de jogo', msg);
+  // yield one frame before modal so board isn't frozen
+  requestAnimationFrame(function(){
+    showEnd('Fim de jogo', msg);
+  });
 }
 function endOnlineFromBoard(){
   stopClock();
