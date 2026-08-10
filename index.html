@@ -991,7 +991,7 @@ function searchBestMove(board, color, depth, timeMs){
 }
 
 /* ===== STATE ===== */
-let sb=null, lobbyCh=null, gameCh=null;
+let sb=null, lobbyCh=null, gameCh=null, liveCh=null;
 let me=null, presenceStatus='available', onlinePlayers=[];
 let liveGamesMap={}; // gameId -> {id,a,b,at}
 let pendingChallenge=null;
@@ -1200,7 +1200,7 @@ function joinLobby(){
   if(!sb||!me) return;
   try{
     if(lobbyCh){try{sb.removeChannel(lobbyCh)}catch(e){}}
-    lobbyCh=sb.channel('damas-lobby',{config:{presence:{key:me.name}}});
+    lobbyCh=sb.channel('damas-lobby',{config:{presence:{key:me.name},broadcast:{self:false,ack:false}}});
     lobbyCh.on('presence',{event:'sync'}, function(){
       var state=lobbyCh.presenceState();
       onlinePlayers=[];
@@ -1296,18 +1296,76 @@ function joinLobby(){
       }
     });
   }catch(e){console.error(e);setConn(false,'lobby erro')}
+  joinLiveChannel();
+}
+function joinLiveChannel(){
+  if(!sb||!me) return;
+  try{
+    if(liveCh){ try{ sb.removeChannel(liveCh); }catch(e){} }
+    liveCh=sb.channel('damas-live-v1', {config:{broadcast:{self:true}}});
+    liveCh.on('broadcast', {event:'live_game'}, function(p){
+      var d=p.payload||{};
+      if(!d.gameId) return;
+      if(d.active===false){
+        delete liveGamesMap[d.gameId];
+      } else {
+        liveGamesMap[d.gameId]={id:d.gameId, a:d.a||d.white||'?', b:d.b||d.black||'?', at:Date.now()};
+      }
+      renderLiveGames();
+    });
+    liveCh.on('broadcast', {event:'live_ping'}, function(p){
+      // someone asked for current games — if I'm playing, answer on live channel
+      if(mode==='online' && gameId && me){
+        var w = myColor==='w' ? me.name : (oppName||'?');
+        var b = myColor==='b' ? me.name : (oppName||'?');
+        try{
+          liveCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, a:w, b:b, active:true, by:me.name}});
+        }catch(e){}
+      }
+    });
+    liveCh.subscribe(function(status){
+      if(status==='SUBSCRIBED'){
+        try{ liveCh.send({type:'broadcast', event:'live_ping', payload:{by:me.name}}); }catch(e){}
+        setTimeout(function(){ try{ liveCh.send({type:'broadcast', event:'live_ping', payload:{by:me.name}}); }catch(e){} }, 1500);
+      }
+    });
+  }catch(e){ console.warn('live channel', e); }
+}
+var liveAnnounceTimer=null;
+function stopLiveAnnounce(){
+  if(liveAnnounceTimer){ clearInterval(liveAnnounceTimer); liveAnnounceTimer=null; }
+}
+function announceLiveGame(){
+  if(!me||mode!=='online'||!gameId) return;
+  var w = myColor==='w' ? me.name : (oppName||'?');
+  var b = myColor==='b' ? me.name : (oppName||'?');
+  liveGamesMap[gameId]={id:gameId, a:w, b:b, at:Date.now()};
+  var payload={gameId:gameId, a:w, b:b, white:w, black:b, active:true, by:me.name};
+  try{ if(lobbyCh) lobbyCh.send({type:'broadcast', event:'live_game', payload:payload}); }catch(e){}
+  try{ if(liveCh) liveCh.send({type:'broadcast', event:'live_game', payload:payload}); }catch(e){}
+  renderLiveGames();
+}
+function startLiveAnnounce(){
+  stopLiveAnnounce();
+  announceLiveGame();
+  liveAnnounceTimer=setInterval(announceLiveGame, 7000);
 }
 function setPresence(status, gameId, opponent){
   presenceStatus=status;
   if(!lobbyCh||!me) return;
+  // Never put base64 avatars in presence — it breaks tracking on many projects
   var payload={
-    status:status,
-    gameId:gameId||'',
-    avatar:getPublicAvatar(me.name)||'',
-    opp: opponent || (status==='in_game' ? (oppName||'') : ''),
-    color: status==='in_game' ? (myColor||'') : ''
+    status: status||'available',
+    gameId: gameId||'',
+    opp: opponent || ((status==='in_game') ? (oppName||'') : ''),
+    color: (status==='in_game') ? (myColor||'') : '',
+    avatar: ''
   };
-  lobbyCh.track(payload);
+  try{ lobbyCh.track(payload); }catch(e){ console.warn('track', e); }
+  // retry track once (channel may still be joining)
+  setTimeout(function(){
+    try{ if(lobbyCh) lobbyCh.track(payload); }catch(e){}
+  }, 800);
 }
 function renderOnline(){
   var list=document.getElementById('online-list');
@@ -1335,45 +1393,61 @@ function renderLiveGames(){
   var cnt=document.getElementById('live-count');
   if(!box) return;
   var map={};
-  // From presence
-  (onlinePlayers||[]).forEach(function(p){
-    if(p.status!=='in_game' || !p.gameId) return;
-    if(!map[p.gameId]) map[p.gameId]={id:p.gameId, players:[], opps:[]};
-    map[p.gameId].players.push(p.user);
-    if(p.opp) map[p.gameId].opps.push(p.opp);
-  });
-  // From lobby broadcasts
+
+  function addGame(id, a, b){
+    if(!id) return;
+    if(!map[id]) map[id]={id:id, names:[]};
+    [a,b].forEach(function(n){
+      n=String(n||'').trim();
+      if(!n||n==='?'||n==='undefined') return;
+      if(!map[id].names.some(function(x){return sameUser(x,n)})) map[id].names.push(n);
+    });
+  }
+
+  // A) lobby broadcasts cache
   Object.keys(liveGamesMap||{}).forEach(function(id){
     var g=liveGamesMap[id];
-    if(!g) return;
-    if(!map[id]) map[id]={id:id, players:[], opps:[]};
-    if(g.a) map[id].players.push(g.a);
-    if(g.b) map[id].opps.push(g.b);
+    if(g) addGame(id, g.a, g.b);
   });
+
+  // B) presence: anyone marked in_game
+  (onlinePlayers||[]).forEach(function(p){
+    if(!p || p.status!=='in_game' || !p.gameId) return;
+    addGame(p.gameId, p.user, p.opp);
+  });
+
+  // C) pair: if two busy players share nothing but we only have user+opp fields
+  var busy=(onlinePlayers||[]).filter(function(p){return p.status==='in_game' && p.gameId});
+  busy.forEach(function(p){ addGame(p.gameId, p.user, p.opp); });
+
   var games=Object.keys(map).map(function(id){
-    var g=map[id];
-    var names=[];
-    (g.players||[]).concat(g.opps||[]).forEach(function(n){
-      if(!n||n==='?') return;
-      if(!names.some(function(x){return sameUser(x,n)})) names.push(n);
-    });
-    var a=names[0]||'?';
-    var b=names[1]||'?';
-    return {id:id, a:a, b:b};
+    var names=map[id].names||[];
+    return {id:id, a:names[0]||'Jogador', b:names[1]||'Adversário', names:names};
   }).filter(function(g){
-    if(me && (sameUser(g.a,me.name)||sameUser(g.b,me.name))) return false;
-    if(g.a==='?' && g.b==='?') return false;
+    // hide only if I'm clearly one of the two named players
+    if(me && g.names.some(function(n){return sameUser(n, me.name)})) return false;
     return true;
   });
+
+  // Prune stale broadcast entries (>3 min without refresh)
+  var now=Date.now();
+  Object.keys(liveGamesMap||{}).forEach(function(id){
+    if(liveGamesMap[id] && liveGamesMap[id].at && now-liveGamesMap[id].at>180000) delete liveGamesMap[id];
+  });
+
   if(cnt) cnt.textContent=String(games.length);
   if(!games.length){
-    box.innerHTML='<div class="empty" style="padding:.5rem 0">Nenhuma partida rolando agora</div>';
+    var busyN = (onlinePlayers||[]).filter(function(p){return p.status==='in_game'}).length;
+    box.innerHTML='<div class="empty" style="padding:.55rem 0">Nenhuma partida para assistir'+(busyN?' · '+busyN+' em jogo (sua ou privada)':'')+'</div>';
     return;
   }
   box.innerHTML=games.map(function(g){
-    return '<div class="live-card" onclick="spectateGame(\''+g.id+'\',\''+String(g.a).replace(/'/g,'')+'\',\''+String(g.b).replace(/'/g,'')+'\')">'+
+    var a=String(g.a).replace(/\\/g,'').replace(/'/g,'');
+    var b=String(g.b).replace(/\\/g,'').replace(/'/g,'');
+    return '<div class="live-card" onclick="spectateGame(\''+g.id+'\',\''+a+'\',\''+b+'\')">'+
       '<span class="live-dot"></span>'+
-      '<div class="live-vs">'+escapeHtml(g.a)+' <span>vs</span> '+escapeHtml(g.b)+'</div>'+
+      '<div class="live-vs">'+escapeHtml(g.a)+' <span>vs</span> '+escapeHtml(g.b)+
+      '<div style="font-size:.72rem;color:var(--muted);font-weight:700;margin-top:.15rem">Clique para assistir ao vivo</div></div>'+
       '<span class="live-watch">👁 Assistir</span></div>';
   }).join('');
 }
@@ -1417,15 +1491,7 @@ function startOnlineGame(gid, opponent, color){
   setPresence('in_game', gameId, opponent);
   joinGameChannel(false);
   saveActiveGame();
-  // Announce live game to lobby spectators
-  try{
-    if(lobbyCh){
-      var w = color==='w' ? me.name : opponent;
-      var b = color==='b' ? me.name : opponent;
-      liveGamesMap[gameId]={id:gameId, a:w, b:b, at:Date.now()};
-      lobbyCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, a:w, b:b, white:w, black:b, active:true}});
-    }
-  }catch(e){}
+  startLiveAnnounce();
   renderLiveGames();
 }
 function serializeBoard(b){
@@ -1849,27 +1915,24 @@ function getCellRect(sq){
   return cell.getBoundingClientRect();
 }
 function animatePieceMove(fromSq, toSq, pieceClass, onDone){
-  var boardEl=document.getElementById('board');
-  var frame=document.getElementById('board-frame');
-  if(!boardEl||!frame){ if(onDone) onDone(); return; }
-  var fromR=getCellRect(fromSq), toR=getCellRect(toSq);
-  if(!fromR||!toR){ if(onDone) onDone(); return; }
-  var fr=frame.getBoundingClientRect();
-  var flyer=document.createElement('div');
-  flyer.className='piece flying '+pieceClass;
-  flyer.style.width=(fromR.width*0.78)+'px';
-  flyer.style.height=(fromR.height*0.78)+'px';
-  flyer.style.left=(toR.left-fr.left+(toR.width*0.11))+'px';
-  flyer.style.top=(toR.top-fr.top+(toR.height*0.11))+'px';
-  var dx=fromR.left-toR.left, dy=fromR.top-toR.top;
-  flyer.style.setProperty('--dx', dx+'px');
-  flyer.style.setProperty('--dy', dy+'px');
-  frame.style.position='relative';
-  frame.appendChild(flyer);
-  setTimeout(function(){
-    if(flyer.parentNode) flyer.parentNode.removeChild(flyer);
-    if(onDone) onDone();
-  }, 340);
+  try{
+    var frame=document.getElementById('board-frame');
+    var fromR=getCellRect(fromSq), toR=getCellRect(toSq);
+    if(frame && fromR && toR){
+      var fr=frame.getBoundingClientRect();
+      var flyer=document.createElement('div');
+      flyer.className='piece flying '+(pieceClass||'');
+      flyer.style.width=(fromR.width*0.78)+'px';
+      flyer.style.height=(fromR.height*0.78)+'px';
+      flyer.style.left=(toR.left-fr.left+(toR.width*0.11))+'px';
+      flyer.style.top=(toR.top-fr.top+(toR.height*0.11))+'px';
+      flyer.style.setProperty('--dx', (fromR.left-toR.left)+'px');
+      flyer.style.setProperty('--dy', (fromR.top-toR.top)+'px');
+      frame.appendChild(flyer);
+      setTimeout(function(){ if(flyer.parentNode) flyer.parentNode.removeChild(flyer); }, 300);
+    }
+  }catch(e){}
+  if(typeof onDone==='function') onDone();
 }
 function doMove(move, remote){
   if(!move) return;
@@ -1910,35 +1973,36 @@ function doMove(move, remote){
   sel=null; legal=[];
   turn = turn==='w'?'b':'w';
 
-  var finish=function(){
-    render();
-    if(wasPromo){
-      var cell=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
-      if(cell) cell.classList.add('promote-anim');
-    }
-    status(); movesUI(); updateCaps();
-    saveActiveGame();
-    if(mode==='online' && gameCh && !remote){
+  // Apply UI immediately — never leave pieces invisible/frozen
+  render();
+  if(wasPromo){
+    var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
+    if(cellPromo) cellPromo.classList.add('promote-anim');
+  }
+  status(); movesUI(); updateCaps();
+  saveActiveGame();
+  if(mode==='online' && gameCh && !remote){
+    try{
       gameCh.send({type:'broadcast', event:'move', payload:{
         by:me.name, from:move.from, to:move.to, captures:caps,
         steps:move.steps, clockW:clockW, clockB:clockB
       }});
-    }
-    if(mode==='puzzle'){ checkPuzzle(move); return; }
-    var nextMoves=legalMoves(board, turn);
-    if(!nextMoves.length){
-      stopClock();
-      sfxWin();
-      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 280);
-      else setTimeout(function(){ endLocal(); }, 280);
-      return;
-    }
-    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 380);
-    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 320);
-  };
-  var srcCell=document.querySelector('#board [data-sq="'+fromSq+'"] .piece');
-  if(srcCell) srcCell.style.opacity='0';
-  animatePieceMove(fromSq, toSq, pieceCls, finish);
+    }catch(e){}
+  }
+  // Cosmetic flight only (does not gate logic)
+  try{ animatePieceMove(fromSq, toSq, pieceCls, null); }catch(e){}
+
+  if(mode==='puzzle'){ checkPuzzle(move); return; }
+  var nextMoves=legalMoves(board, turn);
+  if(!nextMoves.length){
+    stopClock();
+    sfxWin();
+    if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 220);
+    else setTimeout(function(){ endLocal(); }, 220);
+    return;
+  }
+  if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 300);
+  else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 240);
 }
 function checkPuzzle(move){
   if(!puzzleActive||puzzleAwarded) return;
@@ -2091,9 +2155,12 @@ async function finishOnline(result, msg){
     if(gameCh) gameCh.send({type:'broadcast', event:'game_over', payload:{by:me.name, result:result, msg:msg||''}});
   }catch(e){}
   await applyRank(result);
+  stopLiveAnnounce();
   try{
-    if(lobbyCh && gameId){
-      lobbyCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, active:false}});
+    if(gameId){
+      var off={gameId:gameId, active:false, by:me&&me.name};
+      if(lobbyCh) lobbyCh.send({type:'broadcast', event:'live_game', payload:off});
+      if(liveCh) liveCh.send({type:'broadcast', event:'live_game', payload:off});
       delete liveGamesMap[gameId];
     }
   }catch(e){}
@@ -2142,9 +2209,12 @@ function toHome(){
   document.getElementById('ov-end').style.display='none';
   document.getElementById('game').style.display='none';
   document.getElementById('nav').style.display='flex';
+  stopLiveAnnounce();
   try{
-    if(lobbyCh && gameId && (mode==='online')){
-      lobbyCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, active:false}});
+    if(gameId && mode==='online'){
+      var off={gameId:gameId, active:false, by:me&&me.name};
+      if(lobbyCh) lobbyCh.send({type:'broadcast', event:'live_game', payload:off});
+      if(liveCh) liveCh.send({type:'broadcast', event:'live_game', payload:off});
       delete liveGamesMap[gameId];
     }
   }catch(e){}
@@ -2317,6 +2387,7 @@ function go(v){
   document.querySelectorAll('#nav button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
   if(v==='settings') paintPreview();
   if(v==='admin') paintAdmin();
+  if(v==='home'){ renderOnline(); renderLiveGames(); }
   paintAll();
 }
 async function paintAll(){
@@ -2764,6 +2835,7 @@ function restoreActiveGame(){
     document.getElementById('chat').classList.add('on');
     setPresence('in_game', gameId, oppName);
     joinGameChannel(false);
+    startLiveAnnounce();
     // Ask opponent for freshest state (in case they moved while we were away)
     setTimeout(function(){
       try{ if(gameCh) gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
