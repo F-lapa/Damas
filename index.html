@@ -170,7 +170,28 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .piece.w.king{color:#8b6914}
 .piece.b.king{color:#f5c542}
 .piece.moving{animation:piece-land .32s cubic-bezier(.2,.9,.3,1)}
+
 .piece:not(.flying){will-change:transform}
+/* Piece style packs */
+.pieces-classic .piece.w{background:radial-gradient(circle at 32% 28%,#fffef9 0%,#f0e8d8 38%,#d4c8b0 70%,#b8a890 100%);border-color:#a09070;color:#3a3020}
+.pieces-classic .piece.b{background:radial-gradient(circle at 32% 28%,#5a4a3a 0%,#2a1e14 45%,#120c08 75%,#0a0604 100%);border-color:#2a2010;color:#f5e8d0}
+.pieces-wood .piece.w{background:radial-gradient(circle at 30% 25%,#f6e2b8,#d4a574 50%,#a67c52);border:3px solid #8b5e34;box-shadow:0 4px 10px rgba(0,0,0,.35),inset 0 2px 4px rgba(255,255,255,.35)}
+.pieces-wood .piece.b{background:radial-gradient(circle at 30% 25%,#6b3f2a,#3e2214 55%,#1a0e08);border:3px solid #2a160c;box-shadow:0 4px 10px rgba(0,0,0,.5),inset 0 2px 4px rgba(255,200,150,.12)}
+.pieces-neon .piece.w{background:radial-gradient(circle at 35% 30%,#e0f2fe,#7dd3fc 45%,#0ea5e9);border:2px solid #38bdf8;box-shadow:0 0 14px rgba(56,189,248,.55),inset 0 2px 6px rgba(255,255,255,.4);color:#0c4a6e}
+.pieces-neon .piece.b{background:radial-gradient(circle at 35% 30%,#fce7f3,#e879f9 45%,#a21caf);border:2px solid #e879f9;box-shadow:0 0 14px rgba(232,121,249,.5),inset 0 2px 6px rgba(255,255,255,.2);color:#fdf4ff}
+.pieces-neon .piece.w.king{color:#0369a1}
+.pieces-neon .piece.b.king{color:#f0abfc}
+.pieces-stone .piece.w{background:radial-gradient(circle at 35% 30%,#f8fafc,#cbd5e1 50%,#94a3b8);border:2px solid #64748b;box-shadow:0 5px 12px rgba(0,0,0,.3),inset 0 2px 4px rgba(255,255,255,.5);color:#334155}
+.pieces-stone .piece.b{background:radial-gradient(circle at 35% 30%,#475569,#1e293b 55%,#0f172a);border:2px solid #0f172a;box-shadow:0 5px 12px rgba(0,0,0,.55),inset 0 2px 4px rgba(255,255,255,.1);color:#e2e8f0}
+.pieces-gold .piece.w{background:radial-gradient(circle at 32% 28%,#fffbeb,#fcd34d 40%,#d97706 80%);border:2.5px solid #b45309;box-shadow:0 4px 14px rgba(217,119,6,.4),inset 0 2px 5px rgba(255,255,255,.5);color:#78350f}
+.pieces-gold .piece.b{background:radial-gradient(circle at 32% 28%,#44403c,#1c1917 50%,#0c0a09);border:2.5px solid #292524;box-shadow:0 4px 14px rgba(0,0,0,.5),inset 0 2px 5px rgba(252,211,77,.15);color:#fde68a}
+.pieces-gold .piece.w.king,.pieces-gold .piece.b.king{color:#fbbf24}
+.pieces-flat .piece{box-shadow:0 2px 6px rgba(0,0,0,.25)!important}
+.pieces-flat .piece.w{background:#f5f0e6;border:2px solid #c4b8a0;color:#3a3020}
+.pieces-flat .piece.b{background:#1a1410;border:2px solid #3a3020;color:#f5e8d0}
+.pieces-ruby .piece.w{background:radial-gradient(circle at 32% 28%,#fff1f2,#fda4af 45%,#e11d48);border:2px solid #be123c;box-shadow:0 0 12px rgba(225,29,72,.35),inset 0 2px 5px rgba(255,255,255,.4);color:#881337}
+.pieces-ruby .piece.b{background:radial-gradient(circle at 32% 28%,#3f3f46,#18181b 55%,#09090b);border:2px solid #27272a;color:#fecdd3}
+
 .player-card{width:min(94vw,600px);display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.75rem 1.05rem;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line)}
 .player-card.active{border-color:rgba(91,157,255,.6);box-shadow:0 0 0 1px rgba(91,157,255,.25)}
 .pc-avatar{width:42px;height:42px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem;color:#fff;overflow:hidden;background:linear-gradient(135deg,var(--blue),var(--violet));border:2px solid rgba(255,255,255,.15)}
@@ -421,6 +442,18 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
             <div>
               <label>Estilo do tabuleiro</label>
               <div class="board-swatches" id="board-swatches"></div>
+            </div>
+            <div>
+              <label>Estilo das peças</label>
+              <div class="diff-row" id="piece-style-row">
+                <button type="button" data-piece="classic" class="on" onclick="setPieceStyle('classic')">Clássico</button>
+                <button type="button" data-piece="wood" onclick="setPieceStyle('wood')">Madeira</button>
+                <button type="button" data-piece="neon" onclick="setPieceStyle('neon')">Neon</button>
+                <button type="button" data-piece="stone" onclick="setPieceStyle('stone')">Pedra</button>
+                <button type="button" data-piece="gold" onclick="setPieceStyle('gold')">Ouro</button>
+                <button type="button" data-piece="flat" onclick="setPieceStyle('flat')">Flat</button>
+                <button type="button" data-piece="ruby" onclick="setPieceStyle('ruby')">Rubi</button>
+              </div>
             </div>
             <div>
               <label>Opções</label>
@@ -897,7 +930,7 @@ let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
 let timeControl=0, clockW=0, clockB=0, clockTimer=null, clockRunning=false, lastClockTick=0;
 let boardFlipped=false, lastEndResult=null, lastEndMode=null;
 let puzzleIdx=0, puzzleActive=null, puzzleAwarded=false;
-let prefs={ui:'dark', board:'classic', sound:true, coords:true};
+let prefs={ui:'dark', board:'classic', pieces:'classic', sound:true, coords:true};
 let rankKing='';
 
 /* Puzzles — simple forced win / capture tactics */
@@ -1100,7 +1133,14 @@ function joinLobby(){
       onlinePlayers=[];
       Object.keys(state).forEach(function(k){
         var arr=state[k];
-        if(arr&&arr[0]) onlinePlayers.push({user:k, status:arr[0].status||'available', gameId:arr[0].gameId||'', avatar:arr[0].avatar||''});
+        if(arr&&arr[0]){
+          var av=arr[0].avatar||'';
+          onlinePlayers.push({user:k, status:arr[0].status||'available', gameId:arr[0].gameId||'', avatar:av});
+          // Cache peer photo so it shows in lobby, game and profile
+          if(av && me && !sameUser(k, me.name)){
+            try{ localStorage.setItem(PEER_AV_KEY+k, av); }catch(e){}
+          }
+        }
       });
       renderOnline();
       renderFriends();
@@ -1110,6 +1150,7 @@ function joinLobby(){
       if(!sameUser(d.to, me.name)) return;
       if(isMuted(d.from)) return;
       pendingChallenge=d;
+      if(d.avatar) cachePeerAvatar(d.from, d.avatar);
       document.getElementById('challenge-text').textContent=d.from+' desafiou você para uma partida de damas!';
       document.getElementById('ov-challenge').style.display='flex';
     });
@@ -1118,6 +1159,7 @@ function joinLobby(){
       if(!sameUser(d.to, me.name)) return;
       document.getElementById('ov-wait').style.display='none';
       if(d.accept){
+        if(d.avatar) cachePeerAvatar(d.from, d.avatar);
         // Challenger is always White; accepter sent their own color ('b')
         startOnlineGame(d.gameId, d.from, 'w');
       } else toast(d.from+' recusou o desafio');
@@ -1182,7 +1224,7 @@ function challengePlayer(user){
   if(isMuted(user)) return toast('Você silenciou este jogador');
   var gameId='g_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
   pendingChallenge={to:user, from:me.name, gameId:gameId, myColor:'w'};
-  lobbyCh.send({type:'broadcast', event:'challenge', payload:{from:me.name, to:user, gameId:gameId}});
+  lobbyCh.send({type:'broadcast', event:'challenge', payload:{from:me.name, to:user, gameId:gameId, avatar:getPublicAvatar(me.name)||''}});
   document.getElementById('wait-text').textContent='Aguardando '+user+'…';
   document.getElementById('ov-wait').style.display='flex';
 }
@@ -1195,7 +1237,8 @@ function respondChallenge(accept){
   if(!pendingChallenge||!lobbyCh) return;
   var d=pendingChallenge;
   lobbyCh.send({type:'broadcast', event:'challenge_response', payload:{
-    from:me.name, to:d.from, accept:accept, gameId:d.gameId, myColor:accept?'b':'w'
+    from:me.name, to:d.from, accept:accept, gameId:d.gameId, myColor:accept?'b':'w',
+    avatar:getPublicAvatar(me.name)||''
   }});
   if(accept) startOnlineGame(d.gameId, d.from, 'b');
   pendingChallenge=null;
@@ -1250,10 +1293,22 @@ function joinGameChannel(){
     gameCh.on('broadcast',{event:'ready'}, function(p){
       var d=p.payload||{};
       if(sameUser(d.by, me.name)) return;
+      if(d.avatar){ cachePeerAvatar(d.by, d.avatar); refreshGameAvatars(); }
+    });
+    gameCh.on('broadcast',{event:'avatar'}, function(p){
+      var d=p.payload||{};
+      if(sameUser(d.by, me.name)) return;
+      if(d.avatar){ cachePeerAvatar(d.by, d.avatar); refreshGameAvatars(); }
     });
     gameCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
-        try{ gameCh.send({type:'broadcast', event:'ready', payload:{by:me.name, color:myColor}}); }catch(e){}
+        try{
+          gameCh.send({type:'broadcast', event:'ready', payload:{by:me.name, color:myColor, avatar:getPublicAvatar(me.name)||''}});
+          // re-send avatar shortly after in case peer joined late
+          setTimeout(function(){
+            try{ gameCh.send({type:'broadcast', event:'avatar', payload:{by:me.name, avatar:getPublicAvatar(me.name)||''}}); }catch(e){}
+          }, 400);
+        }catch(e){}
       }
     });
   }catch(e){console.error(e)}
@@ -1927,11 +1982,23 @@ function savePrefs(){try{localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))}
 function applyPrefs(){
   document.body.className='';
   if(prefs.ui && prefs.ui!=='dark') document.body.classList.add('theme-'+prefs.ui);
+  var ps=prefs.pieces||'classic';
+  document.body.classList.add('pieces-'+ps);
   var bf=document.getElementById('board-frame');
   if(bf){ bf.className='board-frame board-'+(prefs.board||'classic'); }
+  var pb=document.getElementById('preview-board');
+  if(pb){ pb.className='board-frame board-'+(prefs.board||'classic')+' pieces-'+ps; }
   document.getElementById('opt-sound')&&document.getElementById('opt-sound').classList.toggle('on', prefs.sound!==false);
   document.getElementById('opt-coords')&&document.getElementById('opt-coords').classList.toggle('on', prefs.coords!==false);
   document.querySelectorAll('#ui-theme-swatches button').forEach(function(b){b.classList.toggle('on', b.dataset.ui===(prefs.ui||'dark'))});
+  document.querySelectorAll('#piece-style-row button').forEach(function(b){b.classList.toggle('on', b.dataset.piece===ps)});
+}
+function setPieceStyle(t){
+  prefs.pieces=t||'classic';
+  savePrefs(); applyPrefs();
+  if(board) render();
+  paintPreview();
+  toast('Peças: '+(t||'classic'));
 }
 function setUiTheme(t){prefs.ui=t; savePrefs(); applyPrefs()}
 function setBoardTheme(t){prefs.board=t; savePrefs(); applyPrefs(); paintPreview(); if(board) render()}
@@ -1967,9 +2034,28 @@ function paintPreview(){
 
 /* ===== AVATAR / FRIENDS / MUTE / PROFILE / ADMIN ===== */
 function getAvatarData(user){
-  try{ if(me&&user===me.name) return localStorage.getItem(AVATAR_KEY+user)||''; return localStorage.getItem(PEER_AV_KEY+user)||''; }catch(e){return ''}
+  if(!user) return '';
+  try{
+    if(me && sameUser(user, me.name)) return localStorage.getItem(AVATAR_KEY+me.name)||'';
+    var peer=localStorage.getItem(PEER_AV_KEY+user)||'';
+    if(peer) return peer;
+    var op=(onlinePlayers||[]).find(function(p){return sameUser(p.user,user)});
+    if(op && op.avatar) return op.avatar;
+  }catch(e){}
+  return '';
 }
-function getPublicAvatar(user){try{return localStorage.getItem(AVATAR_KEY+'public_'+user)||''}catch(e){return ''}}
+function getPublicAvatar(user){
+  try{
+    var pub=localStorage.getItem(AVATAR_KEY+'public_'+(user||''))||'';
+    if(pub) return pub;
+    if(me && sameUser(user, me.name)) return localStorage.getItem(AVATAR_KEY+me.name)||'';
+  }catch(e){}
+  return '';
+}
+function cachePeerAvatar(user, dataUrl){
+  if(!user||!dataUrl||String(dataUrl).indexOf('data:')!==0) return;
+  try{ localStorage.setItem(PEER_AV_KEY+user, dataUrl); }catch(e){}
+}
 function avatarHtml(user){
   var data=getAvatarData(user);
   if(data) return '<img src="'+data+'" alt=""/>';
@@ -1991,10 +2077,13 @@ function onAvatarFile(ev){
       var ctx=c.getContext('2d');
       var s=Math.min(img.width,img.height);
       ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,256,256);
+      // Compact public version for presence / peer share (~96px)
+      var cPub=document.createElement('canvas'); cPub.width=96; cPub.height=96;
+      cPub.getContext('2d').drawImage(c,0,0,96,96);
       try{
-        localStorage.setItem(AVATAR_KEY+me.name, c.toDataURL('image/jpeg',0.75));
-        localStorage.setItem(AVATAR_KEY+'public_'+me.name, c.toDataURL('image/jpeg',0.5));
-        paintDashAvatar(); setPresence(presenceStatus); toast('Foto atualizada');
+        localStorage.setItem(AVATAR_KEY+me.name, c.toDataURL('image/jpeg',0.72));
+        localStorage.setItem(AVATAR_KEY+'public_'+me.name, cPub.toDataURL('image/jpeg',0.55));
+        paintDashAvatar(); setPresence(presenceStatus); toast('Foto atualizada — visível para outros online');
       }catch(e){toast('Não coube no storage')}
     };
     img.src=reader.result;
@@ -2003,9 +2092,17 @@ function onAvatarFile(ev){
 }
 function refreshGameAvatars(){
   var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
-  var nw=document.getElementById('n-w'), nb=document.getElementById('n-b');
-  if(aw) aw.innerHTML=avatarHtml(playerKey(nw?nw.textContent:''));
-  if(ab) ab.innerHTML=avatarHtml(playerKey(nb?nb.textContent:''));
+  var nameW, nameB;
+  if(mode==='online' && me){
+    nameW = myColor==='w' ? me.name : (oppName||'');
+    nameB = myColor==='b' ? me.name : (oppName||'');
+  } else {
+    var nw=document.getElementById('n-w'), nb=document.getElementById('n-b');
+    nameW=playerKey(nw?nw.textContent:'');
+    nameB=playerKey(nb?nb.textContent:'');
+  }
+  if(aw) aw.innerHTML=avatarHtml(nameW);
+  if(ab) ab.innerHTML=avatarHtml(nameB);
 }
 function playerKey(label){return String(label||'').replace(/\s*\(você\)\s*/i,'').trim()}
 
