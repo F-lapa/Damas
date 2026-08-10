@@ -136,6 +136,18 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .hist-meta .when{font-size:.7rem;color:var(--muted);font-weight:700}
 .hist-meta .moves-n{font-size:.68rem;color:#93c5fd;font-weight:800;margin-top:.2rem}
 .hist-empty{text-align:center;padding:1.5rem;color:var(--muted);font-size:.88rem}
+
+.review-bar{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;margin-top:.55rem}
+.review-bar button{
+  padding:.42rem .7rem;border-radius:10px;font-size:.78rem;font-weight:800;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text)
+}
+.review-bar button:hover{background:rgba(91,157,255,.15);border-color:rgba(91,157,255,.4)}
+.review-bar .btn-back{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.3);color:#fecdd3}
+.moves-box .clickable{cursor:pointer;padding:.1rem .28rem;border-radius:6px;transition:.12s}
+.moves-box .clickable:hover{background:rgba(91,157,255,.2)}
+.moves-box .clickable.on{background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;font-weight:900}
+
 .game-review-moves{max-height:220px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;background:rgba(0,0,0,.3);border-radius:12px;padding:.75rem .85rem;border:1px solid var(--line);line-height:1.6;text-align:left;margin:.7rem 0}
 .game-review-moves .n{color:var(--muted);margin-right:.25rem}
 .game-review-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem;padding:.75rem;border-radius:14px;background:linear-gradient(135deg,rgba(91,157,255,.12),rgba(167,139,250,.08));border:1px solid rgba(91,157,255,.2)}
@@ -661,7 +673,8 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 <div class="overlay" id="ov-end"><div class="modal">
   <h2 id="end-t">Fim</h2>
   <div id="end-m" style="color:var(--muted);margin-bottom:1rem;line-height:1.45;text-align:left"></div>
-  <div class="modal-actions end-actions">
+  <div class="modal-actions end-actions" style="flex-wrap:wrap">
+    <button type="button" class="btn-soft" id="btn-review-end" onclick="reviewLastFinished()" style="display:none">📜 Revisar lances</button>
     <button type="button" class="btn-soft" id="btn-rematch" onclick="rematch()">🔁 Revanche</button>
     <button type="button" class="btn-main" onclick="toHome()">Lobby</button>
   </div>
@@ -1936,6 +1949,11 @@ function openGameUI(){
   document.getElementById('game').style.display='block';
   document.getElementById('nav').style.display='none';
   document.getElementById('ov-end').style.display='none';
+  // restore action buttons (may have been hidden in review)
+  document.querySelectorAll('.game-actions button').forEach(function(b){
+    if(b.id==='btn-draw') return; // managed separately
+    b.style.display='';
+  });
   refreshGameAvatars();
 }
 function canUseCoach(){
@@ -2008,7 +2026,7 @@ function render(){
   }
 }
 function click(sq){
-  if(!board || mode==='spectate') return;
+  if(!board || mode==='spectate' || mode==='review') return;
   if((mode==='ai'||mode==='online') && turn!==myColor) return;
   var moves=legalMoves(board, turn);
   if(sel){
@@ -2139,6 +2157,7 @@ function aiPlay(){
   }, 30);
 }
 function status(){
+  if(mode==='review'){ statusReview(); return; }
   var el=document.getElementById('status'); if(!el) return;
   el.className='side-status';
   var moves=legalMoves(board, turn);
@@ -2153,6 +2172,7 @@ function status(){
   document.getElementById('bar-b').classList.toggle('active', turn==='b');
 }
 function movesUI(){
+  if(mode==='review'){ movesUIReview(); return; }
   var box=document.getElementById('moves'), h='';
   for(var i=0;i<hist.length;i+=2){
     var n=Math.floor(i/2)+1;
@@ -2224,6 +2244,7 @@ function undo(){
   sel=null; legal=[]; render(); status(); movesUI(); updateCaps();
 }
 function resign(){
+  if(mode==='review'){ toHome(); return; }
   if(!confirm('Desistir?')) return;
   if(mode==='online'){
     if(gameCh) gameCh.send({type:'broadcast',event:'resign',payload:{by:me.name}});
@@ -2297,7 +2318,6 @@ function showEnd(t,m){
   var br=document.getElementById('btn-rematch');
   if(br) br.style.display=(lastEndMode==='ai'||lastEndMode==='local'||(lastEndMode==='online'&&oppName))?'':'none';
   if(lastEndMode==='spectate' && br) br.style.display='none';
-  document.getElementById('ov-end').style.display='flex';
   clearActiveGame();
   // Save full game record (all moves) for later analysis
   try{
@@ -2327,9 +2347,13 @@ function showEnd(t,m){
         ply: (hist||[]).length,
         player: me ? me.name : ''
       };
+      window.__lastFinishedGame = record;
       saveGameRecord(record);
     }
   }catch(e){ console.warn('save history', e); }
+  var brv=document.getElementById('btn-review-end');
+  if(brv) brv.style.display = (hist && hist.length && lastEndMode!=='spectate') ? '' : 'none';
+  document.getElementById('ov-end').style.display='flex';
 }
 function saveGameRecord(record){
   if(!record) return;
@@ -2401,54 +2425,167 @@ function mergeHistory(local, cloud){
   out.sort(function(a,b){ return String(b.at||'').localeCompare(String(a.at||'')); });
   return out;
 }
+/* ===== REVISÃO DE PARTIDAS (replay no tabuleiro) ===== */
+var reviewMoves=null, reviewCursor=-1;
+
 function openGameReview(idx){
   try{
     var list=window._histCache||[];
     var g=list[idx];
-    if(!g) return;
-    var body=document.getElementById('review-body');
-    var title=document.getElementById('review-title');
-    if(!body||!title) return;
-    var resLabel=g.result==='win'?'Vitória':g.result==='loss'?'Derrota':g.result==='draw'?'Empate':(g.result||'—');
-    var modeLabel=g.mode==='ai'?'vs IA':g.mode==='online'?'Online':g.mode==='local'?'Local':(g.mode||'?');
-    var when=(g.at||'').slice(0,19).replace('T',' ');
-    var opp=g.opp||(sameUser(g.white,me&&me.name)?g.black:g.white)||'—';
-    title.textContent='Análise · '+modeLabel;
-    var moves=g.moves||[];
-    var movesHtml='';
-    if(!moves.length){
-      movesHtml='<div style="color:var(--muted);padding:.5rem 0">Nenhuma jogada gravada nesta partida.</div>';
-    } else {
-      for(var i=0;i<moves.length;i+=2){
-        var n=Math.floor(i/2)+1;
-        var a=moves[i], b=moves[i+1];
-        movesHtml+='<div><span class="n">'+n+'.</span> '+(a.san||(a.from+'-'+a.to))+(a.captures?' ×'+a.captures:'');
-        if(b) movesHtml+=' &nbsp; '+(b.san||(b.from+'-'+b.to))+(b.captures?' ×'+b.captures:'');
-        movesHtml+='</div>';
+    if(!g) return toast('Partida não encontrada');
+    if(!g.moves || !g.moves.length) return toast('Esta partida não tem lances salvos');
+    startReview(g);
+  }catch(e){ console.error(e); toast('Erro ao abrir revisão'); }
+}
+function closeGameReview(){
+  var ov=document.getElementById('ov-game-review');
+  if(ov) ov.style.display='none';
+}
+function reviewLastFinished(){
+  document.getElementById('ov-end').style.display='none';
+  if(window.__lastFinishedGame && window.__lastFinishedGame.moves && window.__lastFinishedGame.moves.length){
+    startReview(window.__lastFinishedGame);
+  } else {
+    toast('Nada para revisar');
+  }
+}
+function startReview(g){
+  reviewMoves = (g.moves||[]).slice();
+  if(!reviewMoves.length){ toast('Esta partida não tem lances salvos'); return; }
+  mode='review';
+  lastEndMode='review';
+  gameId='';
+  oppName = g.opp || (me && sameUser(g.white, me.name) ? (g.black||'') : (g.white||'')) || '';
+  myColor = g.myColor || (me && sameUser(g.white, me.name) ? 'w' : 'b');
+  boardFlipped = (myColor==='b');
+  stopClock();
+  timeControl=0; clockW=0; clockB=0;
+  capW=[]; capB=[];
+  chatMsgs=[];
+  sel=null; legal=[]; last=null;
+  openGameUI();
+  document.getElementById('btn-undo').style.display='none';
+  var bd=document.getElementById('btn-draw'); if(bd) bd.classList.add('hidden');
+  document.getElementById('chat').classList.remove('on');
+  var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
+  // hide resign in review (Lobby remains)
+  var acts=document.querySelectorAll('.game-actions button');
+  acts.forEach(function(b){
+    if(b.textContent && b.textContent.indexOf('Desistir')>=0) b.style.display='none';
+    else if(b.id==='btn-undo' || b.id==='btn-draw') {}
+    else if(b.getAttribute('onclick')==='resign()') b.style.display='none';
+  });
+  // Labels
+  var wName = g.white || 'Brancas';
+  var bName = g.black || 'Pretas';
+  document.getElementById('n-w').textContent = wName + (me && sameUser(wName, me.name) ? ' (você)' : '');
+  document.getElementById('n-b').textContent = bName + (me && sameUser(bName, me.name) ? ' (você)' : '');
+  refreshGameAvatars();
+  updateClocksUI();
+  // Review controls in game-actions
+  var acts=document.querySelector('.game-actions');
+  if(acts){
+    var existing=document.getElementById('btn-review-back');
+    if(existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    // Inject review bar into status area via statusReview
+  }
+  hist = reviewMoves.slice();
+  reviewCursor=-1;
+  reviewGoto(-1);
+  toast('Revisão · use ◀ ▶ ou clique nos lances');
+}
+function findMoveOnBoard(brd, color, from, to){
+  var moves=legalMoves(brd, color);
+  for(var i=0;i<moves.length;i++){
+    if(moves[i].from===from && moves[i].to===to) return moves[i];
+  }
+  // fallback: only from+to ignoring exact path
+  for(var j=0;j<moves.length;j++){
+    if(moves[j].from===from && moves[j].to===to) return moves[j];
+  }
+  return null;
+}
+function reviewGoto(i){
+  if(!reviewMoves) return;
+  i = Math.max(-1, Math.min(reviewMoves.length-1, i|0));
+  reviewCursor=i;
+  board=newBoard();
+  turn='w';
+  capW=[]; capB=[];
+  last=null;
+  for(var k=0;k<=i;k++){
+    var mv=reviewMoves[k];
+    if(!mv || !mv.from || !mv.to) continue;
+    var found=findMoveOnBoard(board, turn, mv.from, mv.to);
+    if(!found){
+      // try opposite color once if desync
+      found=findMoveOnBoard(board, turn==='w'?'b':'w', mv.from, mv.to);
+      if(found) turn = turn==='w'?'b':'w';
+    }
+    if(!found) continue;
+    var caps=found.captures||0;
+    if(caps){
+      for(var c=0;c<caps;c++){
+        if(turn==='w') capW.push('●'); else capB.push('●');
       }
     }
-    body.innerHTML=
-      '<div class="game-review-head">'+
-        '<div class="gr-av">'+avatarHtml(opp)+'</div>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-weight:900">'+escapeHtml(opp)+'</div>'+
-          '<div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">'+escapeHtml(modeLabel)+' · '+escapeHtml(resLabel)+' · '+moves.length+' lances</div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="prof-grid" style="margin-bottom:.5rem">'+
-        '<div class="prof-stat"><b>'+escapeHtml(resLabel)+'</b><span>Resultado</span></div>'+
-        '<div class="prof-stat"><b>'+moves.length+'</b><span>Jogadas</span></div>'+
-        '<div class="prof-stat"><b>'+escapeHtml((g.white||'—').slice(0,12))+'</b><span>Brancas</span></div>'+
-        '<div class="prof-stat"><b>'+escapeHtml((g.black||'—').slice(0,12))+'</b><span>Pretas</span></div>'+
-      '</div>'+
-      '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">'+escapeHtml(when)+'</div>'+
-      '<h3 style="font-size:.88rem;margin:.4rem 0">Jogadas</h3>'+
-      '<div class="game-review-moves">'+movesHtml+'</div>'+
-      (g.msg?'<p class="note" style="margin-top:.4rem">'+escapeHtml(g.msg)+'</p>':'');
-    document.getElementById('ov-game-review').style.display='flex';
-  }catch(e){ console.error(e); toast('Erro ao abrir análise'); }
+    board=applyMove(board, found);
+    last={from:mv.from, to:mv.to};
+    turn = turn==='w'?'b':'w';
+  }
+  sel=null; legal=[];
+  render();
+  statusReview();
+  movesUIReview();
+  updateCaps();
 }
-function closeGameReview(){ document.getElementById('ov-game-review').style.display='none'; }
+function reviewStep(d){
+  if(!reviewMoves) return;
+  reviewGoto(reviewCursor + d);
+}
+function statusReview(){
+  var st=document.getElementById('status');
+  if(!st||!reviewMoves) return;
+  var cur = reviewCursor<0
+    ? 'Início da partida'
+    : ('Lance '+(reviewCursor+1)+'/'+reviewMoves.length+(reviewMoves[reviewCursor]?' · '+(reviewMoves[reviewCursor].san||(reviewMoves[reviewCursor].from+'-'+reviewMoves[reviewCursor].to)):'') );
+  st.className='side-status';
+  st.innerHTML='📜 <strong>Revisão</strong> — '+escapeHtml(cur)+
+    '<div class="review-bar">'+
+    '<button type="button" class="btn-back" onclick="toHome()">← Voltar</button>'+
+    '<button type="button" onclick="reviewGoto(-1)">⏮ Início</button>'+
+    '<button type="button" onclick="reviewStep(-1)">◀</button>'+
+    '<button type="button" onclick="reviewStep(1)">▶</button>'+
+    '<button type="button" onclick="reviewGoto(reviewMoves.length-1)">⏭ Fim</button>'+
+    '</div>';
+  document.getElementById('bar-w').classList.toggle('active', turn==='w');
+  document.getElementById('bar-b').classList.toggle('active', turn==='b');
+}
+function movesUIReview(){
+  var box=document.getElementById('moves'), h='';
+  if(!box) return;
+  if(!reviewMoves){ box.innerHTML=''; return; }
+  for(var i=0;i<reviewMoves.length;i+=2){
+    var n=Math.floor(i/2)+1;
+    var a=reviewMoves[i], b=reviewMoves[i+1];
+    var onA = reviewCursor===i ? ' on' : '';
+    var onB = reviewCursor===i+1 ? ' on' : '';
+    var sanA = a ? (a.san||(a.from+'-'+a.to)) : '';
+    var sanB = b ? (b.san||(b.from+'-'+b.to)) : '';
+    h+='<div class="row">'+
+      '<span class="n">'+n+'.</span> '+
+      (a?'<span class="clickable'+onA+'" onclick="reviewGoto('+i+')">'+escapeHtml(sanA)+'</span>':'')+' '+
+      (b?'<span class="clickable'+onB+'" onclick="reviewGoto('+(i+1)+')">'+escapeHtml(sanB)+'</span>':'')+
+      '</div>';
+  }
+  box.innerHTML=h;
+  // scroll to current
+  try{
+    var on=box.querySelector('.clickable.on');
+    if(on) on.scrollIntoView({block:'nearest'});
+  }catch(e){}
+}
+
 function toHome(){
   stopClock();
   document.getElementById('ov-end').style.display='none';
@@ -2465,6 +2602,7 @@ function toHome(){
   }catch(e){}
   if(gameCh&&sb){try{sb.removeChannel(gameCh)}catch(e){} gameCh=null}
   mode=null; gameId=''; oppName='';
+  reviewCursor=-1; reviewMoves=null;
   clearActiveGame();
   renderLiveGames();
   var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
@@ -3282,6 +3420,12 @@ document.addEventListener('visibilitychange', function(){
   if(document.visibilityState==='hidden') try{ saveActiveGame(); }catch(e){}
 });
 document.addEventListener('keydown', function(e){
+  if(mode==='review' && reviewMoves){
+    if(e.key==='ArrowLeft'){ e.preventDefault(); reviewStep(-1); return; }
+    if(e.key==='ArrowRight'){ e.preventDefault(); reviewStep(1); return; }
+    if(e.key==='Home'){ e.preventDefault(); reviewGoto(-1); return; }
+    if(e.key==='End'){ e.preventDefault(); reviewGoto(reviewMoves.length-1); return; }
+  }
   if(e.key==='Enter' && document.activeElement && document.activeElement.id==='chat-in'){e.preventDefault(); sendChat()}
   else if(e.key==='Enter'){
     var a=document.getElementById('auth');
