@@ -29,6 +29,11 @@ body{
   min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;
 }
 body::before{content:'';position:fixed;inset:-15%;background:radial-gradient(circle at 30% 20%,rgba(91,157,255,.1),transparent 40%),radial-gradient(circle at 70% 70%,rgba(167,139,250,.08),transparent 42%);animation:floaty 14s ease-in-out infinite;pointer-events:none;z-index:0}
+body.in-game::before{animation:none!important;transform:none!important}
+body.in-game .card{animation:none!important}
+#board .piece{animation:none}
+#board .piece.promote-anim{animation:piece-promote .35s ease}
+#board .piece.captured-anim{animation:piece-capture-pop .22s ease forwards}
 @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes scale-in{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
@@ -586,12 +591,12 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
             <h3>🤝 Amigos</h3>
             <div id="friends-list"><div class="empty" style="padding:.35rem 0">Carregando…</div></div>
           </div>
-          <p class="note">Toque no perfil · captura opcional · dama corre várias casas (damas brasileiras).</p>
+          <p class="note">Captura obrigatória · lei da maioria · dama voadora · pedra captura p/ frente e trás.</p>
         </div>
         <div class="card">
           <h2>🎯 Treino local</h2>
           <div class="modes">
-            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · regras brasileiras · não altera ranking online</div></div></div>
+            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · captura obrigatória · lei da maioria · não altera ranking online</div></div></div>
             <div class="mode" onclick="startLocal('local')"><div class="i">👥</div><div><div class="t">Dois jogadores</div><div class="d">Mesmo dispositivo</div></div></div>
           </div>
           <div class="section-label" style="margin-top:1rem">Dificuldade da IA</div>
@@ -843,13 +848,16 @@ async function createHashedPassword(password){
   return 'pbkdf2$'+salt+'$'+(await hashPassword(password, salt));
 }
 
-/* ===== CHECKERS ENGINE — Damas brasileiras =====
+/* ===== CHECKERS ENGINE — Damas brasileiras (regras oficiais adaptadas) =====
    Regras:
-   - Captura NÃO é obrigatória
-   - Pedras (men): andam 1 casa na diagonal para frente
-   - Em capturas, pedras podem capturar em qualquer diagonal (inclui para trás), inclusive em sequência dupla/tripla
-   - Dama (king): corre várias casas na diagonal (frente e trás) — dama voadora
-   - Dama captura à distância na diagonal e pode continuar a sequência
+   - Casas escuras apenas · 12 pedras cada · Brancas começam
+   - Pedra: anda 1 casa na diagonal somente para FRENTE
+   - Captura OBRIGATÓRIA (sem sopro)
+   - Pedra pode capturar para FRENTE e para TRÁS (qualquer diagonal)
+   - Lei da maioria: se há várias capturas, obrigatório a sequência com MAIS peças
+   - Dama (voadora): anda várias casas na diagonal (frente/trás)
+   - Dama captura à distância e pode continuar a sequência
+   - Vitória: capturar todas as peças OU adversário sem lance legal
    Board 8x8: 0 vazio, 1 pedra branca, 2 dama branca, -1 pedra preta, -2 dama preta
    Brancas embaixo (linhas 5–7), movem diminuindo a linha; pretas em cima, aumentando a linha.
 */
@@ -996,10 +1004,21 @@ function getAllJumpSequences(board, r, c){
 }
 
 function legalMoves(board, color){
-  // Captura NÃO obrigatória — quiet + captures
+  // Captura OBRIGATÓRIA + Lei da maioria (máximo de peças na sequência)
   var caps=collectCaptures(board, color);
-  var quiet=collectQuietMoves(board, color);
-  return caps.concat(quiet);
+  if(caps.length){
+    var maxC=0, i;
+    for(i=0;i<caps.length;i++){
+      var c=caps[i].captures||0;
+      if(c>maxC) maxC=c;
+    }
+    var best=[];
+    for(i=0;i<caps.length;i++){
+      if((caps[i].captures||0)===maxC) best.push(caps[i]);
+    }
+    return best;
+  }
+  return collectQuietMoves(board, color);
 }
 
 function applyMove(board, move){
@@ -1026,7 +1045,7 @@ function boardHash(board){
 }
 
 function evaluateBoard(board, forColor){
-  // Avaliação forte para damas brasileiras (captura opcional + dama voadora)
+  // Avaliação forte para damas brasileiras (captura obrigatória + lei da maioria + dama voadora)
   var score=0, wMen=0, bMen=0, wK=0, bK=0, wMob=0, bMob=0;
   var dirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
   var wBack=0, bBack=0, wAdv=0, bAdv=0;
@@ -1271,7 +1290,7 @@ function searchBestMove(board, color, depth, timeMs){
   if(moves.length===1) return {move:moves[0], score:0, nodes:1};
   _nodes=0;
   var maxDepth=depth||5;
-  var budget=Math.min(timeMs||70, 140);
+  var budget=Math.min(timeMs||70, 260);
   _deadline=Date.now()+budget;
   var best=moves[0], bestScore=-1e15;
   for(var i=0;i<moves.length;i++){
@@ -1707,9 +1726,12 @@ function joinLobby(){
           if(!lobbyCh||!me) return;
           try{
             setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:''));
-            syncPresenceList();
+            // Na partida não fica re-renderizando lista online o tempo todo
+            if(mode!=='online' && mode!=='ai' && mode!=='local' && mode!=='review' && mode!=='spectate'){
+              syncPresenceList();
+            }
           }catch(e){}
-        }, 10000);
+        }, 15000);
       } else if(status==='CHANNEL_ERROR' || status==='TIMED_OUT' || status==='CLOSED'){
         setConn(false, 'reconectando…');
         // tenta reentrar no lobby
@@ -1774,7 +1796,9 @@ function announceLiveGame(){
   var payload={gameId:gameId, a:w, b:b, white:w, black:b, active:true, by:me.name};
   try{ if(lobbyCh) lobbyCh.send({type:'broadcast', event:'live_game', payload:payload}); }catch(e){}
   try{ if(liveCh) liveCh.send({type:'broadcast', event:'live_game', payload:payload}); }catch(e){}
-  renderLiveGames();
+  // Só atualiza lista se estiver no lobby (evita trabalho inútil na partida)
+  var home=document.getElementById('v-home');
+  if(home && !home.classList.contains('hidden')) renderLiveGames();
 }
 function startLiveAnnounce(){
   stopLiveAnnounce();
@@ -2110,7 +2134,8 @@ function joinGameChannel(asSpectator){
       // Online player resuming after refresh — take opponent snapshot if newer
       if(mode==='online' && d.board){
         var remotePlies=(d.hist||[]).length;
-        if(remotePlies >= (hist||[]).length){
+        // Só aplica se o adversário estiver à frente (evita re-render inútil e piscar)
+        if(remotePlies > (hist||[]).length){
           applyGameState(d);
           // keep our name labels with (você)
           document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : (oppName||d.white||'Brancas');
@@ -2251,6 +2276,8 @@ function startLocal(m){
 }
 function openGameUI(){
   applyPrefs();
+  document.body.classList.add('in-game');
+  _boardHtmlCache=''; // força primeiro paint limpo
   ['v-home','v-dash','v-rank','v-settings','v-admin'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.classList.add('hidden');
   });
@@ -2287,18 +2314,30 @@ function setupCoach(){
   }, 350);
 }
 
+var _boardHtmlCache='';
 function render(opts){
   var el=document.getElementById('board'); if(!el||!board) return;
   opts=opts||{};
   var skipHints=!!opts.skipHints || animatingMove;
   var ghostSq=opts.ghostSq||null;
+  var force=!!opts.force;
   var html='';
   var files='abcdefgh';
   var legalTo={};
+  var mustFrom={};
   if(!skipHints && legal && legal.length){
     for(var i=0;i<legal.length;i++){
       legalTo[legal[i].to]=legal[i];
     }
+  }
+  // Destaca peças que têm captura obrigatória (lei da maioria)
+  if(!skipHints && !sel && board && turn){
+    try{
+      var allL=legalMoves(board, turn);
+      for(var mi=0;mi<allL.length;mi++){
+        if((allL[mi].captures||0)>0) mustFrom[allL[mi].from]=true;
+      }
+    }catch(e){}
   }
   for(var r=0;r<8;r++) for(var c=0;c<8;c++){
     var rr=boardFlipped?7-r:r, cc=boardFlipped?7-c:c;
@@ -2306,6 +2345,7 @@ function render(opts){
     var cls='cell '+(((rr+cc)%2===0)?'l':'d');
     if(sel===sq) cls+=' sel';
     if(last && (last.from===sq||last.to===sq)) cls+=' last';
+    if(!sel && mustFrom[sq]) cls+=' must-capture';
     var lm=legalTo[sq];
     if(lm){
       if((lm.captures||0)>0) cls+=' cap-hint';
@@ -2329,8 +2369,12 @@ function render(opts){
     }
     html+='</div>';
   }
+  // Evita piscar: não reescreve o DOM se nada mudou
+  if(!force && html===_boardHtmlCache && el.childNodes.length===64){
+    return;
+  }
+  _boardHtmlCache=html;
   el.innerHTML=html;
-  // single delegated click (faster than 64 listeners)
   if(!el._clickBound){
     el._clickBound=true;
     el.addEventListener('click', function(ev){
@@ -2356,10 +2400,17 @@ function click(sq){
   }
 }
 function pick(sq){
-  sel=sq;
   var moves=legalMoves(board, turn);
-  // Captura opcional: mostra todos os lances da peça (quietos e capturas)
   legal=moves.filter(function(m){return m.from===sq});
+  if(!legal.length){
+    // Com captura obrigatória / lei da maioria, esta peça não pode jogar agora
+    sel=null; legal=[];
+    var anyCap=moves.some(function(m){return (m.captures||0)>0});
+    if(anyCap) toast('Captura obrigatória — escolha a sequência com mais peças');
+    render();
+    return;
+  }
+  sel=sq;
   render();
 }
 function getCellRect(sq){
@@ -2560,8 +2611,9 @@ function aiPlay(){
   }
   var el=document.getElementById('status');
   if(el){ el.textContent='🤖 Computador pensando…'; el.classList.add('chk'); }
-  var depth=diff==='easy'?3:diff==='hard'?7:5;
-  var budget=diff==='easy'?35:diff==='hard'?120:70;
+  // PC forte, mas bem abaixo do Coach Supremo (mestre)
+  var depth=diff==='easy'?4:diff==='hard'?10:6;
+  var budget=diff==='easy'?50:diff==='hard'?220:100;
   // Yield to browser so UI stays responsive, then search
   setTimeout(function(){
     try{
@@ -2586,7 +2638,7 @@ function status(){
     el.classList.add('mate');
   } else {
     var cap=moves.some(function(m){return (m.captures||0)>0});
-    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura disponível':'');
+    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura obrigatória'+((moves[0]&&moves[0].captures>1)?(' · lei da maioria ('+moves[0].captures+'x)'):''):'');
   }
   document.getElementById('bar-w').classList.toggle('active', turn==='w');
   document.getElementById('bar-b').classList.toggle('active', turn==='b');
@@ -3025,6 +3077,7 @@ function movesUIReview(){
 }
 
 function exitReview(){
+  document.body.classList.remove('in-game');
   reviewCursor=-1; reviewMoves=null;
   mode=null;
   // remove temporary review home button
@@ -3039,6 +3092,7 @@ function exitReview(){
   toast('Voltou para Jogar');
 }
 function toHome(){
+  document.body.classList.remove('in-game');
   stopClock();
   document.getElementById('ov-end').style.display='none';
   document.getElementById('game').style.display='none';
@@ -3113,7 +3167,7 @@ function coachBest(auto){
     document.getElementById('coach-text').textContent=why;
     sel=m.from;
     legal=[m];
-    last={from:m.from, to:m.to};
+    // Não altera `last` — evita piscar o destaque do último lance real
     render();
   }, 10);
 }
@@ -3123,8 +3177,8 @@ function coachPlan(){
   var w=countPieces(board,'w'), b=countPieces(board,'b');
   var total=w.total+b.total;
   var plan;
-  if(n<6) plan='Abertura (damas brasileiras): avance o centro, prepare a promoção e não entregue capturas grátis — a captura não é obrigatória, use-a só se for vantajosa.';
-  else if(total>10) plan='Meio-jogo: busque sequências duplas/triplas (a pedra pode capturar para trás na sequência). Troque para obter dama voadora.';
+  if(n<6) plan='Abertura: avance o centro e prepare promoção. Captura é obrigatória — calcule trocas e a lei da maioria (sempre a sequência com mais peças).';
+  else if(total>10) plan='Meio-jogo: force sequências longas (pedra captura também para trás). Use a lei da maioria a seu favor e priorize promover a dama voadora.';
   else if(total>4) plan='Final: a dama corre várias casas — domine diagonais longas, restrinja a dama rival e force promoções.';
   else plan='Final técnico: com dama voadora, centralize, varra as diagonais e deixe o adversário sem casas seguras.';
   if(w.kings+b.kings) plan+=' Dama ativa vale mais do que material parado.';
@@ -3543,7 +3597,10 @@ function fillMissingAvatars(){
       if(!names.length){
         // still try a bulk sync
         await syncAvatarsFromDb();
-        renderOnline(); renderFriends(); refreshGameAvatars();
+        renderOnline(); renderFriends();
+        if(mode!=='online' && mode!=='ai' && mode!=='local' && mode!=='review' && mode!=='spectate'){
+          refreshGameAvatars();
+        }
         return;
       }
       // One query for many usernames when possible
@@ -3574,7 +3631,10 @@ function fillMissingAvatars(){
       }
       renderOnline();
       renderFriends();
-      refreshGameAvatars();
+      // Durante a partida não mexe nos avatares do tabuleiro (evita piscar)
+      if(mode!=='online' && mode!=='ai' && mode!=='local' && mode!=='review' && mode!=='spectate'){
+        refreshGameAvatars();
+      }
     }catch(e){}
   }, 200);
 }
@@ -3631,8 +3691,15 @@ function refreshGameAvatars(){
     nameW=playerKey(nw?nw.textContent:'');
     nameB=playerKey(nb?nb.textContent:'');
   }
-  if(aw) aw.innerHTML=avatarHtml(nameW);
-  if(ab) ab.innerHTML=avatarHtml(nameB);
+  function setAv(el, name){
+    if(!el) return;
+    var html=avatarHtml(name);
+    if(el._avHtml===html) return; // não pisca a foto
+    el._avHtml=html;
+    el.innerHTML=html;
+  }
+  setAv(aw, nameW);
+  setAv(ab, nameB);
 }
 function playerKey(label){return String(label||'').replace(/\s*\(você\)\s*/i,'').trim()}
 
