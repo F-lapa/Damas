@@ -144,13 +144,22 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .hist-meta .moves-n{font-size:.68rem;color:#93c5fd;font-weight:800;margin-top:.2rem}
 .hist-empty{text-align:center;padding:1.5rem;color:var(--muted);font-size:.88rem}
 
-.review-bar{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;margin-top:.55rem}
+.review-bar{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin-top:.65rem;align-items:center}
 .review-bar button{
-  padding:.42rem .7rem;border-radius:10px;font-size:.78rem;font-weight:800;
+  padding:.48rem .8rem;border-radius:12px;font-size:.8rem;font-weight:800;
   background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text)
 }
 .review-bar button:hover{background:rgba(91,157,255,.15);border-color:rgba(91,157,255,.4)}
-.review-bar .btn-back{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.3);color:#fecdd3}
+.review-bar .btn-back{
+  background:linear-gradient(135deg,var(--blue),var(--violet));border:none;color:#fff;
+  padding:.55rem 1.1rem;font-weight:900;box-shadow:0 6px 18px rgba(91,157,255,.3)
+}
+.review-bar .btn-back:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.game-actions .btn-review-home{
+  background:linear-gradient(135deg,var(--blue),var(--violet))!important;
+  border:none!important;color:#fff!important;font-weight:900!important;
+  padding:.6rem 1.25rem!important;box-shadow:0 6px 18px rgba(91,157,255,.3)
+}
 .moves-box .clickable{cursor:pointer;padding:.1rem .28rem;border-radius:6px;transition:.12s}
 .moves-box .clickable:hover{background:rgba(91,157,255,.2)}
 .moves-box .clickable.on{background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;font-weight:900}
@@ -2076,8 +2085,11 @@ function openGameUI(){
   document.getElementById('nav').style.display='none';
   document.getElementById('ov-end').style.display='none';
   // restore action buttons (may have been hidden in review)
+  var bh=document.getElementById('btn-review-home');
+  if(bh && bh.parentNode) bh.parentNode.removeChild(bh);
   document.querySelectorAll('.game-actions button').forEach(function(b){
     if(b.id==='btn-draw') return; // managed separately
+    if(b.id==='btn-review-home') return;
     b.style.display='';
   });
   refreshGameAvatars();
@@ -2397,7 +2409,7 @@ function undo(){
   sel=null; legal=[]; render(); status(); movesUI(); updateCaps();
 }
 function resign(){
-  if(mode==='review'){ toHome(); return; }
+  if(mode==='review'){ exitReview(); return; }
   if(!confirm('Desistir?')) return;
   if(mode==='online'){
     if(gameCh) gameCh.send({type:'broadcast',event:'resign',payload:{by:me.name}});
@@ -2621,13 +2633,25 @@ function startReview(g){
   var bd=document.getElementById('btn-draw'); if(bd) bd.classList.add('hidden');
   document.getElementById('chat').classList.remove('on');
   var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
-  // hide resign in review (Lobby remains)
-  var acts=document.querySelectorAll('.game-actions button');
-  acts.forEach(function(b){
-    if(b.textContent && b.textContent.indexOf('Desistir')>=0) b.style.display='none';
-    else if(b.id==='btn-undo' || b.id==='btn-draw') {}
-    else if(b.getAttribute('onclick')==='resign()') b.style.display='none';
-  });
+  // Review mode: only show navigation + back to play
+  var actsBox=document.querySelector('.game-actions');
+  if(actsBox){
+    actsBox.querySelectorAll('button').forEach(function(b){ b.style.display='none'; });
+    var backBtn=document.getElementById('btn-review-home');
+    if(!backBtn){
+      backBtn=document.createElement('button');
+      backBtn.type='button';
+      backBtn.id='btn-review-home';
+      backBtn.className='btn-review-home';
+      backBtn.textContent='← Voltar para Jogar';
+      backBtn.onclick=function(){ exitReview(); };
+      actsBox.appendChild(backBtn);
+    }
+    backBtn.style.display='';
+    // also keep flip useful
+    var flip=actsBox.querySelector('button[onclick="flipBoard()"]');
+    if(flip) flip.style.display='';
+  }
   // Labels
   var wName = g.white || 'Brancas';
   var bName = g.black || 'Pretas';
@@ -2705,7 +2729,7 @@ function statusReview(){
   st.className='side-status';
   st.innerHTML='📜 <strong>Revisão</strong> — '+escapeHtml(cur)+
     '<div class="review-bar">'+
-    '<button type="button" class="btn-back" onclick="toHome()">← Voltar</button>'+
+    '<button type="button" class="btn-back" onclick="exitReview()">← Voltar para Jogar</button>'+
     '<button type="button" onclick="reviewGoto(-1)">⏮ Início</button>'+
     '<button type="button" onclick="reviewStep(-1)">◀</button>'+
     '<button type="button" onclick="reviewStep(1)">▶</button>'+
@@ -2739,6 +2763,20 @@ function movesUIReview(){
   }catch(e){}
 }
 
+function exitReview(){
+  reviewCursor=-1; reviewMoves=null;
+  mode=null;
+  // remove temporary review home button
+  var bh=document.getElementById('btn-review-home');
+  if(bh && bh.parentNode) bh.parentNode.removeChild(bh);
+  document.querySelectorAll('.game-actions button').forEach(function(b){ b.style.display=''; });
+  document.getElementById('game').style.display='none';
+  document.getElementById('nav').style.display='flex';
+  var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
+  setPresence('available');
+  go('home');
+  toast('Voltou para Jogar');
+}
 function toHome(){
   stopClock();
   document.getElementById('ov-end').style.display='none';
