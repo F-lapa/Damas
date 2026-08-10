@@ -315,10 +315,19 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 .pw-wrap{position:relative;display:flex;align-items:center}
 .pw-wrap input{width:100%;padding-right:2.6rem!important}
 .pw-eye{position:absolute;right:.45rem;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;font-size:1.05rem;opacity:.75;padding:.25rem .4rem}
-.admin-card{border:1px solid rgba(245,197,66,.35)!important}
-.admin-list{display:flex;flex-direction:column;gap:.55rem;margin-top:.5rem}
-.admin-row{display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-start;padding:.85rem;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.22)}
-.btn-danger{padding:.55rem .85rem;border-radius:12px;font-weight:900;font-size:.8rem;background:rgba(251,113,133,.16);border:1px solid rgba(251,113,133,.4);color:#fecdd3;cursor:pointer}
+.admin-card{border:1px solid rgba(245,197,66,.28)!important;background:linear-gradient(165deg,rgba(255,255,255,.06),rgba(255,255,255,.02))!important}
+.admin-list{display:flex;flex-direction:column;gap:.5rem;margin-top:.65rem}
+.admin-row{display:grid;grid-template-columns:48px 1fr auto;gap:.85rem;align-items:center;padding:.9rem 1rem;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.2);transition:.15s}
+.admin-row:hover{border-color:rgba(91,157,255,.35);background:rgba(91,157,255,.06)}
+.admin-row .adm-av{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;background:linear-gradient(135deg,rgba(91,157,255,.4),rgba(167,139,250,.35));border:1px solid var(--line2);overflow:hidden}
+.admin-row .adm-av img{width:100%;height:100%;object-fit:cover}
+.admin-row .adm-name{font-weight:900;font-size:.95rem}
+.admin-row .adm-meta{font-size:.75rem;color:var(--muted);margin-top:.2rem;display:flex;flex-wrap:wrap;gap:.45rem}
+.admin-row .adm-meta span{padding:.12rem .4rem;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.admin-row .adm-actions{display:flex;flex-direction:column;gap:.35rem;align-items:flex-end}
+.btn-danger{padding:.5rem .85rem;border-radius:10px;font-weight:900;font-size:.76rem;background:rgba(251,113,133,.14);border:1px solid rgba(251,113,133,.35);color:#fecdd3;cursor:pointer;transition:.15s}
+.btn-danger:hover{background:rgba(251,113,133,.28)}
+.adm-badge-master{font-size:.65rem;font-weight:900;padding:.15rem .45rem;border-radius:6px;background:linear-gradient(135deg,#f5c542,#f59e0b);color:#1a1200;margin-left:.35rem;vertical-align:middle}
 #nav-admin{color:#fde68a!important}
 .profile-modal{max-width:min(96vw,460px)!important;text-align:left}
 .prof-hero{display:flex;gap:1rem;align-items:center;margin-bottom:1rem;padding:.85rem;border-radius:16px;background:linear-gradient(135deg,rgba(91,157,255,.14),rgba(167,139,250,.08));border:1px solid rgba(91,157,255,.22)}
@@ -544,12 +553,23 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
     </div>
 
     <div id="v-admin" class="hidden">
+      <div class="rank-hero" style="background:radial-gradient(ellipse at 10% 0%,rgba(245,197,66,.2),transparent 50%),linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.02))">
+        <div>
+          <h2>🛡️ Painel do Mestre</h2>
+          <div class="rh-sub">Gestão de contas · estatísticas · moderação</div>
+        </div>
+        <div class="rank-stats">
+          <span class="rs" id="adm-total">— contas</span>
+          <span class="rs" id="adm-online">— online</span>
+          <button type="button" class="rs" style="cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;color:#fff" onclick="paintAdmin()">↻ Atualizar</button>
+        </div>
+      </div>
+      <div class="kpi" id="adm-kpis" style="margin-bottom:1rem"></div>
       <div class="card admin-card">
-        <div class="panel-title"><h2>🛡️ Painel do Mestre</h2><span class="chip-soft">somente fernandolapa</span></div>
-        <p class="note">Controle de contas. A senha do mestre nunca é exibida.</p>
+        <div class="panel-title"><h2 style="margin:0">Contas registradas</h2><span class="chip-soft">senha do mestre protegida</span></div>
         <div class="search-box">
           <input id="admin-search" type="text" placeholder="Filtrar por usuário…" oninput="paintAdmin()"/>
-          <button type="button" onclick="paintAdmin()">🔄 Atualizar</button>
+          <button type="button" onclick="paintAdmin()">🔍 Filtrar</button>
         </div>
         <div id="admin-list" class="admin-list"><div class="empty">Carregando…</div></div>
       </div>
@@ -1027,32 +1047,59 @@ let rankKing='';
 
 /* Puzzles — simple forced win / capture tactics */
 const PUZZLES=[
-  {title:'Captura obrigatória', fen:null, setup:function(){
+  /* Hard Brazilian-rules puzzles — solutions verified against engine */
+  {title:'Tripla mortal', setup:function(){
     var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[5][2]=1; b[4][3]=-1; b[2][5]=-1; // white can jump
-    return {board:b, turn:'w', sol:[{from:'c3',to:'e5'}]};
+    b[6][1]=1; // white man b2
+    b[5][2]=-1; b[3][4]=-1; b[1][6]=-1; // blacks to multi-jump
+    return {board:b, turn:'w', sol:[{from:'b2',to:'d4'},{from:'d4',to:'f6'},{from:'f6',to:'h8'}]};
   }},
-  {title:'Dupla captura', setup:function(){
+  {title:'Dama voadora', setup:function(){
     var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[6][1]=1; b[5][2]=-1; b[3][4]=-1;
-    return {board:b, turn:'w', sol:[{from:'b2',to:'d4'},{from:'d4',to:'f6'}]};
+    b[7][0]=2; // white king a1
+    b[4][3]=-1; // black d4
+    b[4][5]=-1; // black f4 — after capture can continue
+    return {board:b, turn:'w', sol:[{from:'a1',to:'e5'},{from:'e5',to:'g3'}]};
   }},
-  {title:'Promoção', setup:function(){
+  {title:'Captura para trás', setup:function(){
     var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[1][2]=1; b[0][1]=0;
-    return {board:b, turn:'w', sol:[{from:'c7',to:'b8'}]};
+    // White d2 multi: d2->b4->d6 (includes direction change)
+    b[6][3]=1; b[5][2]=-1; b[3][2]=-1;
+    return {board:b, turn:'w', sol:[{from:'d2',to:'b4'},{from:'b4',to:'d6'}]};
   }},
-  {title:'Dama no ataque', setup:function(){
+  {title:'Promoção tática', setup:function(){
     var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[3][2]=2; b[4][3]=-1; b[5][4]=-1;
-    return {board:b, turn:'w', sol:[{from:'c5',to:'e3'},{from:'e3',to:'g1'}]};
+    b[1][4]=1; // white e7
+    b[0][3]=0;
+    // only quiet promote e7->d8 or f8
+    return {board:b, turn:'w', sol:[{from:'e7',to:'d8'}]};
   }},
-  {title:'Bloqueio e captura', setup:function(){
+  {title:'Dupla na borda', setup:function(){
     var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[4][1]=1; b[3][2]=-1; b[2][3]=0; b[5][0]=1;
-    return {board:b, turn:'w', sol:[{from:'b4',to:'d2'}]};
+    b[5][0]=1; b[4][1]=-1; b[2][1]=-1;
+    return {board:b, turn:'w', sol:[{from:'a3',to:'c5'},{from:'c5',to:'a7'}]};
+  }},
+  {title:'Dama limpa a diagonal', setup:function(){
+    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
+    b[0][7]=2; // white king h8
+    b[2][5]=-1; // f6
+    b[5][2]=-1; // c3
+    return {board:b, turn:'w', sol:[{from:'h8',to:'e5'},{from:'e5',to:'b2'}]};
+  }},
+  {title:'Dupla com promoção', setup:function(){
+    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
+    b[2][1]=1; // white b6
+    b[1][2]=-1; // black c7
+    return {board:b, turn:'w', sol:[{from:'b6',to:'d8'}]};
+  }},
+  {title:'Dama em sequência', setup:function(){
+    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
+    // King h8 captures f6 then continues to c3 area
+    b[0][7]=2; b[2][5]=-1; b[5][2]=-1;
+    return {board:b, turn:'w', sol:[{from:'h8',to:'e5'},{from:'e5',to:'b2'}]};
   }}
 ];
+
 
 /* ===== UTILS ===== */
 function norm(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,'_')}
@@ -1107,7 +1154,7 @@ async function dbUpdatePlayer(username, patch){
 }
 async function dbListRanking(){
   if(!sb) return [];
-  var res=await sb.from('players').select('username,points,wins,losses,draws,games').order('points',{ascending:false}).limit(50);
+  var res=await sb.from('players').select('username,points,wins,losses,draws,games,avatar').order('points',{ascending:false}).limit(50);
   if(res.error) throw res.error;
   return res.data||[];
 }
@@ -1210,7 +1257,7 @@ function enter(user){
   document.getElementById('h-master').classList.toggle('hidden', !me.isMaster);
   document.getElementById('nav-admin').classList.toggle('hidden', !me.isMaster);
   joinLobby();
-  paintAll();
+  syncAvatarsFromDb().then(function(){ paintAll(); }).catch(function(){ paintAll(); });
   // Resume unfinished game after refresh
   var resumed=false;
   try{ resumed=restoreActiveGame(); }catch(e){ console.warn(e); }
@@ -1820,7 +1867,7 @@ function loadPuzzle(idx){
   setupCoach(); render();
   var st=document.getElementById('status');
   st.className='side-status';
-  st.innerHTML='🧩 <strong>'+pz.title+'</strong>';
+  st.innerHTML='🧩 <strong>'+pz.title+'</strong> · nível difícil';
   stopClock(); clockW=0; clockB=0; updateClocksUI();
   toast('Puzzle '+(puzzleIdx+1)+'/'+PUZZLES.length);
   saveActiveGame();
@@ -2027,19 +2074,28 @@ function doMove(move, remote){
 function checkPuzzle(move){
   if(!puzzleActive||puzzleAwarded) return;
   var expected=puzzleActive.sol[puzzleActive.step];
-  var ok=expected && move.from===expected.from && move.to===expected.to;
+  // Accept full multi-jump in one move object (from first to last)
+  var ok=false;
+  if(expected && move.from===expected.from && move.to===expected.to) ok=true;
+  // Also accept if the whole remaining solution is one multi-capture move
+  if(!ok && puzzleActive.sol.length>1 && puzzleActive.step===0){
+    var first=puzzleActive.sol[0], last=puzzleActive.sol[puzzleActive.sol.length-1];
+    if(move.from===first.from && move.to===last.to && (move.captures||0)>=puzzleActive.sol.length){
+      ok=true; puzzleActive.step=puzzleActive.sol.length-1;
+    }
+  }
   if(!ok){
     puzzleAwarded=true; lastEndResult='loss';
     adjustPoints(-PUZZLE_PENALTY, 'lance errado no puzzle');
-    setTimeout(function(){showEnd('❌ Puzzle falhou','Lance incorreto. −'+PUZZLE_PENALTY+' pontos.')},300);
+    setTimeout(function(){showEnd('❌ Puzzle falhou','Lance incorreto nesta posição difícil. −'+PUZZLE_PENALTY+' pontos.')},300);
     return;
   }
   puzzleActive.step++;
   sfxWin();
   if(puzzleActive.step>=puzzleActive.sol.length){
     lastEndResult='win'; puzzleAwarded=true;
-    adjustPoints(PUZZLE_REWARD, 'puzzle resolvido');
-    setTimeout(function(){showEnd('🧩 Puzzle resolvido!','+'+PUZZLE_REWARD+' pontos')},400);
+    adjustPoints(PUZZLE_REWARD, 'puzzle difícil resolvido');
+    setTimeout(function(){showEnd('🧩 Puzzle difícil!','Excelente. +'+PUZZLE_REWARD+' pontos')},400);
   } else {
     document.getElementById('status').textContent='✓ Continuação… '+(puzzleActive.step+1)+'/'+puzzleActive.sol.length;
   }
@@ -2471,6 +2527,7 @@ async function paintRank(){
       return;
     }
     rankKing=list[0]?list[0].username:'';
+    list.forEach(ingestPlayerAvatar);
     if(tot) tot.textContent=list.length+' jogador'+(list.length!==1?'es':'');
     var myPos=-1;
     if(me){
@@ -2578,14 +2635,19 @@ function paintPreview(){
 }
 
 /* ===== AVATAR / FRIENDS / MUTE / PROFILE / ADMIN ===== */
+var avatarMemCache={};
 function getAvatarData(user){
   if(!user) return '';
   try{
-    if(me && sameUser(user, me.name)) return localStorage.getItem(AVATAR_KEY+me.name)||'';
+    if(avatarMemCache[user]) return avatarMemCache[user];
+    if(me && sameUser(user, me.name)){
+      var mine=localStorage.getItem(AVATAR_KEY+me.name)||localStorage.getItem(AVATAR_KEY+'public_'+me.name)||'';
+      if(mine){ avatarMemCache[user]=mine; return mine; }
+    }
     var peer=localStorage.getItem(PEER_AV_KEY+user)||'';
-    if(peer) return peer;
+    if(peer){ avatarMemCache[user]=peer; return peer; }
     var op=(onlinePlayers||[]).find(function(p){return sameUser(p.user,user)});
-    if(op && op.avatar) return op.avatar;
+    if(op && op.avatar){ avatarMemCache[user]=op.avatar; return op.avatar; }
   }catch(e){}
   return '';
 }
@@ -2594,17 +2656,31 @@ function getPublicAvatar(user){
     var pub=localStorage.getItem(AVATAR_KEY+'public_'+(user||''))||'';
     if(pub) return pub;
     if(me && sameUser(user, me.name)) return localStorage.getItem(AVATAR_KEY+me.name)||'';
+    if(avatarMemCache[user]) return avatarMemCache[user];
   }catch(e){}
   return '';
 }
 function cachePeerAvatar(user, dataUrl){
-  if(!user||!dataUrl||String(dataUrl).indexOf('data:')!==0) return;
+  if(!user||!dataUrl) return;
+  if(String(dataUrl).indexOf('data:')!==0 && String(dataUrl).indexOf('http')!==0) return;
+  avatarMemCache[user]=dataUrl;
   try{ localStorage.setItem(PEER_AV_KEY+user, dataUrl); }catch(e){}
 }
 function avatarHtml(user){
   var data=getAvatarData(user);
   if(data) return '<img src="'+data+'" alt=""/>';
   return escapeHtml((user||'?')[0].toUpperCase());
+}
+function ingestPlayerAvatar(row){
+  if(!row||!row.username||!row.avatar) return;
+  cachePeerAvatar(row.username, row.avatar);
+}
+async function syncAvatarsFromDb(){
+  if(!sb) return;
+  try{
+    var res=await sb.from('players').select('username,avatar').not('avatar','is',null).limit(100);
+    if(res.data) res.data.forEach(ingestPlayerAvatar);
+  }catch(e){ console.warn('avatar sync', e); }
 }
 function paintDashAvatar(){
   var av=document.getElementById('dash-avatar'); if(!av||!me) return;
@@ -2626,9 +2702,20 @@ function onAvatarFile(ev){
       var cPub=document.createElement('canvas'); cPub.width=96; cPub.height=96;
       cPub.getContext('2d').drawImage(c,0,0,96,96);
       try{
-        localStorage.setItem(AVATAR_KEY+me.name, c.toDataURL('image/jpeg',0.72));
-        localStorage.setItem(AVATAR_KEY+'public_'+me.name, cPub.toDataURL('image/jpeg',0.55));
-        paintDashAvatar(); setPresence(presenceStatus); toast('Foto atualizada — visível para outros online');
+        var full=c.toDataURL('image/jpeg',0.72);
+        var pub=cPub.toDataURL('image/jpeg',0.55);
+        localStorage.setItem(AVATAR_KEY+me.name, full);
+        localStorage.setItem(AVATAR_KEY+'public_'+me.name, pub);
+        avatarMemCache[me.name]=full;
+        paintDashAvatar(); setPresence(presenceStatus);
+        // Persist to Supabase so everyone sees the photo
+        if(sb){
+          dbUpdatePlayer(me.name, {avatar: pub}).then(function(){
+            toast('Foto pública atualizada');
+          }).catch(function(){
+            toast('Foto salva neste aparelho (nuvem indisponível)');
+          });
+        } else toast('Foto salva neste aparelho');
       }catch(e){toast('Não coube no storage')}
     };
     img.src=reader.result;
@@ -2720,6 +2807,7 @@ async function viewPlayerProfile(username){
   title.textContent='Perfil'; body.innerHTML='Carregando…'; ov.style.display='flex';
   try{
     var row=await dbGetPlayer(username); if(!row){body.innerHTML='Jogador não encontrado';return}
+    ingestPlayerAvatar(row);
     var games=row.games||0, wins=row.wins||0, wr=games?Math.round(wins/games*100):0;
     title.textContent=username;
     body.innerHTML='<div class="prof-hero"><div class="prof-avatar">'+avatarHtml(username)+'</div><div><div style="font-weight:900;font-size:1.1rem">'+escapeHtml(username)+'</div><div style="color:var(--gold);font-weight:800">'+(row.points||0)+' pts</div></div></div>'+
@@ -2745,19 +2833,51 @@ function sendChat(){
 async function paintAdmin(){
   if(!me||!me.isMaster) return;
   var box=document.getElementById('admin-list'), q=(document.getElementById('admin-search').value||'').toLowerCase();
-  box.innerHTML='Carregando…';
+  box.innerHTML='<div class="empty">Carregando contas…</div>';
   try{
     var list=await dbListAllPlayers();
+    list.forEach(ingestPlayerAvatar);
+    var total=list.length;
+    var ptsSum=list.reduce(function(a,p){return a+(p.points||0)},0);
+    var gamesSum=list.reduce(function(a,p){return a+(p.games||0)},0);
+    var onlineN=(onlinePlayers||[]).length;
+    var elT=document.getElementById('adm-total'); if(elT) elT.textContent=total+' contas';
+    var elO=document.getElementById('adm-online'); if(elO) elO.textContent=onlineN+' online';
+    var kpis=document.getElementById('adm-kpis');
+    if(kpis){
+      kpis.innerHTML=
+        '<div class="stat gold"><b>'+total+'</b><span>Contas</span></div>'+
+        '<div class="stat blue"><b>'+onlineN+'</b><span>Online</span></div>'+
+        '<div class="stat green"><b>'+gamesSum+'</b><span>Partidas</span></div>'+
+        '<div class="stat"><b>'+ptsSum+'</b><span>Pts total</span></div>';
+    }
     list=list.filter(function(p){return !q || p.username.toLowerCase().indexOf(q)>=0});
+    list.sort(function(a,b){return (b.points||0)-(a.points||0)});
     box.innerHTML=list.map(function(p){
       var isM=MASTER.indexOf(String(p.username).toLowerCase())>=0;
-      return '<div class="admin-row"><div class="adm-main"><div class="adm-name">'+escapeHtml(p.username)+(isM?' 👑':'')+'</div>'+
-        '<div class="adm-meta">'+(p.points||0)+' pts · '+(p.wins||0)+'V '+(p.losses||0)+'D · jogos '+(p.games||0)+'</div>'+
-        (isM?'<div class="adm-pass protected">Senha do mestre protegida</div>':'')+'</div>'+
-        (!isM?'<div class="adm-actions"><button type="button" class="btn-danger" onclick="adminDelete(\''+p.username+'\')">Excluir</button></div>':'')+'</div>';
-    }).join('') || '<div class="empty">Nenhum jogador</div>';
-  }catch(e){box.innerHTML='Erro'}
+      var on=(onlinePlayers||[]).some(function(o){return sameUser(o.user,p.username)});
+      return '<div class="admin-row">'+
+        '<div class="adm-av">'+avatarHtml(p.username)+'</div>'+
+        '<div class="adm-main">'+
+          '<div class="adm-name">'+escapeHtml(p.username)+(isM?'<span class="adm-badge-master">MESTRE</span>':'')+
+          (on?' <span class="badge ok" style="font-size:.62rem">online</span>':'')+'</div>'+
+          '<div class="adm-meta">'+
+            '<span>'+(p.points||0)+' pts</span>'+
+            '<span>'+(p.wins||0)+'V</span>'+
+            '<span>'+(p.draws||0)+'E</span>'+
+            '<span>'+(p.losses||0)+'D</span>'+
+            '<span>'+(p.games||0)+' jogos</span>'+
+          '</div>'+
+          (isM?'<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Credenciais protegidas</div>':'')+
+        '</div>'+
+        '<div class="adm-actions">'+
+          '<button type="button" class="btn-soft" style="padding:.4rem .65rem;font-size:.72rem;font-weight:800" onclick="viewPlayerProfile(\''+p.username+'\')">Perfil</button>'+
+          (!isM?'<button type="button" class="btn-danger" onclick="adminDelete(\''+p.username+'\')">Excluir</button>':'')+
+        '</div></div>';
+    }).join('') || '<div class="empty">Nenhuma conta encontrada</div>';
+  }catch(e){ box.innerHTML='<div class="empty" style="color:var(--red)">Erro ao carregar</div>'; console.error(e); }
 }
+
 async function adminDelete(username){
   if(!me||!me.isMaster||MASTER.indexOf(username.toLowerCase())>=0) return;
   if(!confirm('Excluir '+username+'?')) return;
