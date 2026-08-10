@@ -119,6 +119,28 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .barline{height:9px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:.4rem}
 .barline>i{display:block;height:100%;border-radius:999px}
 .note{color:var(--muted);font-size:.82rem;line-height:1.5;margin-top:.7rem}
+
+/* History modern */
+.hist-list-modern{list-style:none;display:flex;flex-direction:column;gap:.55rem;max-height:420px;overflow:auto;padding-right:.15rem}
+.hist-card{display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:center;padding:.8rem .9rem;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.18);cursor:pointer;transition:.18s}
+.hist-card:hover{border-color:rgba(91,157,255,.45);background:rgba(91,157,255,.08);transform:translateX(2px)}
+.hist-result{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85rem;flex-shrink:0}
+.hist-result.win{background:rgba(52,211,153,.16);color:var(--green);border:1px solid rgba(52,211,153,.35)}
+.hist-result.loss{background:rgba(251,113,133,.14);color:var(--red);border:1px solid rgba(251,113,133,.32)}
+.hist-result.draw{background:rgba(245,197,66,.12);color:var(--gold);border:1px solid rgba(245,197,66,.3)}
+.hist-main{min-width:0}
+.hist-title{font-weight:800;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-sub{font-size:.72rem;color:var(--muted);margin-top:.18rem;display:flex;flex-wrap:wrap;gap:.45rem}
+.hist-sub span{padding:.1rem .4rem;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.hist-meta{text-align:right;flex-shrink:0}
+.hist-meta .when{font-size:.7rem;color:var(--muted);font-weight:700}
+.hist-meta .moves-n{font-size:.68rem;color:#93c5fd;font-weight:800;margin-top:.2rem}
+.hist-empty{text-align:center;padding:1.5rem;color:var(--muted);font-size:.88rem}
+.game-review-moves{max-height:220px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;background:rgba(0,0,0,.3);border-radius:12px;padding:.75rem .85rem;border:1px solid var(--line);line-height:1.6;text-align:left;margin:.7rem 0}
+.game-review-moves .n{color:var(--muted);margin-right:.25rem}
+.game-review-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem;padding:.75rem;border-radius:14px;background:linear-gradient(135deg,rgba(91,157,255,.12),rgba(167,139,250,.08));border:1px solid rgba(91,157,255,.2)}
+.game-review-head .gr-av{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;background:linear-gradient(135deg,rgba(91,157,255,.4),rgba(167,139,250,.35));overflow:hidden;flex-shrink:0}
+.game-review-head .gr-av img{width:100%;height:100%;object-fit:cover}
 .list{list-style:none}
 .list li{display:flex;align-items:center;gap:.65rem;padding:.72rem .2rem;border-bottom:1px solid var(--line);font-size:.88rem}
 .pos{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:900;background:rgba(255,255,255,.06)}
@@ -475,9 +497,13 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
         <div class="card"><div class="panel-title"><h2>🌐 Online</h2></div><div id="dash-bars-online"></div></div>
         <div class="card"><div class="panel-title"><h2>🤖 vs IA</h2></div><div id="dash-bars-ai"></div><div class="stats" id="ai-stats" style="margin-top:.85rem"></div></div>
       </div>
-      <div class="grid-2" style="margin-top:1.1rem">
-        <div class="card"><h2>👤 Conta</h2><div id="dash-details" style="color:var(--muted);font-size:.9rem;line-height:1.75"></div></div>
-        <div class="card"><div class="panel-title"><h2>📜 Histórico</h2></div><ul class="list" id="hist-list"><li class="empty">Nenhuma partida ainda.</li></ul></div>
+      <div class="card" style="margin-top:1.1rem">
+        <div class="panel-title">
+          <h2 style="margin:0">📜 Histórico de partidas</h2>
+          <span class="chip-soft" id="hist-count">0</span>
+        </div>
+        <p class="note" style="margin-top:0;margin-bottom:.75rem">Toque em uma partida para ver todas as jogadas e analisar.</p>
+        <ul class="hist-list-modern" id="hist-list"><li class="hist-empty">Nenhuma partida ainda.</li></ul>
       </div>
     </div>
 
@@ -647,6 +673,11 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 </div></div>
 <div class="overlay" id="ov-draw"><div class="modal"><h2>🤝 Empate?</h2><p id="draw-text">O adversário oferece empate.</p>
   <div class="modal-actions"><button type="button" class="btn-decline" onclick="respondDraw(false)">Recusar</button><button type="button" class="btn-accept" onclick="respondDraw(true)">Aceitar</button></div>
+</div></div>
+<div class="overlay" id="ov-game-review"><div class="modal profile-modal">
+  <h2 id="review-title">Análise da partida</h2>
+  <div id="review-body"></div>
+  <div class="modal-actions"><button type="button" class="btn-main" onclick="closeGameReview()">Fechar</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
 
@@ -1311,7 +1342,7 @@ function joinLobby(){
       Object.keys(state).forEach(function(k){
         var arr=state[k];
         if(arr&&arr[0]){
-          var av=arr[0].avatar||'';
+          var av=arr[0].avatar||getAvatarData(k)||'';
           onlinePlayers.push({
             user:k,
             status:arr[0].status||'available',
@@ -1321,13 +1352,28 @@ function joinLobby(){
             color:arr[0].color||''
           });
           if(av && me && !sameUser(k, me.name)){
-            try{ localStorage.setItem(PEER_AV_KEY+k, av); }catch(e){}
+            cachePeerAvatar(k, av);
           }
         }
       });
       renderOnline();
       renderLiveGames();
       renderFriends();
+      // Pull missing avatars from DB so everyone sees photos
+      fillMissingAvatars();
+    });
+    lobbyCh.on('broadcast',{event:'avatar_share'}, function(p){
+      var d=p.payload||{};
+      if(!d.user || !d.avatar) return;
+      if(me && sameUser(d.user, me.name)) return;
+      cachePeerAvatar(d.user, d.avatar);
+      // update online list entry
+      onlinePlayers.forEach(function(op){
+        if(sameUser(op.user, d.user)) op.avatar=d.avatar;
+      });
+      renderOnline();
+      renderFriends();
+      refreshGameAvatars();
     });
     lobbyCh.on('broadcast',{event:'challenge'}, function(p){
       var d=p.payload||{};
@@ -1387,6 +1433,10 @@ function joinLobby(){
         setConn(true,'online');
         // ask others to announce live games
         try{ lobbyCh.send({type:'broadcast', event:'live_games_request', payload:{by:me.name}}); }catch(e){}
+        // Share our public avatar so others can see the photo
+        setTimeout(shareMyAvatar, 400);
+        setTimeout(shareMyAvatar, 2000);
+        setTimeout(fillMissingAvatars, 600);
       }
     });
     lobbyCh.on('broadcast',{event:'live_games_request'}, function(p){
@@ -2249,13 +2299,156 @@ function showEnd(t,m){
   if(lastEndMode==='spectate' && br) br.style.display='none';
   document.getElementById('ov-end').style.display='flex';
   clearActiveGame();
+  // Save full game record (all moves) for later analysis
+  try{
+    if(lastEndMode!=='spectate'){
+      var whiteName, blackName;
+      if(lastEndMode==='online' && me){
+        whiteName = myColor==='w' ? me.name : (oppName||'');
+        blackName = myColor==='b' ? me.name : (oppName||'');
+      } else if(lastEndMode==='ai'){
+        whiteName = me ? me.name : 'Jogador';
+        blackName = 'Computador';
+      } else {
+        whiteName = 'Brancas';
+        blackName = 'Pretas';
+      }
+      var record={
+        id: 'g_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+        at: new Date().toISOString(),
+        mode: lastEndMode||'?',
+        result: lastEndResult||'',
+        msg: m||'',
+        opp: oppName||'',
+        white: whiteName,
+        black: blackName,
+        myColor: myColor||'w',
+        moves: (hist||[]).map(function(h){ return {from:h.from,to:h.to,captures:h.captures||0,san:h.san||(h.from+'-'+h.to)}; }),
+        ply: (hist||[]).length,
+        player: me ? me.name : ''
+      };
+      saveGameRecord(record);
+    }
+  }catch(e){ console.warn('save history', e); }
+}
+function saveGameRecord(record){
+  if(!record) return;
+  // Local history (per device, richer)
   try{
     var list=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    list.unshift({at:new Date().toISOString(),mode:lastEndMode,result:lastEndResult,msg:m,opp:oppName||''});
-    if(list.length>30) list=list.slice(0,30);
+    list.unshift(record);
+    if(list.length>80) list=list.slice(0,80);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
   }catch(e){}
+  // Cloud: all players' games for later analysis
+  if(sb){
+    try{
+      sb.from('games').insert({
+        id: record.id,
+        white: record.white||'',
+        black: record.black||'',
+        mode: record.mode||'',
+        result: record.result||'',
+        msg: record.msg||'',
+        moves: record.moves||[],
+        ply: record.ply||0,
+        player: record.player||'',
+        created_at: record.at||new Date().toISOString()
+      }).then(function(res){
+        if(res && res.error){
+          // table may not exist yet — keep local only
+          console.warn('games insert', res.error.message||res.error);
+        }
+      }).catch(function(e){ console.warn('games insert', e); });
+    }catch(e){}
+  }
 }
+async function loadCloudHistory(){
+  if(!sb||!me) return [];
+  try{
+    var res=await sb.from('games').select('*')
+      .or('white.eq.'+me.name+',black.eq.'+me.name+',player.eq.'+me.name)
+      .order('created_at',{ascending:false}).limit(50);
+    if(res.error) return [];
+    return (res.data||[]).map(function(g){
+      var opp='';
+      if(sameUser(g.white, me.name)) opp=g.black||'';
+      else if(sameUser(g.black, me.name)) opp=g.white||'';
+      else opp=g.black||g.white||'';
+      return {
+        id:g.id, at:g.created_at||g.at, mode:g.mode, result:g.result, msg:g.msg,
+        opp:opp, white:g.white, black:g.black, moves:g.moves||[], ply:g.ply||(g.moves||[]).length,
+        player:g.player||'', cloud:true
+      };
+    });
+  }catch(e){ return []; }
+}
+function mergeHistory(local, cloud){
+  var map={}, out=[];
+  function add(g){
+    if(!g) return;
+    var key=g.id || ((g.at||'')+'|'+(g.opp||'')+'|'+(g.ply||0)+'|'+(g.result||''));
+    if(map[key]){
+      // prefer entry with moves
+      if((g.moves||[]).length > (map[key].moves||[]).length) map[key]=g;
+      return;
+    }
+    map[key]=g;
+  }
+  (local||[]).forEach(add);
+  (cloud||[]).forEach(add);
+  out=Object.keys(map).map(function(k){return map[k]});
+  out.sort(function(a,b){ return String(b.at||'').localeCompare(String(a.at||'')); });
+  return out;
+}
+function openGameReview(idx){
+  try{
+    var list=window._histCache||[];
+    var g=list[idx];
+    if(!g) return;
+    var body=document.getElementById('review-body');
+    var title=document.getElementById('review-title');
+    if(!body||!title) return;
+    var resLabel=g.result==='win'?'Vitória':g.result==='loss'?'Derrota':g.result==='draw'?'Empate':(g.result||'—');
+    var modeLabel=g.mode==='ai'?'vs IA':g.mode==='online'?'Online':g.mode==='local'?'Local':(g.mode||'?');
+    var when=(g.at||'').slice(0,19).replace('T',' ');
+    var opp=g.opp||(sameUser(g.white,me&&me.name)?g.black:g.white)||'—';
+    title.textContent='Análise · '+modeLabel;
+    var moves=g.moves||[];
+    var movesHtml='';
+    if(!moves.length){
+      movesHtml='<div style="color:var(--muted);padding:.5rem 0">Nenhuma jogada gravada nesta partida.</div>';
+    } else {
+      for(var i=0;i<moves.length;i+=2){
+        var n=Math.floor(i/2)+1;
+        var a=moves[i], b=moves[i+1];
+        movesHtml+='<div><span class="n">'+n+'.</span> '+(a.san||(a.from+'-'+a.to))+(a.captures?' ×'+a.captures:'');
+        if(b) movesHtml+=' &nbsp; '+(b.san||(b.from+'-'+b.to))+(b.captures?' ×'+b.captures:'');
+        movesHtml+='</div>';
+      }
+    }
+    body.innerHTML=
+      '<div class="game-review-head">'+
+        '<div class="gr-av">'+avatarHtml(opp)+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:900">'+escapeHtml(opp)+'</div>'+
+          '<div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">'+escapeHtml(modeLabel)+' · '+escapeHtml(resLabel)+' · '+moves.length+' lances</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="prof-grid" style="margin-bottom:.5rem">'+
+        '<div class="prof-stat"><b>'+escapeHtml(resLabel)+'</b><span>Resultado</span></div>'+
+        '<div class="prof-stat"><b>'+moves.length+'</b><span>Jogadas</span></div>'+
+        '<div class="prof-stat"><b>'+escapeHtml((g.white||'—').slice(0,12))+'</b><span>Brancas</span></div>'+
+        '<div class="prof-stat"><b>'+escapeHtml((g.black||'—').slice(0,12))+'</b><span>Pretas</span></div>'+
+      '</div>'+
+      '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">'+escapeHtml(when)+'</div>'+
+      '<h3 style="font-size:.88rem;margin:.4rem 0">Jogadas</h3>'+
+      '<div class="game-review-moves">'+movesHtml+'</div>'+
+      (g.msg?'<p class="note" style="margin-top:.4rem">'+escapeHtml(g.msg)+'</p>':'');
+    document.getElementById('ov-game-review').style.display='flex';
+  }catch(e){ console.error(e); toast('Erro ao abrir análise'); }
+}
+function closeGameReview(){ document.getElementById('ov-game-review').style.display='none'; }
 function toHome(){
   stopClock();
   document.getElementById('ov-end').style.display='none';
@@ -2476,19 +2669,43 @@ function paintDash(){
   if(ba) ba.innerHTML=bar('Vitórias',ai.wins,aiWr,'#34d399')+bar('Derrotas',ai.losses,ai.games?Math.round(ai.losses/ai.games*100):0,'#fb7185');
   var ais=document.getElementById('ai-stats');
   if(ais) ais.innerHTML='<div class="stat green"><b>'+ai.wins+'</b><span>V</span></div><div class="stat red"><b>'+ai.losses+'</b><span>D</span></div><div class="stat blue"><b>'+ai.games+'</b><span>Total</span></div>';
-  document.getElementById('dash-details').innerHTML=
-    '<p><strong style="color:var(--text)">Usuário:</strong> '+me.name+'</p>'+
-    '<p><strong style="color:var(--text)">Pontos:</strong> '+me.points+'</p>'+
-    '<p><strong style="color:var(--text)">Online:</strong> '+s.wins+'V · '+s.draws+'E · '+s.losses+'D</p>';
+  paintHistory();
+}
+async function paintHistory(){
   var hl=document.getElementById('hist-list');
-  try{
-    var list=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    if(!list.length) hl.innerHTML='<li class="empty">Nenhuma partida ainda.</li>';
-    else hl.innerHTML=list.slice(0,15).map(function(g){
-      var tag=g.result==='win'?'W':g.result==='loss'?'L':'E';
-      return '<li><span class="pos">'+tag+'</span><span class="nm">'+(g.mode||'?')+' vs '+(g.opp||'?')+'</span><span class="el" style="font-size:.72rem;color:var(--muted)">'+(g.at||'').slice(0,16).replace('T',' ')+'</span></li>';
-    }).join('');
-  }catch(e){}
+  var cnt=document.getElementById('hist-count');
+  if(!hl) return;
+  hl.innerHTML='<li class="hist-empty">Carregando histórico…</li>';
+  var local=[];
+  try{ local=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); }catch(e){}
+  var cloud=[];
+  try{ cloud=await loadCloudHistory(); }catch(e){}
+  var list=mergeHistory(local, cloud);
+  window._histCache=list;
+  if(cnt) cnt.textContent=list.length+(list.length===1?' partida':' partidas');
+  if(!list.length){
+    hl.innerHTML='<li class="hist-empty">Nenhuma partida ainda. Jogue online ou vs IA para gravar o histórico.</li>';
+    return;
+  }
+  hl.innerHTML=list.slice(0,40).map(function(g,i){
+    var res=g.result==='win'?'win':g.result==='loss'?'loss':'draw';
+    var tag=res==='win'?'V':res==='loss'?'D':'E';
+    var modeLabel=g.mode==='ai'?'vs IA':g.mode==='online'?'Online':g.mode==='local'?'Local':(g.mode||'?');
+    var opp=g.opp||'—';
+    if(!g.opp && g.white && g.black && me){
+      opp=sameUser(g.white,me.name)?(g.black||'—'):(g.white||'—');
+    }
+    var when=(g.at||'').slice(0,16).replace('T',' ');
+    var nMoves=(g.moves&&g.moves.length)?g.moves.length:(g.ply||0);
+    return '<li class="hist-card" onclick="openGameReview('+i+')">'+
+      '<div class="hist-result '+res+'">'+tag+'</div>'+
+      '<div class="hist-main">'+
+        '<div class="hist-title">vs '+escapeHtml(opp)+'</div>'+
+        '<div class="hist-sub"><span>'+escapeHtml(modeLabel)+'</span>'+(nMoves?'<span>'+nMoves+' lances</span>':'')+(g.cloud?'<span>☁</span>':'')+'</div>'+
+      '</div>'+
+      '<div class="hist-meta"><div class="when">'+escapeHtml(when)+'</div>'+(nMoves?'<div class="moves-n">ver jogadas</div>':'')+'</div>'+
+    '</li>';
+  }).join('');
 }
 async function paintRank(){
   var el=document.getElementById('rank-list'), pod=document.getElementById('rank-podium');
@@ -2629,11 +2846,28 @@ var avatarMemCache={};
 function getAvatarData(user){
   if(!user) return '';
   try{
-    if(avatarMemCache[user]) return avatarMemCache[user];
+    // memory first
+    var keys=Object.keys(avatarMemCache||{});
+    for(var i=0;i<keys.length;i++){
+      if(sameUser(keys[i], user) && avatarMemCache[keys[i]]) return avatarMemCache[keys[i]];
+    }
     if(me && sameUser(user, me.name)){
-      var mine=localStorage.getItem(AVATAR_KEY+me.name)||localStorage.getItem(AVATAR_KEY+'public_'+me.name)||'';
+      var mine=localStorage.getItem(AVATAR_KEY+'public_'+me.name)||localStorage.getItem(AVATAR_KEY+me.name)||'';
       if(mine){ avatarMemCache[user]=mine; return mine; }
     }
+    // peer local cache (any casing)
+    try{
+      for(var j=0;j<localStorage.length;j++){
+        var k=localStorage.key(j);
+        if(k && k.indexOf(PEER_AV_KEY)===0){
+          var uname=k.slice(PEER_AV_KEY.length);
+          if(sameUser(uname, user)){
+            var v=localStorage.getItem(k);
+            if(v){ avatarMemCache[user]=v; return v; }
+          }
+        }
+      }
+    }catch(e2){}
     var peer=localStorage.getItem(PEER_AV_KEY+user)||'';
     if(peer){ avatarMemCache[user]=peer; return peer; }
     var op=(onlinePlayers||[]).find(function(p){return sameUser(p.user,user)});
@@ -2673,6 +2907,43 @@ async function syncAvatarsFromDb(){
     if(res.data) res.data.forEach(ingestPlayerAvatar);
   }catch(e){ console.warn('avatar sync', e); }
 }
+function shareMyAvatar(){
+  if(!me||!lobbyCh) return;
+  var av=getPublicAvatar(me.name)||getAvatarData(me.name)||'';
+  if(!av) return;
+  try{
+    lobbyCh.send({type:'broadcast', event:'avatar_share', payload:{user:me.name, avatar:av}});
+  }catch(e){}
+}
+var _fillAvTimer=null;
+function fillMissingAvatars(){
+  if(!sb||!me) return;
+  if(_fillAvTimer) return;
+  _fillAvTimer=setTimeout(async function(){
+    _fillAvTimer=null;
+    try{
+      var missing=(onlinePlayers||[]).filter(function(p){
+        return p && p.user && !sameUser(p.user, me.name) && !getAvatarData(p.user);
+      }).map(function(p){return p.user});
+      if(!missing.length) return;
+      // batch by name (limit queries)
+      for(var i=0;i<Math.min(missing.length,12);i++){
+        try{
+          var row=await dbGetPlayer(missing[i]);
+          if(row && row.avatar){
+            ingestPlayerAvatar(row);
+            onlinePlayers.forEach(function(op){
+              if(sameUser(op.user, row.username)) op.avatar=row.avatar;
+            });
+          }
+        }catch(e){}
+      }
+      renderOnline();
+      renderFriends();
+      refreshGameAvatars();
+    }catch(e){}
+  }, 300);
+}
 function paintDashAvatar(){
   var av=document.getElementById('dash-avatar'); if(!av||!me) return;
   var data=getAvatarData(me.name);
@@ -2703,10 +2974,12 @@ function onAvatarFile(ev){
         if(sb){
           dbUpdatePlayer(me.name, {avatar: pub}).then(function(){
             toast('Foto pública atualizada');
+            shareMyAvatar();
           }).catch(function(){
             toast('Foto salva neste aparelho (nuvem indisponível)');
+            shareMyAvatar();
           });
-        } else toast('Foto salva neste aparelho');
+        } else { toast('Foto salva neste aparelho'); shareMyAvatar(); }
       }catch(e){toast('Não coube no storage')}
     };
     img.src=reader.result;
