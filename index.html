@@ -416,7 +416,7 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
       <div class="home-banner">
         <div>
           <div class="hb-title">Pronto para jogar damas</div>
-          <div class="hb-sub">Desafie online, treine com IA ou resolva puzzles (+5 / −10 pts)</div>
+          <div class="hb-sub">Desafie online ou treine com a IA</div>
         </div>
         <div class="stats" id="home-stats" style="min-width:min(100%,280px);grid-template-columns:repeat(4,1fr)"></div>
       </div>
@@ -442,7 +442,6 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
           <div class="modes">
             <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · regras brasileiras · não altera ranking online</div></div></div>
             <div class="mode" onclick="startLocal('local')"><div class="i">👥</div><div><div class="t">Dois jogadores</div><div class="d">Mesmo dispositivo</div></div></div>
-            <div class="mode" onclick="startPuzzle()"><div class="i">🧩</div><div><div class="t">Puzzles</div><div class="d">Táticas · +5 acerto · −10 erro</div></div></div>
           </div>
           <div class="section-label" style="margin-top:1rem">Dificuldade da IA</div>
           <div class="diff-row">
@@ -475,7 +474,6 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
       <div class="grid-3">
         <div class="card"><div class="panel-title"><h2>🌐 Online</h2></div><div id="dash-bars-online"></div></div>
         <div class="card"><div class="panel-title"><h2>🤖 vs IA</h2></div><div id="dash-bars-ai"></div><div class="stats" id="ai-stats" style="margin-top:.85rem"></div></div>
-        <div class="card"><div class="panel-title"><h2>🧩 Puzzles</h2></div><div class="kpi" id="puzzle-kpis" style="grid-template-columns:1fr 1fr;margin-bottom:.5rem"></div></div>
       </div>
       <div class="grid-2" style="margin-top:1.1rem">
         <div class="card"><h2>👤 Conta</h2><div id="dash-details" style="color:var(--muted);font-size:.9rem;line-height:1.75"></div></div>
@@ -662,7 +660,6 @@ const AVATAR_KEY='dm_avatar_', PEER_AV_KEY='dm_peer_av_', MUTE_KEY='dm_muted_v1'
 const FRIENDS_KEY='dm_friends_v1', FRIEND_REQ_KEY='dm_friend_req_v1', TUTORIAL_KEY='dm_tut_v1';
 const PTS={win:25,draw:0,loss:-8};
 const AI_POINTS={easy:{win:5,loss:15},medium:{win:10,loss:10},hard:{win:15,loss:5}};
-const PUZZLE_REWARD=5, PUZZLE_PENALTY=10;
 
 /* ===== PASSWORD ===== */
 async function hashPassword(password, salt){
@@ -1041,64 +1038,9 @@ let board=null, turn='w', mode=null, diff='medium', sel=null, legal=[], last=nul
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
 let timeControl=0, clockW=0, clockB=0, clockTimer=null, clockRunning=false, lastClockTick=0;
 let boardFlipped=false, lastEndResult=null, lastEndMode=null;
-let puzzleIdx=0, puzzleActive=null, puzzleAwarded=false;
 let prefs={ui:'dark', board:'classic', pieces:'classic', sound:true, coords:true};
 let rankKing='';
 
-/* Puzzles — simple forced win / capture tactics */
-const PUZZLES=[
-  /* Hard Brazilian-rules puzzles — solutions verified against engine */
-  {title:'Tripla mortal', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[6][1]=1; // white man b2
-    b[5][2]=-1; b[3][4]=-1; b[1][6]=-1; // blacks to multi-jump
-    return {board:b, turn:'w', sol:[{from:'b2',to:'d4'},{from:'d4',to:'f6'},{from:'f6',to:'h8'}]};
-  }},
-  {title:'Dama voadora', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[7][0]=2; // white king a1
-    b[4][3]=-1; // black d4
-    b[4][5]=-1; // black f4 — after capture can continue
-    return {board:b, turn:'w', sol:[{from:'a1',to:'e5'},{from:'e5',to:'g3'}]};
-  }},
-  {title:'Captura para trás', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    // White d2 multi: d2->b4->d6 (includes direction change)
-    b[6][3]=1; b[5][2]=-1; b[3][2]=-1;
-    return {board:b, turn:'w', sol:[{from:'d2',to:'b4'},{from:'b4',to:'d6'}]};
-  }},
-  {title:'Promoção tática', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[1][4]=1; // white e7
-    b[0][3]=0;
-    // only quiet promote e7->d8 or f8
-    return {board:b, turn:'w', sol:[{from:'e7',to:'d8'}]};
-  }},
-  {title:'Dupla na borda', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[5][0]=1; b[4][1]=-1; b[2][1]=-1;
-    return {board:b, turn:'w', sol:[{from:'a3',to:'c5'},{from:'c5',to:'a7'}]};
-  }},
-  {title:'Dama limpa a diagonal', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[0][7]=2; // white king h8
-    b[2][5]=-1; // f6
-    b[5][2]=-1; // c3
-    return {board:b, turn:'w', sol:[{from:'h8',to:'e5'},{from:'e5',to:'b2'}]};
-  }},
-  {title:'Dupla com promoção', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    b[2][1]=1; // white b6
-    b[1][2]=-1; // black c7
-    return {board:b, turn:'w', sol:[{from:'b6',to:'d8'}]};
-  }},
-  {title:'Dama em sequência', setup:function(){
-    var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
-    // King h8 captures f6 then continues to c3 area
-    b[0][7]=2; b[2][5]=-1; b[5][2]=-1;
-    return {board:b, turn:'w', sol:[{from:'h8',to:'e5'},{from:'e5',to:'b2'}]};
-  }}
-];
 
 
 /* ===== UTILS ===== */
@@ -1172,7 +1114,6 @@ function rowToMe(row){
     stats:{
       games:row.games||0, wins:row.wins||0, losses:row.losses||0, draws:row.draws||0,
       streak:row.streak||0, best_streak:row.best_streak||0, trainGames:row.train_games||0,
-      puzzles_solved:row.puzzles_solved||0
     }
   };
 }
@@ -1826,7 +1767,7 @@ function applyRemoteMove(d){
 function startLocal(m){
   mode=m; board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[];
   capW=[]; capB=[]; chatMsgs=[]; myColor='w'; oppName=''; gameId=''; boardFlipped=false;
-  puzzleActive=null; lastEndMode=m; lastEndResult=null;
+  lastEndMode=m; lastEndResult=null;
   openGameUI();
   document.getElementById('btn-undo').style.display='inline-block';
   var bd=document.getElementById('btn-draw'); if(bd) bd.classList.add('hidden');
@@ -1841,35 +1782,6 @@ function startLocal(m){
     chatMsgs=[{who:'Sistema',text:'Chat local.'}]; renderChat();
   }
   setupCoach(); render(); status(); movesUI(); updateCaps(); initClocks();
-  saveActiveGame();
-}
-function startPuzzle(){
-  if(!PUZZLES.length) return toast('Sem puzzles');
-  puzzleIdx=Math.floor(Math.random()*PUZZLES.length);
-  loadPuzzle(puzzleIdx);
-}
-function loadPuzzle(idx){
-  puzzleIdx=idx%PUZZLES.length;
-  var pz=PUZZLES[puzzleIdx];
-  var data=pz.setup();
-  puzzleActive={title:pz.title, sol:data.sol, step:0};
-  puzzleAwarded=false;
-  mode='puzzle'; board=data.board; turn=data.turn||'w';
-  sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[];
-  myColor=turn; boardFlipped=(myColor==='b');
-  lastEndMode='puzzle'; lastEndResult=null;
-  openGameUI();
-  document.getElementById('btn-undo').style.display='inline-block';
-  document.getElementById('btn-draw').classList.add('hidden');
-  document.getElementById('n-w').textContent=myColor==='w'?me.name+' (você)':'Brancas';
-  document.getElementById('n-b').textContent=myColor==='b'?me.name+' (você)':'Pretas';
-  document.getElementById('chat').classList.remove('on');
-  setupCoach(); render();
-  var st=document.getElementById('status');
-  st.className='side-status';
-  st.innerHTML='🧩 <strong>'+pz.title+'</strong> · nível difícil';
-  stopClock(); clockW=0; clockB=0; updateClocksUI();
-  toast('Puzzle '+(puzzleIdx+1)+'/'+PUZZLES.length);
   saveActiveGame();
 }
 function openGameUI(){
@@ -2059,7 +1971,6 @@ function doMove(move, remote){
   // Cosmetic flight only (does not gate logic)
   try{ animatePieceMove(fromSq, toSq, pieceCls, null); }catch(e){}
 
-  if(mode==='puzzle'){ checkPuzzle(move); return; }
   var nextMoves=legalMoves(board, turn);
   if(!nextMoves.length){
     stopClock();
@@ -2070,35 +1981,6 @@ function doMove(move, remote){
   }
   if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 300);
   else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 240);
-}
-function checkPuzzle(move){
-  if(!puzzleActive||puzzleAwarded) return;
-  var expected=puzzleActive.sol[puzzleActive.step];
-  // Accept full multi-jump in one move object (from first to last)
-  var ok=false;
-  if(expected && move.from===expected.from && move.to===expected.to) ok=true;
-  // Also accept if the whole remaining solution is one multi-capture move
-  if(!ok && puzzleActive.sol.length>1 && puzzleActive.step===0){
-    var first=puzzleActive.sol[0], last=puzzleActive.sol[puzzleActive.sol.length-1];
-    if(move.from===first.from && move.to===last.to && (move.captures||0)>=puzzleActive.sol.length){
-      ok=true; puzzleActive.step=puzzleActive.sol.length-1;
-    }
-  }
-  if(!ok){
-    puzzleAwarded=true; lastEndResult='loss';
-    adjustPoints(-PUZZLE_PENALTY, 'lance errado no puzzle');
-    setTimeout(function(){showEnd('❌ Puzzle falhou','Lance incorreto nesta posição difícil. −'+PUZZLE_PENALTY+' pontos.')},300);
-    return;
-  }
-  puzzleActive.step++;
-  sfxWin();
-  if(puzzleActive.step>=puzzleActive.sol.length){
-    lastEndResult='win'; puzzleAwarded=true;
-    adjustPoints(PUZZLE_REWARD, 'puzzle difícil resolvido');
-    setTimeout(function(){showEnd('🧩 Puzzle difícil!','Excelente. +'+PUZZLE_REWARD+' pontos')},400);
-  } else {
-    document.getElementById('status').textContent='✓ Continuação… '+(puzzleActive.step+1)+'/'+puzzleActive.sol.length;
-  }
 }
 function aiPlay(){
   if(!board || mode!=='ai') return;
@@ -2269,7 +2151,7 @@ function showEnd(t,m){
   document.getElementById('end-t').textContent=t;
   document.getElementById('end-m').innerHTML='<div>'+escapeHtml(m||'')+'</div>';
   var br=document.getElementById('btn-rematch');
-  if(br) br.style.display=(lastEndMode==='ai'||lastEndMode==='local'||lastEndMode==='puzzle'||(lastEndMode==='online'&&oppName))?'':'none';
+  if(br) br.style.display=(lastEndMode==='ai'||lastEndMode==='local'||(lastEndMode==='online'&&oppName))?'':'none';
   if(lastEndMode==='spectate' && br) br.style.display='none';
   document.getElementById('ov-end').style.display='flex';
   clearActiveGame();
@@ -2305,7 +2187,6 @@ function toHome(){
 }
 function rematch(){
   document.getElementById('ov-end').style.display='none';
-  if(lastEndMode==='puzzle'){ startPuzzle(); return; }
   if(lastEndMode==='ai') startLocal('ai');
   else if(lastEndMode==='local') startLocal('local');
   else if(lastEndMode==='online' && oppName) challengePlayer(oppName);
@@ -2520,20 +2401,29 @@ async function paintRank(){
   if(el) el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--muted)">Carregando ranking…</li>';
   if(pod) pod.innerHTML='';
   try{
-    var list=await dbListRanking();
-    if(!list.length){
-      if(el) el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--muted)">Nenhum jogador ainda</li>';
-      if(tot) tot.textContent='0 jogadores';
+    if(!sb){
+      if(el) el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--red)">Sem conexão com o servidor</li>';
       return;
     }
-    rankKing=list[0]?list[0].username:'';
-    list.forEach(ingestPlayerAvatar);
-    if(tot) tot.textContent=list.length+' jogador'+(list.length!==1?'es':'');
-    var myPos=-1;
-    if(me){
-      for(var i=0;i<list.length;i++){ if(sameUser(list[i].username, me.name)){ myPos=i+1; break; } }
+    var list=[];
+    try{
+      list=await dbListRanking();
+    }catch(e1){
+      // Fallback raw query without optional columns
+      var res=await sb.from('players').select('username,points,wins,losses,draws,games').order('points',{ascending:false}).limit(50);
+      if(res.error) throw res.error;
+      list=res.data||[];
     }
-    if(youEl) youEl.textContent = myPos>0 ? ('Sua pos. #'+myPos) : 'Sua pos. —';
+    list=list||[];
+    list.sort(function(a,b){ return (b.points||0)-(a.points||0); });
+    rankKing=list[0]?list[0].username:'';
+    list.forEach(function(p){ try{ ingestPlayerAvatar(p); }catch(e){} });
+    if(tot) tot.textContent=list.length+' jogador'+(list.length!==1?'es':'');
+    var myPos=0;
+    if(me){
+      for(var i=0;i<list.length;i++) if(sameUser(list[i].username, me.name)){ myPos=i+1; break; }
+    }
+    if(youEl) youEl.textContent=myPos?('Sua pos. #'+myPos):'—';
 
     // Podium: visual order silver | gold | bronze
     if(pod){
@@ -2543,7 +2433,7 @@ async function paintRank(){
         if(!p) return '<div class="podium-card"></div>';
         var medal=medals[idx];
         var games=p.games||0, wins=p.wins||0, wr=games?Math.round(wins/games*100):0;
-        return '<div class="podium-card '+medal+'" onclick="viewPlayerProfile(\''+p.username+'\')">'+
+        return '<div class="podium-card '+medal+'" onclick="viewPlayerProfile(\''+String(p.username).replace(/'/g,'')+'\')">'+
           '<div class="pod-crown">'+crowns[idx]+'</div>'+
           '<div class="pod-av">'+avatarHtml(p.username)+'</div>'+
           '<div class="place">'+places[idx]+'</div>'+
@@ -2554,25 +2444,30 @@ async function paintRank(){
     }
 
     if(el){
-      el.innerHTML=list.map(function(p,i){
-        var c=i===0?'g':i===1?'s':i===2?'b':'';
-        var isYou=me&&sameUser(p.username, me.name);
-        var games=p.games||0, wins=p.wins||0, losses=p.losses||0, draws=p.draws||0;
-        var wr=games?Math.round(wins/games*100):0;
-        return '<li class="rank-row'+(isYou?' you':'')+'" onclick="viewPlayerProfile(\''+p.username+'\')">'+
-          '<span class="pos '+c+'">'+(i+1)+'</span>'+
-          '<div class="rav">'+avatarHtml(p.username)+'</div>'+
-          '<div class="rinfo"><div class="rname">'+(i===0?'👑 ':'')+escapeHtml(p.username)+(isYou?' · você':'')+'</div>'+
-          '<div class="rmeta"><span>'+wins+'V</span><span>'+draws+'E</span><span>'+losses+'D</span><span>'+wr+'%</span></div>'+
-          '<div class="wr-bar"><i style="width:'+wr+'%"></i></div></div>'+
-          '<div class="rpts"><b>'+(p.points||0)+'</b><span>pontos</span></div></li>';
-      }).join('');
+      if(!list.length){
+        el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--muted)">Nenhum jogador no ranking ainda</li>';
+      } else {
+        el.innerHTML=list.map(function(p,i){
+          var c=i===0?'g':i===1?'s':i===2?'b':'';
+          var isYou=me&&sameUser(p.username, me.name);
+          var games=p.games||0, wins=p.wins||0, losses=p.losses||0, draws=p.draws||0;
+          var wr=games?Math.round(wins/games*100):0;
+          return '<li class="rank-row'+(isYou?' you':'')+'" onclick="viewPlayerProfile(\''+String(p.username).replace(/'/g,'')+'\')">'+
+            '<span class="pos '+c+'">'+(i+1)+'</span>'+
+            '<div class="rav">'+avatarHtml(p.username)+'</div>'+
+            '<div class="rinfo"><div class="rname">'+(i===0?'👑 ':'')+escapeHtml(p.username)+(isYou?' · você':'')+'</div>'+
+            '<div class="rmeta"><span>'+wins+'V</span><span>'+draws+'E</span><span>'+losses+'D</span><span>'+wr+'%</span></div>'+
+            '<div class="wr-bar"><i style="width:'+wr+'%"></i></div></div>'+
+            '<div class="rpts"><b>'+(p.points||0)+'</b><span>pontos</span></div></li>';
+        }).join('');
+      }
     }
   }catch(e){
-    if(el) el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--red)">Erro ao carregar ranking</li>';
-    console.error(e);
+    if(el) el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--red)">Erro ao carregar ranking. Tente Atualizar.</li>';
+    console.error('paintRank', e);
   }
 }
+
 function setDiff(d){diff=d;['easy','medium','hard'].forEach(function(x){document.getElementById('d-'+x).classList.toggle('on',x===d)})}
 
 /* ===== PREFS / THEMES ===== */
@@ -2679,6 +2574,7 @@ async function syncAvatarsFromDb(){
   if(!sb) return;
   try{
     var res=await sb.from('players').select('username,avatar').not('avatar','is',null).limit(100);
+    if(res.error) return; // column may not exist
     if(res.data) res.data.forEach(ingestPlayerAvatar);
   }catch(e){ console.warn('avatar sync', e); }
 }
@@ -2911,9 +2807,6 @@ function saveActiveGame(){
       timeControl: timeControl||0,
       clockW: clockW||0,
       clockB: clockB||0,
-      puzzleIdx: puzzleIdx,
-      puzzleActive: puzzleActive,
-      puzzleAwarded: !!puzzleAwarded,
       chatMsgs: (chatMsgs||[]).slice(-40),
       savedAt: Date.now()
     };
@@ -2938,7 +2831,7 @@ function restoreActiveGame(){
   var data=loadActiveGameRaw();
   if(!data||!me) return false;
   if(!sameUser(data.user, me.name)) return false;
-  if(!data.mode || data.mode==='spectate') return false;
+  if(!data.mode || data.mode==='spectate' || data.mode==='puzzle') return false;
 
   mode=data.mode;
   gameId=data.gameId||'';
@@ -2955,9 +2848,6 @@ function restoreActiveGame(){
   timeControl=data.timeControl||0;
   clockW=data.clockW||0;
   clockB=data.clockB||0;
-  puzzleIdx=data.puzzleIdx||0;
-  puzzleActive=data.puzzleActive||null;
-  puzzleAwarded=!!data.puzzleAwarded;
   chatMsgs=data.chatMsgs||[];
   sel=null; legal=[];
   lastEndMode=mode; lastEndResult=null;
@@ -2991,20 +2881,16 @@ function restoreActiveGame(){
     document.getElementById('n-w').textContent='Brancas';
     document.getElementById('n-b').textContent='Pretas';
     document.getElementById('chat').classList.add('on');
-  } else if(mode==='puzzle'){
-    document.getElementById('n-w').textContent=myColor==='w'?me.name+' (você)':'Brancas';
-    document.getElementById('n-b').textContent=myColor==='b'?me.name+' (você)':'Pretas';
-    document.getElementById('chat').classList.remove('on');
   }
 
   setupCoach();
   render(); status(); movesUI(); updateCaps(); refreshGameAvatars(); renderChat();
   updateClocksUI();
-  if(timeControl>0 && mode!=='puzzle') startClockTick();
+  if(timeControl>0) startClockTick();
   toast('Partida restaurada');
   // If AI to move after restore
   if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 400);
-  else if(canUseCoach() && turn===myColor && mode!=='puzzle') setTimeout(function(){coachBest(true)}, 300);
+  else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 300);
   return true;
 }
 
