@@ -993,6 +993,7 @@ function searchBestMove(board, color, depth, timeMs){
 /* ===== STATE ===== */
 let sb=null, lobbyCh=null, gameCh=null;
 let me=null, presenceStatus='available', onlinePlayers=[];
+let liveGamesMap={}; // gameId -> {id,a,b,at}
 let pendingChallenge=null;
 let board=null, turn='w', mode=null, diff='medium', sel=null, legal=[], last=null, hist=[];
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
@@ -1266,10 +1267,32 @@ function joinLobby(){
       saveFriendReqs(r);
       renderFriends();
     });
+    lobbyCh.on('broadcast',{event:'live_game'}, function(p){
+      var d=p.payload||{};
+      if(!d.gameId) return;
+      if(d.active===false){
+        delete liveGamesMap[d.gameId];
+      } else {
+        liveGamesMap[d.gameId]={id:d.gameId, a:d.a||d.white||'?', b:d.b||d.black||'?', at:Date.now()};
+      }
+      renderLiveGames();
+    });
     lobbyCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
         setPresence('available');
         setConn(true,'online');
+        // ask others to announce live games
+        try{ lobbyCh.send({type:'broadcast', event:'live_games_request', payload:{by:me.name}}); }catch(e){}
+      }
+    });
+    lobbyCh.on('broadcast',{event:'live_games_request'}, function(p){
+      // If I'm in an online game, re-announce it
+      if(mode==='online' && gameId && me){
+        try{
+          lobbyCh.send({type:'broadcast', event:'live_game', payload:{
+            gameId:gameId, a: myColor==='w'?me.name:oppName, b: myColor==='b'?me.name:oppName, active:true
+          }});
+        }catch(e){}
       }
     });
   }catch(e){console.error(e);setConn(false,'lobby erro')}
@@ -1311,40 +1334,50 @@ function renderLiveGames(){
   var box=document.getElementById('live-games');
   var cnt=document.getElementById('live-count');
   if(!box) return;
-  // Group players in_game by gameId
   var map={};
+  // From presence
   (onlinePlayers||[]).forEach(function(p){
     if(p.status!=='in_game' || !p.gameId) return;
-    if(me && sameUser(p.user, me.name)) return; // don't list own game as watch target from self presence alone
     if(!map[p.gameId]) map[p.gameId]={id:p.gameId, players:[], opps:[]};
     map[p.gameId].players.push(p.user);
     if(p.opp) map[p.gameId].opps.push(p.opp);
   });
-  // Also include games where only opp is known via presence of one side
+  // From lobby broadcasts
+  Object.keys(liveGamesMap||{}).forEach(function(id){
+    var g=liveGamesMap[id];
+    if(!g) return;
+    if(!map[id]) map[id]={id:id, players:[], opps:[]};
+    if(g.a) map[id].players.push(g.a);
+    if(g.b) map[id].opps.push(g.b);
+  });
   var games=Object.keys(map).map(function(id){
     var g=map[id];
-    var a=g.players[0]||'';
-    var b=g.players[1]||g.opps[0]||'';
-    // dedupe
-    if(b && sameUser(a,b)) b=g.players[1]||g.opps.find(function(x){return !sameUser(x,a)})||'';
-    return {id:id, a:a, b:b||'?'};
+    var names=[];
+    (g.players||[]).concat(g.opps||[]).forEach(function(n){
+      if(!n||n==='?') return;
+      if(!names.some(function(x){return sameUser(x,n)})) names.push(n);
+    });
+    var a=names[0]||'?';
+    var b=names[1]||'?';
+    return {id:id, a:a, b:b};
   }).filter(function(g){
-    // hide if I'm one of the players
     if(me && (sameUser(g.a,me.name)||sameUser(g.b,me.name))) return false;
+    if(g.a==='?' && g.b==='?') return false;
     return true;
   });
-  if(cnt) cnt.textContent=games.length;
+  if(cnt) cnt.textContent=String(games.length);
   if(!games.length){
     box.innerHTML='<div class="empty" style="padding:.5rem 0">Nenhuma partida rolando agora</div>';
     return;
   }
   box.innerHTML=games.map(function(g){
-    return '<div class="live-card" onclick="spectateGame(\''+g.id+'\',\''+g.a+'\',\''+g.b+'\')">'+
+    return '<div class="live-card" onclick="spectateGame(\''+g.id+'\',\''+String(g.a).replace(/'/g,'')+'\',\''+String(g.b).replace(/'/g,'')+'\')">'+
       '<span class="live-dot"></span>'+
       '<div class="live-vs">'+escapeHtml(g.a)+' <span>vs</span> '+escapeHtml(g.b)+'</div>'+
       '<span class="live-watch">👁 Assistir</span></div>';
   }).join('');
 }
+
 function challengePlayer(user){
   if(!lobbyCh||!me||sameUser(user,me.name)) return;
   if(isMuted(user)) return toast('Você silenciou este jogador');
@@ -1384,6 +1417,16 @@ function startOnlineGame(gid, opponent, color){
   setPresence('in_game', gameId, opponent);
   joinGameChannel(false);
   saveActiveGame();
+  // Announce live game to lobby spectators
+  try{
+    if(lobbyCh){
+      var w = color==='w' ? me.name : opponent;
+      var b = color==='b' ? me.name : opponent;
+      liveGamesMap[gameId]={id:gameId, a:w, b:b, at:Date.now()};
+      lobbyCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, a:w, b:b, white:w, black:b, active:true}});
+    }
+  }catch(e){}
+  renderLiveGames();
 }
 function serializeBoard(b){
   var out=[];
@@ -1612,7 +1655,7 @@ function applySpectateMove(d){
     else st.textContent='👁 Assistindo · vez das '+(turn==='w'?'Brancas':'Pretas');
   }
 }
-function applyRemoteMovefunction applyRemoteMove(d){
+function applyRemoteMove(d){
   if(!d.from||!d.to || !board) return;
   // Only accept moves when it is the opponent's turn
   if(turn === myColor) return;
@@ -1665,7 +1708,7 @@ function startLocal(m){
   setupCoach(); render(); status(); movesUI(); updateCaps(); initClocks();
   saveActiveGame();
 }
-function startPuzzlefunction startPuzzle(){
+function startPuzzle(){
   if(!PUZZLES.length) return toast('Sem puzzles');
   puzzleIdx=Math.floor(Math.random()*PUZZLES.length);
   loadPuzzle(puzzleIdx);
@@ -2048,10 +2091,17 @@ async function finishOnline(result, msg){
     if(gameCh) gameCh.send({type:'broadcast', event:'game_over', payload:{by:me.name, result:result, msg:msg||''}});
   }catch(e){}
   await applyRank(result);
+  try{
+    if(lobbyCh && gameId){
+      lobbyCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, active:false}});
+      delete liveGamesMap[gameId];
+    }
+  }catch(e){}
   setPresence('available');
   if(gameCh&&sb){try{await sb.removeChannel(gameCh)}catch(e){} gameCh=null}
   gameId=''; mode=null;
   clearActiveGame();
+  renderLiveGames();
   showEnd('Fim de jogo', msg);
 }
 async function applyRank(result){
@@ -2092,9 +2142,16 @@ function toHome(){
   document.getElementById('ov-end').style.display='none';
   document.getElementById('game').style.display='none';
   document.getElementById('nav').style.display='flex';
+  try{
+    if(lobbyCh && gameId && (mode==='online')){
+      lobbyCh.send({type:'broadcast', event:'live_game', payload:{gameId:gameId, active:false}});
+      delete liveGamesMap[gameId];
+    }
+  }catch(e){}
   if(gameCh&&sb){try{sb.removeChannel(gameCh)}catch(e){} gameCh=null}
   mode=null; gameId=''; oppName='';
   clearActiveGame();
+  renderLiveGames();
   var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
   var ban=document.getElementById('spectate-banner'); if(ban&&ban.parentNode) ban.parentNode.removeChild(ban);
   setPresence('available');
