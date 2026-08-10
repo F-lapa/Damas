@@ -1563,36 +1563,48 @@ function enter(user){
 }
 
 /* ===== LOBBY / ONLINE ===== */
+function syncPresenceList(){
+  if(!lobbyCh) return;
+  try{
+    var state=lobbyCh.presenceState()||{};
+    onlinePlayers=[];
+    Object.keys(state).forEach(function(k){
+      var arr=state[k];
+      if(!arr||!arr.length) return;
+      var meta=arr[0]||{};
+      var av=meta.avatar||getAvatarData(k)||'';
+      onlinePlayers.push({
+        user:k,
+        status:meta.status||'available',
+        gameId:meta.gameId||'',
+        avatar:av,
+        opp:meta.opp||'',
+        color:meta.color||''
+      });
+      if(av && me && !sameUser(k, me.name)){
+        try{ cachePeerAvatar(k, av); }catch(e){}
+      }
+    });
+    renderOnline();
+    renderLiveGames();
+    renderFriends();
+  }catch(e){ console.warn('syncPresenceList', e); }
+}
 function joinLobby(){
   if(!sb||!me) return;
   try{
+    if(window._presenceBeat){ clearInterval(window._presenceBeat); window._presenceBeat=null; }
     if(lobbyCh){try{sb.removeChannel(lobbyCh)}catch(e){}}
     lobbyCh=sb.channel('damas-lobby',{config:{presence:{key:me.name},broadcast:{self:false,ack:false}}});
     lobbyCh.on('presence',{event:'sync'}, function(){
-      var state=lobbyCh.presenceState();
-      onlinePlayers=[];
-      Object.keys(state).forEach(function(k){
-        var arr=state[k];
-        if(arr&&arr[0]){
-          var av=arr[0].avatar||getAvatarData(k)||'';
-          onlinePlayers.push({
-            user:k,
-            status:arr[0].status||'available',
-            gameId:arr[0].gameId||'',
-            avatar:av,
-            opp:arr[0].opp||'',
-            color:arr[0].color||''
-          });
-          if(av && me && !sameUser(k, me.name)){
-            cachePeerAvatar(k, av);
-          }
-        }
-      });
-      renderOnline();
-      renderLiveGames();
-      renderFriends();
-      // Pull missing avatars from DB so everyone sees photos
+      syncPresenceList();
       fillMissingAvatars();
+    });
+    lobbyCh.on('presence',{event:'join'}, function(){
+      syncPresenceList();
+    });
+    lobbyCh.on('presence',{event:'leave'}, function(){
+      syncPresenceList();
     });
     lobbyCh.on('broadcast',{event:'avatar_share'}, function(p){
       var d=p.payload||{};
@@ -1676,20 +1688,32 @@ function joinLobby(){
     });
     lobbyCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
-        setPresence('available');
         setConn(true,'online');
-        // ask others to announce live games
+        setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:''));
+        // reforça track (presence às vezes atrasa)
+        setTimeout(function(){ setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:'')); }, 500);
+        setTimeout(function(){ setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:'')); }, 2000);
         try{ lobbyCh.send({type:'broadcast', event:'live_games_request', payload:{by:me.name}}); }catch(e){}
-        // Share our public avatar so others can see the photo
-        setTimeout(shareMyAvatar, 400);
-        setTimeout(shareMyAvatar, 2000);
-        setTimeout(fillMissingAvatars, 600);
-        // Re-share periodically so late joiners get the photo
+        setTimeout(function(){ try{ shareMyAvatar(); }catch(e){} }, 800);
+        setTimeout(fillMissingAvatars, 1000);
         if(window._avatarShareTimer) clearInterval(window._avatarShareTimer);
         window._avatarShareTimer=setInterval(function(){
-          shareMyAvatar();
+          try{ shareMyAvatar(); }catch(e){}
           fillMissingAvatars();
-        }, 12000);
+        }, 20000);
+        // Heartbeat de presença — mantém todo mundo visível no lobby
+        if(window._presenceBeat) clearInterval(window._presenceBeat);
+        window._presenceBeat=setInterval(function(){
+          if(!lobbyCh||!me) return;
+          try{
+            setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:''));
+            syncPresenceList();
+          }catch(e){}
+        }, 10000);
+      } else if(status==='CHANNEL_ERROR' || status==='TIMED_OUT' || status==='CLOSED'){
+        setConn(false, 'reconectando…');
+        // tenta reentrar no lobby
+        setTimeout(function(){ try{ joinLobby(); }catch(e){} }, 2500);
       }
     });
     lobbyCh.on('broadcast',{event:'live_games_request'}, function(p){
@@ -1758,21 +1782,18 @@ function startLiveAnnounce(){
   liveAnnounceTimer=setInterval(announceLiveGame, 7000);
 }
 function setPresence(status, gameId, opponent){
-  presenceStatus=status;
+  if(status) presenceStatus=status;
   if(!lobbyCh||!me) return;
-  // Never put base64 avatars in presence — it breaks tracking on many projects
+  // Nunca colocar base64 em presence — quebra o track
   var payload={
-    status: status||'available',
+    user: me.name,
+    status: presenceStatus||'available',
     gameId: gameId||'',
-    opp: opponent || ((status==='in_game') ? (oppName||'') : ''),
-    color: (status==='in_game') ? (myColor||'') : '',
-    avatar: ''
+    opp: opponent || ((presenceStatus==='in_game') ? (oppName||'') : ''),
+    color: (presenceStatus==='in_game') ? (myColor||'') : '',
+    t: Date.now()
   };
   try{ lobbyCh.track(payload); }catch(e){ console.warn('track', e); }
-  // retry track once (channel may still be joining)
-  setTimeout(function(){
-    try{ if(lobbyCh) lobbyCh.track(payload); }catch(e){}
-  }, 800);
 }
 function renderOnline(){
   var list=document.getElementById('online-list');
@@ -3498,13 +3519,15 @@ function shareMyAvatar(){
   if(!av){
     try{ av=localStorage.getItem(AVATAR_KEY+'public_'+me.name)||localStorage.getItem(AVATAR_KEY+me.name)||''; }catch(e){}
   }
-  if(!av) return;
-  // Prefer tiny public version for broadcast size limits
+  // Só envia se for pequeno (Realtime tem limite; avatar grande derruba o lobby)
+  if(!av || av.length>12000) {
+    try{ setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:'')); }catch(e){}
+    return;
+  }
   try{
     lobbyCh.send({type:'broadcast', event:'avatar_share', payload:{user:me.name, avatar:av}});
   }catch(e){}
-  // Also refresh own presence track (without base64)
-  try{ setPresence(presenceStatus||'available'); }catch(e){}
+  try{ setPresence(presenceStatus||'available', (mode==='online'?gameId:''), (mode==='online'?oppName:'')); }catch(e){}
 }
 var _fillAvTimer=null;
 function fillMissingAvatars(){
