@@ -2480,7 +2480,7 @@ async function paintRank(){
 
     // Podium: visual order silver | gold | bronze
     if(pod){
-      var order=[1,0,2], medals=['gold','silver','bronze'], crowns=['🥈','👑','🥉'], places=['2º','1º','3º'];
+      var order=[1,0,2], medals=['gold','silver','bronze'], crowns=['👑','🥈','🥉'], places=['1º','2º','3º'];
       pod.innerHTML=order.map(function(idx){
         var p=list[idx];
         if(!p) return '<div class="podium-card"></div>';
