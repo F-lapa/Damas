@@ -332,7 +332,7 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 .cell .coord{position:absolute;font-size:.55rem;font-weight:800;opacity:.5;pointer-events:none;line-height:1;z-index:1}
 .cell .coord.file{bottom:2px;right:3px}
 .cell .coord.rank{top:2px;left:3px}
-.must-capture{box-shadow:inset 0 0 0 999px rgba(251,113,133,.18)!important}
+.must-capture{box-shadow:inset 0 0 0 999px rgba(52,211,153,.12)!important}
 .live-games{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.85rem}
 .live-card{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border-radius:14px;border:1px solid rgba(251,113,133,.25);background:linear-gradient(120deg,rgba(251,113,133,.08),rgba(91,157,255,.06));cursor:pointer;transition:.18s}
 .live-card:hover{transform:translateX(3px);border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.12)}
@@ -426,12 +426,12 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
             <h3>🤝 Amigos</h3>
             <div id="friends-list"><div class="empty" style="padding:.35rem 0">Carregando…</div></div>
           </div>
-          <p class="note">Toque no perfil · capturas são obrigatórias · damas viram rainhas.</p>
+          <p class="note">Toque no perfil · captura opcional · dama corre várias casas (damas brasileiras).</p>
         </div>
         <div class="card">
           <h2>🎯 Treino local</h2>
           <div class="modes">
-            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA minimax · não altera ranking online</div></div></div>
+            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · regras brasileiras · não altera ranking online</div></div></div>
             <div class="mode" onclick="startLocal('local')"><div class="i">👥</div><div><div class="t">Dois jogadores</div><div class="d">Mesmo dispositivo</div></div></div>
             <div class="mode" onclick="startPuzzle()"><div class="i">🧩</div><div><div class="t">Puzzles</div><div class="d">Táticas · +5 acerto · −10 erro</div></div></div>
           </div>
@@ -665,10 +665,16 @@ async function createHashedPassword(password){
   return 'pbkdf2$'+salt+'$'+(await hashPassword(password, salt));
 }
 
-/* ===== CHECKERS ENGINE (English/American rules, mandatory capture) ===== */
-// Board: 32 dark squares indexed 0-31 (or full 8x8 with null on light).
-// We use 8x8: 0=empty, 1=white man, 2=white king, -1=black man, -2=black king
-// White moves "up" (decreasing row), Black moves "down" (increasing row). White at bottom rows 5-7.
+/* ===== CHECKERS ENGINE — Damas brasileiras =====
+   Regras:
+   - Captura NÃO é obrigatória
+   - Pedras (men): andam 1 casa na diagonal para frente
+   - Em capturas, pedras podem capturar em qualquer diagonal (inclui para trás), inclusive em sequência dupla/tripla
+   - Dama (king): corre várias casas na diagonal (frente e trás) — dama voadora
+   - Dama captura à distância na diagonal e pode continuar a sequência
+   Board 8x8: 0 vazio, 1 pedra branca, 2 dama branca, -1 pedra preta, -2 dama preta
+   Brancas embaixo (linhas 5–7), movem diminuindo a linha; pretas em cima, aumentando a linha.
+*/
 function newBoard(){
   var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
   for(var r=0;r<3;r++) for(var c=0;c<8;c++) if((r+c)%2===1) b[r][c]=-1;
@@ -678,93 +684,124 @@ function newBoard(){
 function cloneBoard(b){return b.map(function(row){return row.slice()})}
 function sqName(r,c){return 'abcdefgh'[c]+(8-r)}
 function parseSq(s){return {r:8-parseInt(s[1],10), c:'abcdefgh'.indexOf(s[0])}}
-
 function pieceColor(p){return p>0?'w':p<0?'b':null}
 function isKing(p){return Math.abs(p)===2}
-function dirsFor(p){
-  if(isKing(p)) return [[-1,-1],[-1,1],[1,-1],[1,1]];
+function inBounds(r,c){return r>=0&&r<=7&&c>=0&&c<=7}
+function ALL_DIRS(){return [[-1,-1],[-1,1],[1,-1],[1,1]]}
+function manForwardDirs(p){
   if(p>0) return [[-1,-1],[-1,1]]; // white up
   return [[1,-1],[1,1]]; // black down
 }
 
-function getCapturesFrom(board, r, c){
-  var p=board[r][c]; if(!p) return [];
-  var color=pieceColor(p), results=[];
-  function search(brd, rr, cc, path, captured){
-    var found=false;
-    var dirs=dirsFor(brd[rr][cc]||p);
-    for(var i=0;i<dirs.length;i++){
-      var dr=dirs[i][0], dc=dirs[i][1];
-      var mr=rr+dr, mc=cc+dc;
-      var lr=rr+2*dr, lc=cc+2*dc;
-      if(lr<0||lr>7||lc<0||lc>7) continue;
-      var mid=brd[mr][mc], land=brd[lr][lc];
-      if(!mid || pieceColor(mid)===color) continue;
-      if(land!==0) continue;
-      // already captured this piece in this sequence?
-      var midKey=mr+','+mc;
-      if(captured.indexOf(midKey)>=0) continue;
-      found=true;
-      var nb=cloneBoard(brd);
-      nb[lr][lc]=nb[rr][cc];
-      nb[rr][cc]=0;
-      nb[mr][mc]=0;
-      // promote?
-      if(!isKing(nb[lr][lc])){
-        if(color==='w' && lr===0) nb[lr][lc]=2;
-        if(color==='b' && lr===7) nb[lr][lc]=-2;
+function collectQuietMoves(board, color){
+  var moves=[];
+  for(var r=0;r<8;r++) for(var c=0;c<8;c++){
+    var p=board[r][c];
+    if(pieceColor(p)!==color) continue;
+    if(isKing(p)){
+      // Flying king: any empty diagonal run
+      var dirs=ALL_DIRS();
+      for(var i=0;i<dirs.length;i++){
+        var dr=dirs[i][0], dc=dirs[i][1];
+        var nr=r+dr, nc=c+dc;
+        while(inBounds(nr,nc) && board[nr][nc]===0){
+          var nb=cloneBoard(board);
+          nb[nr][nc]=p; nb[r][c]=0;
+          moves.push({from:sqName(r,c), to:sqName(nr,nc), board:nb, captures:0, steps:[{r:r,c:c,toR:nr,toC:nc}]});
+          nr+=dr; nc+=dc;
+        }
       }
-      var newPath=path.concat([{from:sqName(rr,cc),to:sqName(lr,lc),cap:sqName(mr,mc)}]);
-      var cont=search(nb, lr, lc, newPath, captured.concat([midKey]));
-      if(!cont) results.push({path:newPath, board:nb, from:path[0]?path[0].from:sqName(r,c), to:sqName(lr,lc)});
+    } else {
+      // Man: one step forward only
+      var dirs2=manForwardDirs(p);
+      for(var j=0;j<dirs2.length;j++){
+        var nr2=r+dirs2[j][0], nc2=c+dirs2[j][1];
+        if(!inBounds(nr2,nc2) || board[nr2][nc2]!==0) continue;
+        var nb2=cloneBoard(board);
+        nb2[nr2][nc2]=p; nb2[r][c]=0;
+        // promote
+        if(color==='w' && nr2===0) nb2[nr2][nc2]=2;
+        if(color==='b' && nr2===7) nb2[nr2][nc2]=-2;
+        moves.push({from:sqName(r,c), to:sqName(nr2,nc2), board:nb2, captures:0, steps:[{r:r,c:c,toR:nr2,toC:nc2}]});
+      }
     }
-    return found;
   }
-  search(board, r, c, [], []);
-  // Also single-jump terminals already pushed; multi handled recursively
-  // Flatten: if recursive found continuations they pushed; if only one jump without further, search returns false and we need single
-  // Fix: collect properly
-  return results;
+  return moves;
 }
 
-// Simpler robust capture collector
 function collectCaptures(board, color){
   var all=[];
   for(var r=0;r<8;r++) for(var c=0;c<8;c++){
     if(pieceColor(board[r][c])!==color) continue;
-    var jumps=getAllJumpSequences(board, r, c);
-    jumps.forEach(function(seq){ all.push(seq); });
+    getAllJumpSequences(board, r, c).forEach(function(seq){ all.push(seq); });
   }
   return all;
 }
+
 function getAllJumpSequences(board, r, c){
-  var p=board[r][c]; if(!p) return [];
-  var color=pieceColor(p);
+  var p0=board[r][c]; if(!p0) return [];
+  var color=pieceColor(p0);
   var sequences=[];
+
+  function promoteIfNeeded(brd, rr, cc, piece){
+    if(Math.abs(piece)!==1) return piece;
+    if(color==='w' && rr===0) return 2;
+    if(color==='b' && rr===7) return -2;
+    return piece;
+  }
+
   function dfs(brd, rr, cc, path, caps){
-    var extended=false;
     var piece=brd[rr][cc];
-    var dirs=dirsFor(piece);
-    for(var i=0;i<dirs.length;i++){
-      var dr=dirs[i][0], dc=dirs[i][1];
-      var mr=rr+dr, mc=cc+dc, lr=rr+2*dr, lc=cc+2*dc;
-      if(lr<0||lr>7||lc<0||lc>7) continue;
-      var mid=brd[mr][mc], land=brd[lr][lc];
-      if(!mid || pieceColor(mid)===color || land!==0) continue;
-      var mk=mr+','+mc;
-      if(caps[mk]) continue;
-      var nb=cloneBoard(brd);
-      var moved=nb[rr][cc];
-      nb[lr][lc]=moved; nb[rr][cc]=0; nb[mr][mc]=0;
-      if(Math.abs(moved)===1){
-        if(color==='w' && lr===0) nb[lr][lc]=2;
-        if(color==='b' && lr===7) nb[lr][lc]=-2;
+    var extended=false;
+    var king=isKing(piece);
+
+    if(king){
+      // Flying king captures on each diagonal
+      var dirs=ALL_DIRS();
+      for(var i=0;i<dirs.length;i++){
+        var dr=dirs[i][0], dc=dirs[i][1];
+        var cr=rr+dr, cc2=cc+dc;
+        // slide through empties
+        while(inBounds(cr,cc2) && brd[cr][cc2]===0){ cr+=dr; cc2+=dc; }
+        if(!inBounds(cr,cc2)) continue;
+        var mid=brd[cr][cc2];
+        if(!mid || pieceColor(mid)===color) continue;
+        var mk=cr+','+cc2;
+        if(caps[mk]) continue;
+        // landings beyond the captured piece
+        var lr=cr+dr, lc=cc2+dc;
+        while(inBounds(lr,lc) && brd[lr][lc]===0){
+          var nb=cloneBoard(brd);
+          nb[lr][lc]=piece; nb[rr][cc]=0; nb[cr][cc2]=0;
+          var npath=path.concat([{r:rr,c:cc,toR:lr,toC:lc,capR:cr,capC:cc2}]);
+          var ncaps=Object.assign({},caps); ncaps[mk]=true;
+          extended=true;
+          dfs(nb, lr, lc, npath, ncaps);
+          lr+=dr; lc+=dc;
+        }
       }
-      var npath=path.concat([{r:rr,c:cc,toR:lr,toC:lc,capR:mr,capC:mc}]);
-      var ncaps=Object.assign({},caps); ncaps[mk]=true;
-      extended=true;
-      dfs(nb, lr, lc, npath, ncaps);
+    } else {
+      // Man: jump adjacent enemy to empty square — all 4 diagonals (backwards allowed in captures)
+      var dirs2=ALL_DIRS();
+      for(var j=0;j<dirs2.length;j++){
+        var dr2=dirs2[j][0], dc2=dirs2[j][1];
+        var mr=rr+dr2, mc=cc+dc2;
+        var lr2=rr+2*dr2, lc2=cc+2*dc2;
+        if(!inBounds(lr2,lc2)) continue;
+        var mid2=brd[mr][mc], land=brd[lr2][lc2];
+        if(!mid2 || pieceColor(mid2)===color || land!==0) continue;
+        var mk2=mr+','+mc;
+        if(caps[mk2]) continue;
+        var nb2=cloneBoard(brd);
+        var moved=promoteIfNeeded(nb2, lr2, lc2, piece);
+        nb2[lr2][lc2]=moved; nb2[rr][cc]=0; nb2[mr][mc]=0;
+        var npath2=path.concat([{r:rr,c:cc,toR:lr2,toC:lc2,capR:mr,capC:mc}]);
+        var ncaps2=Object.assign({},caps); ncaps2[mk2]=true;
+        extended=true;
+        dfs(nb2, lr2, lc2, npath2, ncaps2);
+      }
     }
+
     if(!extended && path.length){
       sequences.push({
         steps: path,
@@ -775,36 +812,16 @@ function getAllJumpSequences(board, r, c){
       });
     }
   }
+
   dfs(board, r, c, [], {});
   return sequences;
 }
 
-function collectQuietMoves(board, color){
-  var moves=[];
-  for(var r=0;r<8;r++) for(var c=0;c<8;c++){
-    var p=board[r][c];
-    if(pieceColor(p)!==color) continue;
-    var dirs=dirsFor(p);
-    for(var i=0;i<dirs.length;i++){
-      var nr=r+dirs[i][0], nc=c+dirs[i][1];
-      if(nr<0||nr>7||nc<0||nc>7) continue;
-      if(board[nr][nc]!==0) continue;
-      var nb=cloneBoard(board);
-      nb[nr][nc]=nb[r][c]; nb[r][c]=0;
-      if(Math.abs(nb[nr][nc])===1){
-        if(color==='w' && nr===0) nb[nr][nc]=2;
-        if(color==='b' && nr===7) nb[nr][nc]=-2;
-      }
-      moves.push({from:sqName(r,c), to:sqName(nr,nc), board:nb, captures:0, steps:[{r:r,c:c,toR:nr,toC:nc}]});
-    }
-  }
-  return moves;
-}
-
 function legalMoves(board, color){
+  // Captura NÃO obrigatória — quiet + captures
   var caps=collectCaptures(board, color);
-  if(caps.length) return caps; // mandatory capture
-  return collectQuietMoves(board, color);
+  var quiet=collectQuietMoves(board, color);
+  return caps.concat(quiet);
 }
 
 function applyMove(board, move){
@@ -840,7 +857,7 @@ function evaluateBoard(board, forColor){
       var isW=p>0, king=Math.abs(p)===2;
       var val;
       if(king){
-        val = 55 + (3.5-Math.abs(3.5-r))*1.1 + (3.5-Math.abs(3.5-c))*1.1;
+        val = 90 + (3.5-Math.abs(3.5-r))*1.4 + (3.5-Math.abs(3.5-c))*1.4; // flying king (brasileira)
       } else {
         val = 14;
         // advancement + promotion race
@@ -978,10 +995,15 @@ function searchBestMove(board, color, depth, timeMs){
       if(_deadline && Date.now()>_deadline) break;
       var nb=applyMove(board, moves[i]);
       var sc=minimax(nb, d-1, -1e9, 1e9, false, color==='w'?'b':'w');
-      sc += (moves[i].captures||0)*18;
+      sc += (moves[i].captures||0)*28; // multi-captures excel under optional-capture rules
       var to=parseSq(moves[i].to);
       var landed=nb[to.r][to.c];
-      if(Math.abs(landed)===2) sc += 10; // promotion bias
+      if(Math.abs(landed)===2) sc += 14; // promotion / flying king
+      // long king slides (positional)
+      if(Math.abs(landed)===2 && (moves[i].captures||0)===0){
+        var fr=parseSq(moves[i].from);
+        if(Math.abs(fr.r-to.r)>=3) sc += 3;
+      }
       if(sc>localScore){ localScore=sc; localBest=moves[i]; }
     }
     if(localBest){ best=localBest; bestScore=localScore; }
@@ -1872,7 +1894,7 @@ function render(){
         }
       }
     }
-    // highlight pieces that must capture
+    // optional: soft hint on pieces that can capture (not forced)
     if(mustCap && pieceColor(p)===turn){
       var hasCap=moves.some(function(m){return m.from===sq && (m.captures||0)>0});
       if(hasCap) cell.classList.add('must-capture');
@@ -1901,10 +1923,8 @@ function click(sq){
 function pick(sq){
   sel=sq;
   var moves=legalMoves(board, turn);
+  // Captura opcional: mostra todos os lances da peça (quietos e capturas)
   legal=moves.filter(function(m){return m.from===sq});
-  // if mandatory capture elsewhere, only allow capturing pieces
-  var anyCap=moves.some(function(m){return (m.captures||0)>0});
-  if(anyCap) legal=legal.filter(function(m){return (m.captures||0)>0});
   render();
 }
 function getCellRect(sq){
@@ -2045,7 +2065,7 @@ function status(){
     el.classList.add('mate');
   } else {
     var cap=moves.some(function(m){return (m.captures||0)>0});
-    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura obrigatória':'');
+    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura disponível':'');
   }
   document.getElementById('bar-w').classList.toggle('active', turn==='w');
   document.getElementById('bar-b').classList.toggle('active', turn==='b');
@@ -2256,7 +2276,7 @@ function coachBest(auto){
     return;
   }
   document.getElementById('coach-move').textContent='…';
-  document.getElementById('coach-text').textContent='Coach Supremo calculando…';
+  document.getElementById('coach-text').textContent='Coach Supremo (damas brasileiras) calculando a linha perfeita…';
   setTimeout(function(){
     // Depth 12 with 120ms budget — iterative deepening keeps it snappy
     var res=searchBestMove(board, turn, 12, 120);
@@ -2288,11 +2308,11 @@ function coachPlan(){
   var w=countPieces(board,'w'), b=countPieces(board,'b');
   var total=w.total+b.total;
   var plan;
-  if(n<6) plan='Abertura (Coach Supremo): avance as peças centrais, forme ponte na última fila e prepare caminhos de promoção. Evite doações gratuitas.';
-  else if(total>10) plan='Meio-jogo: force capturas vantajosas, restrinja a mobilidade do adversário e avance peões seguros. Procure duplas e trincas.';
-  else if(total>4) plan='Final: priorize damas ativas, corral as peças restantes e use o tempo. Evite empates por bloqueio se estiver à frente.';
-  else plan='Final técnico: com poucas peças, centralize a dama, oponha o rei adversário e force a promoção ou o zugzwang.';
-  if(w.kings+b.kings) plan+=' Com damas no tabuleiro, a atividade vale mais que material residual.';
+  if(n<6) plan='Abertura (damas brasileiras): avance o centro, prepare a promoção e não entregue capturas grátis — a captura não é obrigatória, use-a só se for vantajosa.';
+  else if(total>10) plan='Meio-jogo: busque sequências duplas/triplas (a pedra pode capturar para trás na sequência). Troque para obter dama voadora.';
+  else if(total>4) plan='Final: a dama corre várias casas — domine diagonais longas, restrinja a dama rival e force promoções.';
+  else plan='Final técnico: com dama voadora, centralize, varra as diagonais e deixe o adversário sem casas seguras.';
+  if(w.kings+b.kings) plan+=' Dama ativa vale mais do que material parado.';
   document.getElementById('coach-text').textContent=plan;
 }
 
