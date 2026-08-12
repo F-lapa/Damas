@@ -509,9 +509,55 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 .live-card .live-watch{font-size:.72rem;font-weight:900;padding:.28rem .55rem;border-radius:999px;background:rgba(251,113,133,.15);border:1px solid rgba(251,113,133,.3);color:#fecdd3;white-space:nowrap}
 .spectate-banner{text-align:center;padding:.55rem .85rem;border-radius:12px;font-weight:800;font-size:.84rem;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3);color:#fecdd3;margin-bottom:.35rem}
 
+
+/* PWA install banner */
+#install-banner{
+  display:none;position:fixed;left:0;right:0;top:0;z-index:200;
+  padding:.75rem 1rem;padding-top:max(.75rem, env(safe-area-inset-top));
+  background:linear-gradient(135deg,rgba(28,38,62,.98),rgba(12,16,32,.98));
+  border-bottom:1px solid rgba(91,157,255,.35);
+  box-shadow:0 12px 40px rgba(0,0,0,.45);
+  backdrop-filter:blur(16px);
+  animation:fade-up .35s ease;
+}
+#install-banner.show{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+#install-banner .ib-icon{
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--blue),var(--violet));
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  box-shadow:0 6px 16px rgba(91,157,255,.35);
+}
+#install-banner .ib-icon img{width:100%;height:100%;object-fit:cover}
+#install-banner .ib-text{flex:1;min-width:140px}
+#install-banner .ib-text b{display:block;font-size:.92rem;font-weight:900}
+#install-banner .ib-text span{display:block;font-size:.75rem;color:var(--muted);margin-top:.12rem}
+#install-banner .ib-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+#install-banner .ib-install{
+  padding:.55rem 1rem;border-radius:12px;font-weight:900;font-size:.84rem;color:#fff;
+  background:linear-gradient(135deg,var(--blue),var(--violet));
+  box-shadow:0 6px 18px rgba(91,157,255,.3);border:none;cursor:pointer;
+}
+#install-banner .ib-close{
+  padding:.45rem .7rem;border-radius:10px;font-weight:800;font-size:.78rem;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--muted);cursor:pointer;
+}
+body.has-install-banner #auth,
+body.has-install-banner #app{padding-top:72px}
+
 </style>
 </head>
 <body>
+<div id="install-banner" role="dialog" aria-label="Instalar aplicativo">
+  <div class="ib-icon"><img src="icone.png" alt="" onerror="this.parentNode.textContent='⬤'"/></div>
+  <div class="ib-text">
+    <b>Baixe o app Damas Mestre</b>
+    <span>Jogue mais rápido · atalho na tela inicial</span>
+  </div>
+  <div class="ib-actions">
+    <button type="button" class="ib-install" id="btn-install-app" onclick="triggerInstall()">Baixar app</button>
+    <button type="button" class="ib-close" onclick="dismissInstall()">Agora não</button>
+  </div>
+</div>
 <div id="auth">
   <div class="auth-card">
     <div class="brand">⬤</div>
@@ -3736,7 +3782,10 @@ function restoreActiveGame(){
 }
 
 /* ===== INIT ===== */
-/* ===== PWA ===== */
+/* ===== PWA / Instalar app ===== */
+var deferredInstallPrompt=null;
+var INSTALL_DISMISS_KEY='dm_install_dismiss_v1';
+
 function registerPWA(){
   if(!('serviceWorker' in navigator)) return;
   window.addEventListener('load', function(){
@@ -3748,6 +3797,90 @@ function registerPWA(){
   });
 }
 registerPWA();
+
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  showInstallBanner();
+});
+
+window.addEventListener('appinstalled', function(){
+  deferredInstallPrompt=null;
+  hideInstallBanner();
+  try{ localStorage.setItem(INSTALL_DISMISS_KEY, 'installed'); }catch(err){}
+  toast('App instalado!');
+});
+
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone===true;
+}
+
+function showInstallBanner(){
+  if(isStandalone()) return;
+  try{
+    var d=localStorage.getItem(INSTALL_DISMISS_KEY);
+    if(d==='installed') return;
+    // dismissed within 3 days
+    if(d && Date.now()-Number(d)<3*24*60*60*1000) return;
+  }catch(e){}
+  var el=document.getElementById('install-banner');
+  if(!el) return;
+  el.classList.add('show');
+  document.body.classList.add('has-install-banner');
+}
+
+function hideInstallBanner(){
+  var el=document.getElementById('install-banner');
+  if(el) el.classList.remove('show');
+  document.body.classList.remove('has-install-banner');
+}
+
+function dismissInstall(){
+  hideInstallBanner();
+  try{ localStorage.setItem(INSTALL_DISMISS_KEY, String(Date.now())); }catch(e){}
+}
+
+async function triggerInstall(){
+  // Android/Chrome: native install prompt
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    try{
+      var choice=await deferredInstallPrompt.userChoice;
+      if(choice && choice.outcome==='accepted'){
+        hideInstallBanner();
+        try{ localStorage.setItem(INSTALL_DISMISS_KEY, 'installed'); }catch(e){}
+      }
+    }catch(e){}
+    deferredInstallPrompt=null;
+    return;
+  }
+  // iOS Safari — guide
+  var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isAndroid=/android/i.test(navigator.userAgent);
+  if(isIOS){
+    toast('No iPhone: Compartilhar → Adicionar à Tela de Início');
+    return;
+  }
+  if(isAndroid){
+    toast('No menu ⋮ do Chrome → Instalar app / Adicionar à tela inicial');
+    return;
+  }
+  toast('Abra pelo Chrome no celular para instalar o app');
+}
+
+// Show banner after a short delay even without beforeinstallprompt (manual tip)
+window.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    if(isStandalone()) return;
+    // If browser already fired beforeinstallprompt, banner is shown.
+    // Otherwise still show banner as "Baixar app" CTA after 2s on mobile.
+    if(deferredInstallPrompt){ showInstallBanner(); return; }
+    if(/android|iphone|ipad|ipod/i.test(navigator.userAgent)){
+      showInstallBanner();
+    }
+  }, 1800);
+});
 
 window.addEventListener('DOMContentLoaded', async function(){
   loadPrefs();
