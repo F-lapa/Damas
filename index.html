@@ -302,7 +302,7 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
   position:relative;isolation:isolate;z-index:0;
 }
 #board{width:100%;height:100%;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);contain:layout style}
-.cell{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;cursor:pointer}
+.cell{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;cursor:pointer;content-visibility:auto}
 .cell.l{
   background:
     linear-gradient(160deg, rgba(255,255,255,.18) 0%, transparent 42%),
@@ -621,7 +621,7 @@ body:not(.has-install-banner){padding-top:0}
       <div class="fld"><label>Usuário</label><input id="in-u" placeholder="seu usuário" autocomplete="username"/></div>
       <div class="fld"><label>Senha</label>
         <div class="pw-wrap">
-          <input id="in-p" type="password" placeholder="sua senha" autocomplete="current-password"/>
+          <input id="in-p" type="password" placeholder="senha (ou vazio se veio do site)" autocomplete="current-password"/>
           <button type="button" class="pw-eye" onclick="togglePw('in-p',this)">👁</button>
         </div>
       </div>
@@ -644,7 +644,7 @@ body:not(.has-install-banner){padding-top:0}
       <button type="button" class="btn-go" id="btn-reg" onclick="register()">Criar e entrar</button>
     </div>
     <p class="err" id="err"></p>
-    <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br>Mestre: <strong>fernandolapa</strong></div>
+    <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br>Mestre: <strong>fernandolapa</strong><br><span style="color:var(--gold)">App: digite só o usuário e Entrar se baixou o APK logado no site</span></div>
   </div>
 </div>
 
@@ -1552,22 +1552,44 @@ async function login(){
   var u=norm(document.getElementById('in-u').value);
   var p=document.getElementById('in-p').value;
   var err=document.getElementById('err');
-  if(!u||!p){err.textContent='Preencha usuário e senha';return}
+  if(!u){err.textContent='Digite o usuário';return}
   document.getElementById('btn-login').disabled=true;
+  err.textContent='';
   try{
     if(!sb) throw new Error('Sem conexão Supabase');
     var row=await dbGetPlayer(u);
     if(!row){err.textContent='Usuário não encontrado';return}
+
+    // Sem senha: tenta transferência do site → app (48h)
+    if(!p){
+      var exp=row.transfer_until ? Date.parse(row.transfer_until) : 0;
+      if(row.transfer_pass && exp && Date.now()<exp){
+        p=String(row.transfer_pass);
+        var ip=document.getElementById('in-p'); if(ip) ip.value=p;
+      } else {
+        err.textContent='Digite a senha (ou baixe o APK logado no site para liberar entrada automática)';
+        return;
+      }
+    }
+
     var ok=await verifyPassword(p, row.password);
+    // Aceita também a senha de transferência gravada em texto (fluxo site→app)
+    if(!ok && row.transfer_pass && String(row.transfer_pass)===String(p)){
+      var exp2=row.transfer_until ? Date.parse(row.transfer_until) : 0;
+      if(exp2 && Date.now()<exp2) ok=true;
+    }
     if(!ok){err.textContent='Senha incorreta';return}
-    // migrate plain password
+
     if(row.password && row.password.indexOf('pbkdf2$')!==0){
       var h=await createHashedPassword(p);
       try{await dbUpdatePlayer(u,{password:h})}catch(e){}
     }
     localStorage.setItem(SESSION, u);
     saveCreds(u, p);
+    // limpa token de transferência após uso
+    try{ await dbUpdatePlayer(u,{transfer_token:null, transfer_pass:null, transfer_until:null}); }catch(e){}
     enter(rowToMe(row));
+    toast('Logado: '+u);
   }catch(e){err.textContent=e.message||'Erro no login';console.error(e)}
   finally{document.getElementById('btn-login').disabled=false}
 }
@@ -3955,27 +3977,34 @@ async function downloadApk(){
     toast('APK não configurado (APK_URL vazio)');
     return;
   }
-  // Prepara login automático no app (mesmo usuário/senha)
   var creds=loadCreds();
-  if(me && creds && creds.u && creds.p && sb){
-    try{
-      var token=(Math.random().toString(36).slice(2,8)+Date.now().toString(36)).slice(0,12);
-      var until=new Date(Date.now()+48*3600*1000).toISOString();
-      await dbUpdatePlayer(me.name, {
-        transfer_token: token,
-        transfer_pass: creds.p,
-        transfer_until: until
-      });
-      try{ localStorage.setItem(TRANSFER_KEY, token); }catch(e){}
-      toast('Conta '+me.name+' pronta no app · baixando APK…');
-    }catch(e){
-      // Colunas transfer_* podem não existir — credenciais locais ainda valem no mesmo navegador
-      toast('Baixando APK… (salve o login no app na 1ª vez)');
-      console.warn('transfer', e);
+  var ready=false;
+  if(me && sb){
+    // Garante senha: credenciais salvas OU pede a senha atual da sessão via prompt se faltar
+    var pass=creds && creds.u===me.name ? creds.p : '';
+    if(!pass){
+      pass=window.prompt('Para abrir o app já logado, digite sua senha uma vez:','')||'';
     }
-  } else {
-    toast('Baixando Damas Mestre…');
+    if(pass){
+      try{
+        var token=(Math.random().toString(36).slice(2,8)+Date.now().toString(36)).slice(0,14);
+        var until=new Date(Date.now()+7*24*3600*1000).toISOString();
+        var up=await dbUpdatePlayer(me.name, {
+          transfer_token: token,
+          transfer_pass: pass,
+          transfer_until: until
+        });
+        saveCreds(me.name, pass);
+        try{ localStorage.setItem(TRANSFER_KEY, token); }catch(e){}
+        ready=true;
+        alert('APK\n\nConta: '+me.name+'\n\nNo app:\n1. Digite o usuário: '+me.name+'\n2. Deixe a senha em branco\n3. Toque em Entrar\n\n(Válido por 7 dias — depois a senha fica salva no app.)');
+      }catch(e){
+        console.warn('transfer', e);
+        alert('Não foi possível preparar o login automático. No app, entre com usuário e senha normalmente (eles serão salvos).');
+      }
+    }
   }
+  toast(ready ? ('Conta '+me.name+' pronta · baixando…') : 'Baixando Damas Mestre…');
   try{
     var a=document.createElement('a');
     a.href=APK_URL;
@@ -4067,30 +4096,40 @@ window.addEventListener('DOMContentLoaded', async function(){
 
 async function tryConsumeTransferLogin(){
   if(!sb || me) return;
+  var row=null;
+  // 1) Token local / URL
   var token=null;
   try{ token=localStorage.getItem(TRANSFER_KEY); }catch(e){}
   if(!token){
-    try{
-      var q=new URLSearchParams(location.search||'');
-      token=q.get('transfer');
-    }catch(e){}
+    try{ token=new URLSearchParams(location.search||'').get('transfer'); }catch(e){}
   }
-  if(!token) return;
-  // Busca jogador pelo token de transferência
-  var res=await sb.from('players').select('*').eq('transfer_token', token).maybeSingle();
-  if(res.error || !res.data) return;
-  var row=res.data;
+  if(token){
+    var res=await sb.from('players').select('*').eq('transfer_token', token).maybeSingle();
+    if(!res.error && res.data) row=res.data;
+  }
+  // 2) Usuário salvo com transferência ativa no servidor
+  if(!row){
+    var creds=loadCreds();
+    var uname=creds && creds.u ? creds.u : '';
+    var iu0=document.getElementById('in-u');
+    if(!uname && iu0 && iu0.value) uname=norm(iu0.value);
+    if(uname){
+      var r2=await dbGetPlayer(uname);
+      if(r2 && r2.transfer_pass && r2.transfer_until && Date.parse(r2.transfer_until)>Date.now()){
+        row=r2;
+      }
+    }
+  }
+  if(!row) return;
   var exp=row.transfer_until ? Date.parse(row.transfer_until) : 0;
   if(exp && Date.now()>exp) return;
   var pass=row.transfer_pass||'';
-  if(pass){
-    saveCreds(row.username, pass);
-    var iu=document.getElementById('in-u'), ip=document.getElementById('in-p');
-    if(iu) iu.value=row.username;
-    if(ip) ip.value=pass;
-  }
+  if(!pass) return;
+  saveCreds(row.username, pass);
+  var iu=document.getElementById('in-u'), ip=document.getElementById('in-p');
+  if(iu) iu.value=row.username;
+  if(ip) ip.value=pass;
   localStorage.setItem(SESSION, row.username);
-  // limpa token no servidor
   try{ await dbUpdatePlayer(row.username, {transfer_token:null, transfer_pass:null, transfer_until:null}); }catch(e){}
   try{ localStorage.removeItem(TRANSFER_KEY); }catch(e){}
   enter(rowToMe(row));
