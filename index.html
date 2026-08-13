@@ -52,24 +52,7 @@ body::before{content:'';position:fixed;inset:-15%;background:radial-gradient(cir
   contain:layout style;
 }
 .piece.hidden-src{opacity:0!important;visibility:hidden!important}
-/* Fullscreen play mode */
-body.fs-mode #nav,
-body.fs-mode .game-side,
-body.fs-mode #install-banner{display:none!important}
-body.fs-mode{padding-top:0!important;background:#06080f}
-body.fs-mode #game{padding:.35rem!important}
-body.fs-mode .game-shell{max-width:100%!important;grid-template-columns:1fr!important}
-body.fs-mode .board-hero{
-  width:min(100vw,100vh - 120px)!important;
-  max-width:920px;
-  margin:0 auto;
-  padding:12px!important;
-  border-radius:18px!important;
-}
-body.fs-mode .game-main{gap:.4rem}
-body.fs-mode .player-bar{transform:scale(.92)}
-body.fs-mode .game-actions{width:min(96vw,720px)}
-.btn-fs-on{background:linear-gradient(135deg,var(--blue),var(--violet))!important;color:#fff!important;border:none!important}
+
 .piece.captured-anim{animation:piece-capture-pop .22s ease forwards}
 .piece.promote-anim{animation:piece-promote .35s ease}
 .piece.ghost{opacity:0!important;visibility:hidden!important}
@@ -850,7 +833,6 @@ body:not(.has-install-banner){padding-top:0}
             <div class="clock" id="clock-w">∞</div>
           </div>
           <div class="game-actions">
-            <button type="button" id="btn-fs" onclick="toggleFullScreen()">⛶ Tela inteira</button>
             <button type="button" id="btn-undo" onclick="undo()">↩ Desfazer</button>
             <button type="button" onclick="flipBoard()">🔄 Virar</button>
             <button type="button" id="btn-draw" class="hidden" onclick="offerDraw()">🤝 Empate</button>
@@ -1519,34 +1501,6 @@ function loadCreds(){
 function clearCreds(){
   try{ localStorage.removeItem(CRED_KEY); }catch(e){}
 }
-
-function toggleFullScreen(){
-  var btn=document.getElementById('btn-fs');
-  // Prefer in-app board maximize (works on iOS + Android WebView)
-  var on=document.body.classList.toggle('fs-mode');
-  if(btn){
-    btn.textContent = on ? '⛶ Sair tela inteira' : '⛶ Tela inteira';
-    btn.classList.toggle('btn-fs-on', on);
-  }
-  // Also try browser Fullscreen API when available
-  try{
-    if(on){
-      var el=document.documentElement;
-      if(el.requestFullscreen) el.requestFullscreen().catch(function(){});
-      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    } else {
-      if(document.exitFullscreen) document.exitFullscreen().catch(function(){});
-      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
-  }catch(e){}
-  // Re-render board after layout settles
-  setTimeout(function(){ if(board) render(); }, 120);
-}
-document.addEventListener('fullscreenchange', function(){
-  if(!document.fullscreenElement && document.body.classList.contains('fs-mode')){
-    // keep in-app fs-mode even if browser FS exits
-  }
-});
 
 async function login(){
   var u=norm(document.getElementById('in-u').value);
