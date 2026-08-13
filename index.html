@@ -547,14 +547,14 @@ body.has-install-banner #app{padding-top:72px}
 </style>
 </head>
 <body>
-<div id="install-banner" role="dialog" aria-label="Instalar aplicativo">
+<div id="install-banner" role="dialog" aria-label="Baixar aplicativo">
   <div class="ib-icon"><img src="icone.png" alt="" onerror="this.parentNode.textContent='⬤'"/></div>
   <div class="ib-text">
     <b>Baixe o app Damas Mestre</b>
-    <span>Jogue mais rápido · atalho na tela inicial</span>
+    <span>APK Android · instalação direta no celular</span>
   </div>
   <div class="ib-actions">
-    <button type="button" class="ib-install" id="btn-install-app" onclick="triggerInstall()">Baixar app</button>
+    <button type="button" class="ib-install" id="btn-download-apk" onclick="downloadApk()">Baixar APK</button>
     <button type="button" class="ib-close" onclick="dismissInstall()">Agora não</button>
   </div>
 </div>
@@ -3841,8 +3841,32 @@ function dismissInstall(){
   try{ localStorage.setItem(INSTALL_DISMISS_KEY, String(Date.now())); }catch(e){}
 }
 
+// Link do APK (mesmo pasta do site no GitHub Pages, ou URL completa do Release)
+var APK_URL = 'damas-mestre.apk';
+
+function downloadApk(){
+  if(!APK_URL){
+    toast('APK ainda não publicado. Gere o arquivo e coloque o link em APK_URL no index.html');
+    return;
+  }
+  toast('Iniciando download do APK…');
+  try{
+    var a=document.createElement('a');
+    a.href=APK_URL;
+    a.download='damas-mestre.apk';
+    a.rel='noopener';
+    a.target='_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }catch(e){
+    window.location.href=APK_URL;
+  }
+}
+
 async function triggerInstall(){
-  // Android/Chrome: native install prompt
+  // Prefer real APK if configured
+  if(APK_URL){ downloadApk(); return; }
   if(deferredInstallPrompt){
     deferredInstallPrompt.prompt();
     try{
@@ -3855,7 +3879,6 @@ async function triggerInstall(){
     deferredInstallPrompt=null;
     return;
   }
-  // iOS Safari — guide
   var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   var isAndroid=/android/i.test(navigator.userAgent);
   if(isIOS){
