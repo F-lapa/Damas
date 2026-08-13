@@ -542,7 +542,8 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
   padding:.5rem .75rem;border-radius:12px;font-weight:800;font-size:.78rem;
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;
 }
-body{padding-top:78px}
+body.has-install-banner{padding-top:78px}
+body:not(.has-install-banner){padding-top:0}
 /* Big download card on home */
 .apk-card{
   margin:0 0 1rem;padding:1.15rem 1.2rem;border-radius:20px;
@@ -624,7 +625,6 @@ body{padding-top:78px}
     </div>
     <p class="err" id="err"></p>
     <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br>Mestre: <strong>fernandolapa</strong></div>
-    <button type="button" class="auth-apk" onclick="downloadApk()">⬇ Baixar app Android (APK)</button>
   </div>
 </div>
 
@@ -647,14 +647,6 @@ body{padding-top:78px}
   </nav>
   <main>
     <div id="v-home">
-      <div class="apk-card">
-        <div class="apk-ico"><img src="icone.png" alt="App" onerror="this.parentNode.textContent='📱'"/></div>
-        <div class="apk-info">
-          <b>Instale o Damas Mestre no celular</b>
-          <span>Baixe o APK Android e jogue como aplicativo</span>
-        </div>
-        <button type="button" class="btn-apk" onclick="downloadApk()">⬇ Baixar APK</button>
-      </div>
       <div class="home-banner">
         <div>
           <div class="hb-title">Pronto para jogar damas</div>
@@ -3849,21 +3841,39 @@ window.addEventListener('appinstalled', function(){
   toast('App instalado!');
 });
 
-function isStandalone(){
-  return window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone===true;
+function isNativeApp(){
+  // APK WebView (arquivo local) ou PWA instalado — nunca mostrar "baixar app"
+  try{
+    if(location.protocol==='file:') return true;
+    if(location.href.indexOf('android_asset')>=0) return true;
+    if(window.matchMedia('(display-mode: standalone)').matches) return true;
+    if(window.navigator.standalone===true) return true;
+    // Android WebView UA
+    var ua=navigator.userAgent||'';
+    if(/; wv\)/i.test(ua) || /WebView/i.test(ua)) return true;
+  }catch(e){}
+  return false;
 }
+function isStandalone(){ return isNativeApp(); }
 
 function showInstallBanner(){
-  if(isStandalone()){ hideInstallBanner(); return; }
   var el=document.getElementById('install-banner');
   if(!el) return;
+  if(isNativeApp()){
+    el.classList.add('hidden-banner');
+    document.body.classList.remove('has-install-banner');
+    document.body.style.paddingTop='0';
+    return;
+  }
   el.classList.remove('hidden-banner');
+  document.body.classList.add('has-install-banner');
 }
 
 function hideInstallBanner(){
   var el=document.getElementById('install-banner');
   if(el) el.classList.add('hidden-banner');
+  document.body.classList.remove('has-install-banner');
+  document.body.style.paddingTop='0';
 }
 
 function dismissInstall(){
@@ -3922,10 +3932,9 @@ async function triggerInstall(){
   toast('Abra pelo Chrome no celular para instalar o app');
 }
 
-// Banner fica visível desde o início (HTML); só esconde se já for app instalado
+// Só na versão web (HTML). Dentro do APK/PWA o banner some.
 window.addEventListener('DOMContentLoaded', function(){
-  if(isStandalone()) hideInstallBanner();
-  else showInstallBanner();
+  showInstallBanner();
 });
 
 window.addEventListener('DOMContentLoaded', async function(){
