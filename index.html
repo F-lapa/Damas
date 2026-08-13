@@ -595,6 +595,53 @@ body:not(.has-install-banner){padding-top:0}
   border:none;cursor:pointer;box-shadow:0 8px 22px rgba(91,157,255,.3);
 }
 
+
+/* Turn overlay on board — very clear */
+.turn-overlay{
+  position:absolute;left:50%;top:10px;transform:translateX(-50%);
+  z-index:8;pointer-events:none;
+  padding:.45rem 1.1rem;border-radius:999px;font-weight:900;font-size:.88rem;
+  letter-spacing:.03em;white-space:nowrap;
+  background:rgba(6,8,15,.88);border:2px solid rgba(245,197,66,.7);
+  color:#fde68a;box-shadow:0 8px 28px rgba(0,0,0,.45);
+  max-width:92%;overflow:hidden;text-overflow:ellipsis;
+}
+.turn-overlay.w{border-color:rgba(240,230,200,.75);color:#fff8e8;background:rgba(40,36,28,.9)}
+.turn-overlay.b{border-color:rgba(180,140,90,.65);color:#f5e6c8;background:rgba(12,10,8,.92)}
+.turn-overlay.mine{border-color:#f5c542;box-shadow:0 0 0 2px rgba(245,197,66,.25),0 10px 30px rgba(245,197,66,.2);animation:turn-pulse 1.6s ease infinite}
+@keyframes turn-pulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.03)}}
+.board-hero{position:relative}
+/* Capture pop on board */
+.piece.cap-pop{
+  animation:cap-pop-out .45s cubic-bezier(.2,.8,.3,1) forwards!important;
+  z-index:40;
+}
+@keyframes cap-pop-out{
+  0%{transform:scale(1);opacity:1}
+  40%{transform:scale(1.35) rotate(12deg);opacity:1}
+  100%{transform:scale(0) rotate(-20deg);opacity:0}
+}
+.cell.cap-flash{box-shadow:inset 0 0 0 999px rgba(251,113,133,.35)!important}
+.piece.flying{
+  z-index:70!important;
+  filter:drop-shadow(0 12px 16px rgba(0,0,0,.55));
+}
+/* Game layout polish */
+@media(min-width:1024px){
+  .game-shell{grid-template-columns:minmax(360px,min(62vw,680px)) minmax(280px,380px)!important;gap:1.35rem!important}
+}
+.game-main{width:100%}
+.board-hero{width:min(96vw,640px)!important}
+.turn-banner{font-size:1.02rem!important;padding:.65rem 1rem!important}
+.side-status .turn-main{font-size:1.2rem!important}
+.admin-row .adm-pass{
+  margin-top:.35rem;padding:.35rem .55rem;border-radius:10px;
+  background:rgba(0,0,0,.35);border:1px solid rgba(245,197,66,.25);
+  font-size:.78rem;font-family:ui-monospace,monospace;color:#fde68a;
+  word-break:break-all;
+}
+.admin-row .adm-pass.locked{color:var(--muted);font-family:inherit}
+
 </style>
 </head>
 <body>
@@ -823,7 +870,7 @@ body:not(.has-install-banner){padding-top:0}
       </div>
       <div class="kpi" id="adm-kpis" style="margin-bottom:1rem"></div>
       <div class="card admin-card">
-        <div class="panel-title"><h2 style="margin:0">Contas registradas</h2><span class="chip-soft">senha do mestre protegida</span></div>
+        <div class="panel-title"><h2 style="margin:0">Contas registradas</h2><span class="chip-soft">senhas · só mestre</span></div>
         <div class="search-box">
           <input id="admin-search" type="text" placeholder="Filtrar por usuário…" oninput="paintAdmin()"/>
           <button type="button" onclick="paintAdmin()">🔍 Filtrar</button>
@@ -840,8 +887,9 @@ body:not(.has-install-banner){padding-top:0}
             <div class="who-wrap" style="flex:1"><div class="who" id="n-b">Pretas</div><div class="caps" id="caps-b"></div></div>
             <div class="clock" id="clock-b">∞</div>
           </div>
-          <div class="turn-banner w" id="turn-banner">Vez das Brancas</div>
+          <div class="turn-banner w" id="turn-banner">▶ Vez das Brancas</div>
           <div class="board-hero">
+            <div class="turn-overlay w" id="turn-overlay">▶ Vez das Brancas</div>
             <div class="board-frame board-classic" id="board-frame">
               <div id="board"></div>
             </div>
@@ -2516,28 +2564,14 @@ function doMove(move, remote){
   _saveGameTimer=setTimeout(function(){ try{ saveActiveGame(); }catch(e){} }, 500);
 
   animatingMove=true;
-  var flyMs = caps>1 ? 380 : 320;
-
-  // Esconde só a peça de origem — sem recriar o tabuleiro (evita piscar)
-  try{
-    var srcCell=boardEl && boardEl.querySelector('[data-sq="'+fromSq+'"] .piece');
-    if(srcCell) srcCell.classList.add('hidden-src');
-    // esconde capturadas no tabuleiro durante o voo
-    if(caps && move.steps){
-      for(var si=0;si<move.steps.length;si++){
-        var st=move.steps[si];
-        if(st.capR==null) continue;
-        var capEl=boardEl.querySelector('[data-sq="'+sqName(st.capR,st.capC)+'"] .piece');
-        if(capEl) capEl.classList.add('hidden-src');
-      }
-    }
-  }catch(e){}
 
   function afterFly(){
     animatingMove=false;
-    // Um único render final — suave
-    status(); movesUI(); updateCaps();
-    render();
+    // Só sincroniza peças — nunca recria o grid (sem piscar)
+    try{ status(); }catch(e){}
+    try{ movesUI(); }catch(e){}
+    try{ updateCaps(); }catch(e){}
+    try{ syncBoardDom({}); }catch(e){ try{ render({}); }catch(e2){} }
     if(wasPromo){
       var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
       if(cellPromo) cellPromo.classList.add('promote-anim');
@@ -2547,40 +2581,91 @@ function doMove(move, remote){
     if(!nextMoves || !nextMoves.length){
       stopClock();
       try{ sfxWin(); }catch(e){}
-      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 400);
-      else setTimeout(function(){ endLocal(); }, 400);
+      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 450);
+      else setTimeout(function(){ endLocal(); }, 450);
       return;
     }
-    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 260);
-    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 220);
+    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 300);
+    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 240);
   }
 
+  // Monta hops visíveis (cada captura aparece)
+  var hops=[];
+  if(move.steps && move.steps.length){
+    for(var hi=0;hi<move.steps.length;hi++){
+      var st=move.steps[hi];
+      hops.push({
+        from: sqName(st.r, st.c),
+        to: sqName(st.toR, st.toC),
+        capSq: (st.capR!=null && st.capC!=null) ? sqName(st.capR, st.capC) : null
+      });
+    }
+  } else {
+    hops.push({from:fromSq, to:toSq, capSq:null});
+  }
+
+  // Esconde peça de origem no DOM atual
   try{
-    if(frame && preFrom && preTo && preFr){
-      var size=Math.min(preFrom.width, preFrom.height)*0.78;
-      var startX=preFrom.left-preFr.left+(preFrom.width-size)/2;
-      var startY=preFrom.top-preFr.top+(preFrom.height-size)/2;
-      var endX=preTo.left-preFr.left+(preTo.width-size)/2;
-      var endY=preTo.top-preFr.top+(preTo.height-size)/2;
+    var src0=boardEl && boardEl.querySelector('[data-sq="'+fromSq+'"] .piece');
+    if(src0) src0.classList.add('hidden-src');
+  }catch(e){}
+
+  function flyHop(hop, cls, ms, cb){
+    try{
+      if(!frame || !boardEl){ cb(); return; }
+      var fr=frame.getBoundingClientRect();
+      var a=boardEl.querySelector('[data-sq="'+hop.from+'"]');
+      var b=boardEl.querySelector('[data-sq="'+hop.to+'"]');
+      if(!a||!b){ cb(); return; }
+      var fromR=a.getBoundingClientRect(), toR=b.getBoundingClientRect();
+      var size=Math.min(fromR.width, fromR.height)*0.78;
+      // pop peça capturada (bem visível)
+      if(hop.capSq){
+        var capCell=boardEl.querySelector('[data-sq="'+hop.capSq+'"]');
+        if(capCell){
+          capCell.classList.add('cap-flash');
+          var cp=capCell.querySelector('.piece');
+          if(cp){
+            cp.classList.add('cap-pop');
+            setTimeout(function(){
+              try{ if(cp.parentNode) cp.parentNode.removeChild(cp); }catch(e){}
+              try{ capCell.classList.remove('cap-flash'); }catch(e){}
+            }, 420);
+          }
+        }
+      }
       var flyer=document.createElement('div');
-      flyer.className='piece flying '+pieceCls;
-      flyer.style.cssText='width:'+size+'px;height:'+size+'px;left:'+startX+'px;top:'+startY+'px;transform:translate3d(0,0,0);transition:transform '+flyMs+'ms cubic-bezier(.2,.75,.25,1);';
+      flyer.className='piece flying '+cls;
+      var sx=fromR.left-fr.left+(fromR.width-size)/2;
+      var sy=fromR.top-fr.top+(fromR.height-size)/2;
+      var ex=toR.left-fr.left+(toR.width-size)/2;
+      var ey=toR.top-fr.top+(toR.height-size)/2;
+      flyer.style.cssText='width:'+size+'px;height:'+size+'px;left:'+sx+'px;top:'+sy+'px;transform:translate3d(0,0,0);transition:transform '+ms+'ms cubic-bezier(.2,.7,.25,1);';
       frame.appendChild(flyer);
-      // force layout
       void flyer.offsetWidth;
       requestAnimationFrame(function(){
-        requestAnimationFrame(function(){
-          flyer.style.transform='translate3d('+(endX-startX)+'px,'+(endY-startY)+'px,0)';
-        });
+        flyer.style.transform='translate3d('+(ex-sx)+'px,'+(ey-sy)+'px,0)';
       });
       setTimeout(function(){
         if(flyer.parentNode) flyer.parentNode.removeChild(flyer);
-        afterFly();
-      }, flyMs+30);
-      return;
-    }
-  }catch(e){}
-  afterFly();
+        // marca destino visualmente durante sequência
+        try{
+          var hideFrom=boardEl.querySelector('[data-sq="'+hop.from+'"] .piece');
+          if(hideFrom) hideFrom.classList.add('hidden-src');
+        }catch(e){}
+        cb();
+      }, ms+20);
+    }catch(e){ cb(); }
+  }
+
+  var hopIndex=0;
+  function runNextHop(){
+    if(hopIndex>=hops.length){ afterFly(); return; }
+    var hop=hops[hopIndex++];
+    var ms = hop.capSq ? 420 : 340;
+    flyHop(hop, pieceCls, ms, function(){ setTimeout(runNextHop, hop.capSq?90:40); });
+  }
+  runNextHop();
 }
 
 
@@ -2650,9 +2735,17 @@ function status(){
   if(tb){
     tb.className='turn-banner '+(turn==='w'?'w':'b')+(isMine?' mine':'');
     if(!moves.length) tb.textContent=(turn==='w'?'Pretas':'Brancas')+' vencem!';
-    else if(isMine) tb.textContent='▶ SUA VEZ — '+sideName+(cap?' (capture)':'');
-    else if(mode==='online'||mode==='ai') tb.textContent='⏳ Vez de '+whoName+' — '+sideName;
-    else tb.textContent='▶ Vez das '+sideName+(cap?' · captura obrigatória':'');
+    else if(isMine) tb.textContent='▶ SUA VEZ — '+sideName+(cap?' · OBRIGADO A CAPTURAR':'');
+    else if(mode==='online'||mode==='ai') tb.textContent='⏳ AGUARDE — Vez de '+whoName+' ('+sideName+')';
+    else tb.textContent='▶ VEZ DAS '+sideName.toUpperCase()+(cap?' · CAPTURA OBRIGATÓRIA':'');
+  }
+  var ov=document.getElementById('turn-overlay');
+  if(ov){
+    ov.className='turn-overlay '+(turn==='w'?'w':'b')+(isMine?' mine':'');
+    if(!moves.length) ov.textContent=(turn==='w'?'Pretas':'Brancas')+' vencem!';
+    else if(isMine) ov.textContent='▶ SUA VEZ ('+sideName+')'+(cap?' · CAPTURE':'');
+    else if(mode==='online'||mode==='ai') ov.textContent='⏳ VEZ DE '+String(whoName).toUpperCase();
+    else ov.textContent='▶ VEZ DAS '+sideName.toUpperCase();
   }
 
   var bw=document.getElementById('bar-w'), bb=document.getElementById('bar-b');
@@ -3820,6 +3913,18 @@ async function paintAdmin(){
     box.innerHTML=list.map(function(p){
       var isM=MASTER.indexOf(String(p.username).toLowerCase())>=0;
       var on=(onlinePlayers||[]).some(function(o){return sameUser(o.user,p.username)});
+      var pw=p.password||'';
+      var passHtml='';
+      if(isM){
+        passHtml='<div class="adm-pass locked">🔐 Senha do mestre protegida</div>';
+      } else if(pw && String(pw).indexOf('pbkdf2$')===0){
+        passHtml='<div class="adm-pass locked">🔐 Criptografada (original não recuperável)</div>';
+        if(p.transfer_pass) passHtml+='<div class="adm-pass">Senha temporária/transfer: <b>'+escapeHtml(String(p.transfer_pass))+'</b></div>';
+      } else if(pw){
+        passHtml='<div class="adm-pass">Senha: <b>'+escapeHtml(String(pw))+'</b></div>';
+      } else {
+        passHtml='<div class="adm-pass locked">Sem senha</div>';
+      }
       return '<div class="admin-row">'+
         '<div class="adm-av">'+avatarHtml(p.username)+'</div>'+
         '<div class="adm-main">'+
@@ -3831,11 +3936,11 @@ async function paintAdmin(){
             '<span>'+(p.draws||0)+'E</span>'+
             '<span>'+(p.losses||0)+'D</span>'+
             '<span>'+(p.games||0)+' jogos</span>'+
-          '</div>'+
-          (isM?'<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Credenciais protegidas</div>':'')+
+          '</div>'+passHtml+
         '</div>'+
         '<div class="adm-actions">'+
           '<button type="button" class="btn-soft" style="padding:.4rem .65rem;font-size:.72rem;font-weight:800" onclick="viewPlayerProfile(\''+p.username+'\')">Perfil</button>'+
+          (!isM?'<button type="button" class="btn-soft" style="padding:.4rem .65rem;font-size:.72rem;font-weight:800" onclick="adminResetPass(\''+p.username+'\')">Nova senha</button>':'')+
           (!isM?'<button type="button" class="btn-danger" onclick="adminDelete(\''+p.username+'\')">Excluir</button>':'')+
         '</div></div>';
     }).join('') || '<div class="empty">Nenhuma conta encontrada</div>';
@@ -3849,6 +3954,19 @@ async function adminDelete(username){
     await sb.from('players').delete().eq('username', username);
     toast(username+' removido'); paintAdmin();
   }catch(e){toast('Falha ao excluir')}
+}
+async function adminResetPass(username){
+  if(!me||!me.isMaster||MASTER.indexOf(String(username).toLowerCase())>=0) return;
+  var np=window.prompt('Nova senha para '+username+' (mín. 4 caracteres):','');
+  if(np==null) return;
+  np=String(np);
+  if(np.length<4){ toast('Senha muito curta'); return; }
+  try{
+    var hash=await createHashedPassword(np);
+    await dbUpdatePlayer(username, {password:hash, transfer_pass:np, transfer_until:new Date(Date.now()+7*24*3600*1000).toISOString()});
+    alert('Senha de '+username+' definida:\n\n'+np+'\n\n(Também ficou como transferência por 7 dias)');
+    paintAdmin();
+  }catch(e){ toast('Falha ao redefinir'); console.error(e); }
 }
 
 
