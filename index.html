@@ -296,7 +296,7 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
     var(--sq-d);
 }
 .cell.sel{outline:3px solid rgba(91,157,255,.95);outline-offset:-3px;z-index:2;box-shadow:inset 0 0 20px rgba(91,157,255,.2)}
-.cell.last{box-shadow:inset 0 0 0 999px rgba(245,197,66,.28)}
+.cell.last{box-shadow:inset 0 0 0 999px rgba(245,197,66,.14)}
 .cell.cap-hint .ring{position:absolute;inset:12%;border-radius:50%;border:3px solid rgba(52,211,153,.65);pointer-events:none;box-shadow:0 0 12px rgba(52,211,153,.35)}
 .cell .dot{position:absolute;width:20%;height:20%;border-radius:50%;background:rgba(0,0,0,.28);pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .piece{
@@ -669,7 +669,7 @@ body:not(.has-install-banner){padding-top:0}
             <h3>🤝 Amigos</h3>
             <div id="friends-list"><div class="empty" style="padding:.35rem 0">Carregando…</div></div>
           </div>
-          <p class="note">Toque no perfil · captura opcional · dama corre várias casas (damas brasileiras).</p>
+          <p class="note">Toque no perfil · captura obrigatória · pedra só captura p/ trás em sequência (2+) · dama voadora.</p>
         </div>
         <div class="card">
           <h2>🎯 Treino local</h2>
@@ -928,13 +928,13 @@ async function createHashedPassword(password){
 
 /* ===== CHECKERS ENGINE — Damas brasileiras =====
    Regras:
-   - Captura NÃO é obrigatória
+   - Captura É OBRIGATÓRIA quando existir
    - Pedras (men): andam 1 casa na diagonal para frente
-   - Em capturas, pedras podem capturar em qualquer diagonal (inclui para trás), inclusive em sequência dupla/tripla
+   - Captura simples da pedra: só para FRENTE
+   - Sequência (2+): o PRIMEIRO salto da pedra é para frente; os seguintes podem ser para trás
    - Dama (king): corre várias casas na diagonal (frente e trás) — dama voadora
-   - Dama captura à distância na diagonal e pode continuar a sequência
+   - Dama captura à distância em qualquer diagonal e pode continuar a sequência
    Board 8x8: 0 vazio, 1 pedra branca, 2 dama branca, -1 pedra preta, -2 dama preta
-   Brancas embaixo (linhas 5–7), movem diminuindo a linha; pretas em cima, aumentando a linha.
 */
 function newBoard(){
   var b=Array(8).fill(null).map(function(){return Array(8).fill(0)});
@@ -1042,8 +1042,8 @@ function getAllJumpSequences(board, r, c){
         }
       }
     } else {
-      // Man: jump adjacent enemy to empty square — all 4 diagonals (backwards allowed in captures)
-      var dirs2=ALL_DIRS();
+      // Pedra: 1º salto só para FRENTE; a partir do 2º (sequência) pode ir para trás
+      var dirs2 = (path.length===0) ? manForwardDirs(piece) : ALL_DIRS();
       for(var j=0;j<dirs2.length;j++){
         var dr2=dirs2[j][0], dc2=dirs2[j][1];
         var mr=rr+dr2, mc=cc+dc2;
@@ -1079,10 +1079,10 @@ function getAllJumpSequences(board, r, c){
 }
 
 function legalMoves(board, color){
-  // Captura NÃO obrigatória — quiet + captures
+  // Captura OBRIGATÓRIA: se houver captura, só elas são legais
   var caps=collectCaptures(board, color);
-  var quiet=collectQuietMoves(board, color);
-  return caps.concat(quiet);
+  if(caps.length) return caps;
+  return collectQuietMoves(board, color);
 }
 
 function applyMove(board, move){
@@ -1335,9 +1335,15 @@ function searchBestMove(board, color, depth, timeMs){
 function searchCoachMove(board, color){
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
+  // Captura obrigatória: coach prioriza sequências longas e material
+  moves.sort(function(a,b){
+    var ca=a.captures||0, cb=b.captures||0;
+    if(cb!==ca) return cb-ca;
+    return 0;
+  });
   _tt=new Map(); _nodes=0; _killers=[]; _history={};
-  var maxDepth=22;
-  _deadline=Date.now()+4000;
+  var maxDepth=28;
+  _deadline=Date.now()+6500;
   var best=moves[0], bestScore=-1e15, completedDepth=0;
 
   for(var d=1; d<=maxDepth; d++){
@@ -1348,20 +1354,25 @@ function searchCoachMove(board, color){
       if(Date.now()>_deadline) break;
       var nb=applyMove(board, moves[i]);
       var sc=-negamax(nb, d-1, -1e15, 1e15, color==='w'?'b':'w', 0);
-      sc += (moves[i].captures||0)*0.02;
+      // Bônus: multi-captura (1º salto frente + continuação) e captura obrigatória bem jogada
+      var cap=moves[i].captures||0;
+      if(cap>=2) sc += 0.15*cap;
+      else if(cap===1) sc += 0.04;
       if(sc>localScore){ localScore=sc; localBest=moves[i]; }
     }
     if(localBest){ best=localBest; bestScore=localScore; completedDepth=d; }
   }
 
-  // Verifica top 5 em profundidade extra
-  orderMoves(moves, completedDepth||10, best);
-  var top=moves.slice(0, Math.min(5, moves.length));
-  _deadline=Date.now()+1200;
+  // Verifica top 6 em profundidade extra
+  orderMoves(moves, completedDepth||12, best);
+  var top=moves.slice(0, Math.min(6, moves.length));
+  _deadline=Date.now()+2000;
   for(var t=0;t<top.length;t++){
     if(Date.now()>_deadline) break;
     var nb2=applyMove(board, top[t]);
-    var sc2=-negamax(nb2, Math.max(14, completedDepth+1), -1e15, 1e15, color==='w'?'b':'w', 0);
+    var sc2=-negamax(nb2, Math.max(16, completedDepth+2), -1e15, 1e15, color==='w'?'b':'w', 0);
+    var cap2=top[t].captures||0;
+    if(cap2>=2) sc2 += 0.15*cap2;
     if(sc2>bestScore){ bestScore=sc2; best=top[t]; }
   }
 
@@ -2275,7 +2286,7 @@ function click(sq){
 function pick(sq){
   sel=sq;
   var moves=legalMoves(board, turn);
-  // Captura opcional: mostra todos os lances da peça (quietos e capturas)
+  // Com captura obrigatória, legalMoves já filtra — mostra só lances legais da peça
   legal=moves.filter(function(m){return m.from===sq});
   render();
 }
@@ -2363,21 +2374,7 @@ function doMove(move, remote){
     }
   }catch(e){}
 
-  // Capture pops (visual only, non-blocking)
-  if(caps && move.steps && move.steps.length){
-    for(var si=0;si<move.steps.length;si++){
-      var st=move.steps[si];
-      if(st.capR==null||st.capC==null) continue;
-      var capSq=sqName(st.capR, st.capC);
-      var capPiece=board[st.capR][st.capC];
-      var capColor=capPiece>0?'w':(capPiece<0?'b':null);
-      if(capColor){
-        (function(sq, cc, delay){
-          setTimeout(function(){ try{ animateCaptureToTray(sq, cc, capturer); }catch(e){} }, delay);
-        })(capSq, capColor, 30+si*60);
-      }
-    }
-  }
+  // Atualiza bandeja sem animação pesada (evita piscar a tela)
   if(caps){
     for(var i=0;i<caps;i++){
       if(turn==='w') capW.push('●'); else capB.push('●');
@@ -2503,7 +2500,7 @@ function status(){
     el.classList.add('mate');
   } else {
     var cap=moves.some(function(m){return (m.captures||0)>0});
-    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura disponível':'');
+    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura obrigatória':'');
   }
   document.getElementById('bar-w').classList.toggle('active', turn==='w');
   document.getElementById('bar-b').classList.toggle('active', turn==='b');
@@ -3040,8 +3037,8 @@ function coachPlan(){
   var w=countPieces(board,'w'), b=countPieces(board,'b');
   var total=w.total+b.total;
   var plan;
-  if(n<6) plan='Abertura (damas brasileiras): avance o centro, prepare a promoção e não entregue capturas grátis — a captura não é obrigatória, use-a só se for vantajosa.';
-  else if(total>10) plan='Meio-jogo: busque sequências duplas/triplas (a pedra pode capturar para trás na sequência). Troque para obter dama voadora.';
+  if(n<6) plan='Abertura: avance o centro e prepare promoções. Captura é obrigatória — evite deixar peças penduradas na diagonal.';
+  else if(total>10) plan='Meio-jogo: busque sequências 2+ (1º salto da pedra à frente, depois pode voltar). Force capturas e lute pela dama voadora.';
   else if(total>4) plan='Final: a dama corre várias casas — domine diagonais longas, restrinja a dama rival e force promoções.';
   else plan='Final técnico: com dama voadora, centralize, varra as diagonais e deixe o adversário sem casas seguras.';
   if(w.kings+b.kings) plan+=' Dama ativa vale mais do que material parado.';
