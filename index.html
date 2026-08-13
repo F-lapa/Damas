@@ -299,7 +299,7 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
     var(--sq-d);
 }
 .cell.sel{outline:3px solid rgba(91,157,255,.95);outline-offset:-3px;z-index:2;box-shadow:inset 0 0 20px rgba(91,157,255,.2)}
-.cell.last{box-shadow:inset 0 0 0 999px rgba(245,197,66,.14)}
+.cell.last{box-shadow:inset 0 0 0 999px rgba(245,197,66,.10)}
 .cell.cap-hint .ring{position:absolute;inset:12%;border-radius:50%;border:3px solid rgba(52,211,153,.65);pointer-events:none;box-shadow:0 0 12px rgba(52,211,153,.35)}
 .cell .dot{position:absolute;width:20%;height:20%;border-radius:50%;background:rgba(0,0,0,.28);pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .piece{
@@ -412,9 +412,27 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .game-actions{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;width:min(94vw,600px)}
 .game-actions button{padding:.55rem 1.05rem;border-radius:999px;font-size:.82rem;font-weight:800;background:rgba(255,255,255,.05);border:1px solid var(--line)}
 .game-actions button:hover{background:rgba(255,255,255,.11);transform:translateY(-1px)}
-.side-status{text-align:center;padding:.9rem 1rem;border-radius:16px;font-weight:900;font-size:1rem;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px solid var(--line)}
+.side-status{text-align:center;padding:1rem 1.1rem;border-radius:16px;font-weight:900;font-size:1.05rem;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:2px solid var(--line);letter-spacing:.02em;transition:background .2s ease,border-color .2s ease,color .2s ease}
 .side-status.chk{color:var(--red);border-color:rgba(251,113,133,.35)}
 .side-status.mate{color:var(--gold);border-color:rgba(245,197,66,.4)}
+.side-status.turn-w{background:linear-gradient(180deg,rgba(255,250,240,.16),rgba(255,255,255,.04));border-color:rgba(245,230,200,.55);color:#f5f0e6}
+.side-status.turn-b{background:linear-gradient(180deg,rgba(40,30,24,.9),rgba(20,14,10,.7));border-color:rgba(120,90,60,.55);color:#f0e0c8}
+.side-status.my-turn{border-color:rgba(245,197,66,.85)!important;box-shadow:0 0 0 1px rgba(245,197,66,.25),0 8px 24px rgba(245,197,66,.12)}
+.side-status .turn-label{display:block;font-size:.72rem;font-weight:800;opacity:.75;margin-bottom:.2rem;letter-spacing:.06em;text-transform:uppercase}
+.side-status .turn-main{display:block;font-size:1.15rem;font-weight:900;line-height:1.25}
+.turn-banner{
+  width:min(94vw,600px);text-align:center;padding:.55rem .9rem;border-radius:14px;
+  font-weight:900;font-size:.95rem;margin:.15rem 0 .25rem;
+  border:2px solid transparent;
+}
+.turn-banner.w{background:rgba(255,248,235,.12);border-color:rgba(240,220,180,.4);color:#fff8e8}
+.turn-banner.b{background:rgba(30,22,16,.85);border-color:rgba(140,100,60,.45);color:#f0e0c8}
+.turn-banner.mine{border-color:rgba(245,197,66,.8);box-shadow:0 0 20px rgba(245,197,66,.15)}
+.player-card{transition:border-color .2s ease,box-shadow .2s ease}
+.player-card.active{border-color:rgba(245,197,66,.65);box-shadow:0 0 0 1px rgba(245,197,66,.2)}
+.player-card.active .clock{background:rgba(245,197,66,.12);border-color:rgba(245,197,66,.35);color:#fde68a}
+.cell.last{box-shadow:inset 0 0 0 999px rgba(245,197,66,.10)!important}
+#board{contain:strict}
 .side-card{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:18px;padding:1rem 1.05rem}
 .side-card h3{font-size:.86rem;font-weight:900;margin-bottom:.6rem;color:#dbe4ff}
 .moves-box{max-height:148px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:rgba(0,0,0,.28);border-radius:12px;padding:.75rem .85rem;border:1px solid var(--line);line-height:1.55}
@@ -822,6 +840,7 @@ body:not(.has-install-banner){padding-top:0}
             <div class="who-wrap" style="flex:1"><div class="who" id="n-b">Pretas</div><div class="caps" id="caps-b"></div></div>
             <div class="clock" id="clock-b">∞</div>
           </div>
+          <div class="turn-banner w" id="turn-banner">Vez das Brancas</div>
           <div class="board-hero">
             <div class="board-frame board-classic" id="board-frame">
               <div id="board"></div>
@@ -1917,7 +1936,7 @@ function startOnlineGame(gid, opponent, color){
   document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : oppName;
   document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : oppName;
   document.getElementById('chat').classList.add('on');
-  setupCoach(); render(); status(); movesUI(); updateCaps(); initClocks();
+  setupCoach(); render({forceFull:true}); status(); movesUI(); updateCaps(); initClocks();
   setPresence('in_game', gameId, opponent);
   joinGameChannel(false);
   saveActiveGame();
@@ -1994,7 +2013,7 @@ function spectateGame(gid, p1, p2){
     ban.textContent='👁 Modo espectador — você não pode jogar';
     main.insertBefore(ban, main.firstChild);
   }
-  setupCoach(); render(); movesUI(); updateCaps(); stopClock(); updateClocksUI();
+  setupCoach(); render({forceFull:true}); movesUI(); updateCaps(); stopClock(); updateClocksUI();
   refreshGameAvatars();
   joinGameChannel(true);
   toast('Assistindo partida ao vivo');
@@ -2212,7 +2231,7 @@ function startLocal(m){
     document.getElementById('chat').classList.add('on');
     chatMsgs=[{who:'Sistema',text:'Chat local.'}]; renderChat();
   }
-  setupCoach(); render(); status(); movesUI(); updateCaps(); initClocks();
+  setupCoach(); render({forceFull:true}); status(); movesUI(); updateCaps(); initClocks();
   saveActiveGame();
 }
 function openGameUI(){
@@ -2253,9 +2272,71 @@ function setupCoach(){
   }, 350);
 }
 
+function bindBoardClicks(el){
+  if(!el || el._clickBound) return;
+  el._clickBound=true;
+  el.addEventListener('click', function(ev){
+    var t=ev.target.closest('[data-sq]');
+    if(t && t.dataset.sq) click(t.dataset.sq);
+  });
+}
+
+/** Atualiza peças/hints sem recriar as 64 casas (evita piscar). */
+function syncBoardDom(opts){
+  var el=document.getElementById('board'); if(!el||!board) return;
+  opts=opts||{};
+  if(el.children.length!==64){ render(opts); return; }
+  var skipHints=!!opts.skipHints || animatingMove;
+  var legalTo={};
+  if(!skipHints && legal && legal.length){
+    for(var i=0;i<legal.length;i++) legalTo[legal[i].to]=legal[i];
+  }
+  for(var i=0;i<el.children.length;i++){
+    var cell=el.children[i];
+    var sq=cell.dataset.sq;
+    if(!sq) continue;
+    var pos=parseSq(sq);
+    var p=board[pos.r][pos.c];
+    cell.classList.remove('sel','last','cap-hint','must-capture');
+    // remove hints only
+    var dots=cell.querySelectorAll('.dot,.ring');
+    for(var d=0;d<dots.length;d++) dots[d].parentNode.removeChild(dots[d]);
+    if(sel===sq) cell.classList.add('sel');
+    if(last && (last.from===sq||last.to===sq)) cell.classList.add('last');
+    var lm=legalTo[sq];
+    if(lm){
+      if((lm.captures||0)>0){
+        cell.classList.add('cap-hint');
+        var ring=document.createElement('span'); ring.className='ring'; cell.appendChild(ring);
+      } else {
+        var dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot);
+      }
+    }
+    var pie=cell.querySelector('.piece');
+    if(p){
+      var pcls='piece '+(p>0?'w':'b')+(isKing(p)?' king':'');
+      if(pie){
+        if(pie.className!==pcls) pie.className=pcls;
+        pie.classList.remove('hidden-src','ghost');
+      } else {
+        pie=document.createElement('div');
+        pie.className=pcls;
+        cell.insertBefore(pie, cell.firstChild);
+      }
+    } else if(pie){
+      pie.parentNode.removeChild(pie);
+    }
+  }
+}
+
 function render(opts){
   var el=document.getElementById('board'); if(!el||!board) return;
   opts=opts||{};
+  // Se o grid já existe e não pediu forceFull, só sincroniza (sem flash)
+  if(el.children.length===64 && !opts.forceFull){
+    syncBoardDom(opts);
+    return;
+  }
   var skipHints=!!opts.skipHints || animatingMove;
   var ghostSq=opts.ghostSq||null;
   var html='';
@@ -2296,14 +2377,7 @@ function render(opts){
     html+='</div>';
   }
   el.innerHTML=html;
-  // single delegated click (faster than 64 listeners)
-  if(!el._clickBound){
-    el._clickBound=true;
-    el.addEventListener('click', function(ev){
-      var t=ev.target.closest('[data-sq]');
-      if(t && t.dataset.sq) click(t.dataset.sq);
-    });
-  }
+  bindBoardClicks(el);
 }
 function click(sq){
   if(!board || mode==='spectate' || mode==='review' || animatingMove) return;
@@ -2518,7 +2592,12 @@ function aiPlay(){
     return;
   }
   var el=document.getElementById('status');
-  if(el){ el.textContent='🤖 Computador pensando…'; el.classList.add('chk'); }
+  if(el){
+    el.className='side-status turn-b';
+    el.innerHTML='<span class="turn-label">Aguardando</span><span class="turn-main">🤖 Computador pensando…</span>';
+  }
+  var tb=document.getElementById('turn-banner');
+  if(tb){ tb.className='turn-banner b'; tb.textContent='⏳ Computador pensando…'; }
   var depth=diff==='easy'?3:diff==='hard'?7:5;
   var budget=diff==='easy'?35:diff==='hard'?120:70;
   // Yield to browser so UI stays responsive, then search
@@ -2538,17 +2617,47 @@ function aiPlay(){
 function status(){
   if(mode==='review'){ statusReview(); return; }
   var el=document.getElementById('status'); if(!el) return;
-  el.className='side-status';
+  var tb=document.getElementById('turn-banner');
   var moves=legalMoves(board, turn);
+  var sideName = turn==='w' ? 'Brancas' : 'Pretas';
+  var whoName = '';
+  try{
+    if(mode==='online' || mode==='ai'){
+      if(turn===myColor) whoName = (me && me.name) ? me.name : 'Você';
+      else whoName = mode==='ai' ? 'Computador' : (oppName || 'Adversário');
+    } else {
+      whoName = sideName;
+    }
+  }catch(e){ whoName=sideName; }
+
+  var isMine = (mode==='online'||mode==='ai') ? (turn===myColor) : false;
+  var cap = moves.length && moves.some(function(m){return (m.captures||0)>0});
+
+  el.className='side-status '+(turn==='w'?'turn-w':'turn-b')+(isMine?' my-turn':'');
   if(!moves.length){
-    el.textContent=(turn==='w'?'Pretas':'Brancas')+' vencem!';
-    el.classList.add('mate');
+    el.className='side-status mate';
+    el.innerHTML='<span class="turn-main">'+(turn==='w'?'Pretas':'Brancas')+' vencem!</span>';
+  } else if(mode==='spectate'){
+    el.innerHTML='<span class="turn-label">Assistindo</span><span class="turn-main">Vez das '+sideName+'</span>';
+  } else if(isMine){
+    el.innerHTML='<span class="turn-label">Sua vez</span><span class="turn-main">'+whoName+' · '+sideName+(cap?' · capture!':'')+'</span>';
+  } else if(mode==='online'||mode==='ai'){
+    el.innerHTML='<span class="turn-label">Aguardando</span><span class="turn-main">Vez de '+whoName+' ('+sideName+')</span>';
   } else {
-    var cap=moves.some(function(m){return (m.captures||0)>0});
-    el.textContent='Vez das '+(turn==='w'?'Brancas':'Pretas')+(cap?' · captura obrigatória':'');
+    el.innerHTML='<span class="turn-label">Vez de jogar</span><span class="turn-main">'+sideName+(cap?' · captura obrigatória':'')+'</span>';
   }
-  document.getElementById('bar-w').classList.toggle('active', turn==='w');
-  document.getElementById('bar-b').classList.toggle('active', turn==='b');
+
+  if(tb){
+    tb.className='turn-banner '+(turn==='w'?'w':'b')+(isMine?' mine':'');
+    if(!moves.length) tb.textContent=(turn==='w'?'Pretas':'Brancas')+' vencem!';
+    else if(isMine) tb.textContent='▶ SUA VEZ — '+sideName+(cap?' (capture)':'');
+    else if(mode==='online'||mode==='ai') tb.textContent='⏳ Vez de '+whoName+' — '+sideName;
+    else tb.textContent='▶ Vez das '+sideName+(cap?' · captura obrigatória':'');
+  }
+
+  var bw=document.getElementById('bar-w'), bb=document.getElementById('bar-b');
+  if(bw) bw.classList.toggle('active', turn==='w');
+  if(bb) bb.classList.toggle('active', turn==='b');
 }
 function movesUI(){
   if(mode==='review'){ movesUIReview(); return; }
@@ -2599,7 +2708,7 @@ function animateCaptureToTray(fromSq, capturedColor, capturerColor){
   document.body.appendChild(flyer);
   setTimeout(function(){ if(flyer.parentNode) flyer.parentNode.removeChild(flyer); }, 500);
 }
-function flipBoard(){ boardFlipped=!boardFlipped; render(); toast(boardFlipped?'Tabuleiro virado':'Orientação normal'); }
+function flipBoard(){ boardFlipped=!boardFlipped; render({forceFull:true}); toast(boardFlipped?'Tabuleiro virado':'Orientação normal'); }
 function undo(){
   if(mode==='online'||!hist.length) return;
   // full undo of last ply (and AI reply if needed)
@@ -3359,9 +3468,9 @@ function setPieceStyle(t){
   toast('Peças: '+(t||'classic'));
 }
 function setUiTheme(t){prefs.ui=t; savePrefs(); applyPrefs()}
-function setBoardTheme(t){prefs.board=t; savePrefs(); applyPrefs(); paintPreview(); if(board) render()}
+function setBoardTheme(t){prefs.board=t; savePrefs(); applyPrefs(); paintPreview(); if(board) render({forceFull:true})}
 function toggleSound(){prefs.sound=!(prefs.sound!==false); savePrefs(); applyPrefs()}
-function toggleCoords(){prefs.coords=!(prefs.coords!==false); savePrefs(); applyPrefs(); if(board) render()}
+function toggleCoords(){prefs.coords=!(prefs.coords!==false); savePrefs(); applyPrefs(); if(board) render({forceFull:true})}
 function paintPreview(){
   var grid=document.getElementById('preview-grid');
   var pb=document.getElementById('preview-board');
