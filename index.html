@@ -596,21 +596,45 @@ body:not(.has-install-banner){padding-top:0}
 }
 
 
-/* Turn overlay on board — very clear */
+/* Turn badge BELOW board — does not cover pieces */
 .turn-overlay{
-  position:absolute;left:50%;top:10px;transform:translateX(-50%);
-  z-index:8;pointer-events:none;
-  padding:.45rem 1.1rem;border-radius:999px;font-weight:900;font-size:.88rem;
-  letter-spacing:.03em;white-space:nowrap;
-  background:rgba(6,8,15,.88);border:2px solid rgba(245,197,66,.7);
-  color:#fde68a;box-shadow:0 8px 28px rgba(0,0,0,.45);
-  max-width:92%;overflow:hidden;text-overflow:ellipsis;
+  display:none; /* replaced by turn-banner under board */
 }
-.turn-overlay.w{border-color:rgba(240,230,200,.75);color:#fff8e8;background:rgba(40,36,28,.9)}
-.turn-overlay.b{border-color:rgba(180,140,90,.65);color:#f5e6c8;background:rgba(12,10,8,.92)}
-.turn-overlay.mine{border-color:#f5c542;box-shadow:0 0 0 2px rgba(245,197,66,.25),0 10px 30px rgba(245,197,66,.2);animation:turn-pulse 1.6s ease infinite}
-@keyframes turn-pulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.03)}}
-.board-hero{position:relative}
+.turn-under{
+  width:min(96vw,640px);
+  text-align:center;
+  padding:.55rem 1rem;
+  border-radius:14px;
+  font-weight:900;
+  font-size:.95rem;
+  margin:.35rem auto .15rem;
+  border:2px solid rgba(245,197,66,.55);
+  background:rgba(6,8,15,.75);
+  color:#fde68a;
+  letter-spacing:.02em;
+}
+.turn-under.w{border-color:rgba(240,230,200,.5);color:#fff8e8;background:rgba(50,44,32,.55)}
+.turn-under.b{border-color:rgba(180,140,90,.5);color:#f5e6c8;background:rgba(18,14,10,.8)}
+.turn-under.mine{border-color:#f5c542;box-shadow:0 0 0 1px rgba(245,197,66,.3),0 8px 22px rgba(245,197,66,.15)}
+/* Result modal */
+.result-modal{text-align:center;padding:1.6rem 1.4rem 1.35rem!important;max-width:380px}
+.result-modal .result-icon{font-size:3.4rem;line-height:1;margin-bottom:.45rem;filter:drop-shadow(0 8px 20px rgba(0,0,0,.35))}
+.result-modal.win{border:1px solid rgba(52,211,153,.45)!important;box-shadow:0 0 40px rgba(52,211,153,.15),0 28px 70px rgba(0,0,0,.55)}
+.result-modal.loss{border:1px solid rgba(251,113,133,.4)!important;box-shadow:0 0 40px rgba(251,113,133,.12),0 28px 70px rgba(0,0,0,.55)}
+.result-modal.draw{border:1px solid rgba(245,197,66,.35)!important}
+.result-modal h2{font-size:1.55rem;margin:.2rem 0 .35rem}
+.result-modal .result-sub{color:var(--muted);font-size:.92rem;margin-bottom:.85rem;line-height:1.45}
+.result-pts{
+  display:inline-block;min-width:120px;
+  font-size:2.1rem;font-weight:900;padding:.45rem 1.1rem;border-radius:16px;
+  margin:.2rem 0 1rem;
+}
+.result-pts.plus{color:#6ee7b7;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+.result-pts.minus{color:#fda4af;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.35)}
+.result-pts.zero{color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line)}
+#h-pts.pts-pop{animation:pts-pop .45s ease}
+@keyframes pts-pop{0%{transform:scale(1)}40%{transform:scale(1.2);color:#f5c542}100%{transform:scale(1)}}
+.stat.pts-anim b{transition:none}
 /* Capture pop on board */
 .piece.cap-pop{
   animation:cap-pop-out .45s cubic-bezier(.2,.8,.3,1) forwards!important;
@@ -889,11 +913,11 @@ body:not(.has-install-banner){padding-top:0}
           </div>
           <div class="turn-banner w" id="turn-banner">▶ Vez das Brancas</div>
           <div class="board-hero">
-            <div class="turn-overlay w" id="turn-overlay">▶ Vez das Brancas</div>
             <div class="board-frame board-classic" id="board-frame">
               <div id="board"></div>
             </div>
           </div>
+          <div class="turn-under w" id="turn-under">▶ Vez das Brancas</div>
           <div class="player-card active" id="bar-w">
             <div class="pc-avatar" id="av-w">?</div>
             <div class="who-wrap" style="flex:1"><div class="who" id="n-w">Brancas</div><div class="caps" id="caps-w"></div></div>
@@ -940,15 +964,26 @@ body:not(.has-install-banner){padding-top:0}
   <div class="modal-actions"><button type="button" class="btn-decline" onclick="respondChallenge(false)">Recusar</button><button type="button" class="btn-accept" onclick="respondChallenge(true)">Aceitar</button></div>
 </div></div>
 <div class="overlay" id="ov-wait"><div class="modal"><h2>⏳ Aguardando…</h2><p id="wait-text">Esperando resposta…</p><button type="button" class="btn-main" onclick="cancelChallenge()">Cancelar</button></div></div>
-<div class="overlay" id="ov-end"><div class="modal">
+<div class="overlay" id="ov-end"><div class="modal" id="end-modal-box">
   <h2 id="end-t">Fim</h2>
   <div id="end-m" style="color:var(--muted);margin-bottom:1rem;line-height:1.45;text-align:left"></div>
   <div class="modal-actions end-actions" style="flex-wrap:wrap">
     <button type="button" class="btn-soft" id="btn-review-end" onclick="reviewLastFinished()" style="display:none">📜 Revisar lances</button>
     <button type="button" class="btn-soft" id="btn-rematch" onclick="rematch()">🔁 Revanche</button>
-    <button type="button" class="btn-main" onclick="toHome()">Lobby</button>
+    <button type="button" class="btn-main" onclick="leaveEndToResult()">Continuar</button>
   </div>
 </div></div>
+<div class="overlay" id="ov-result" style="display:none">
+  <div class="modal result-modal" id="result-modal-box">
+    <div class="result-icon" id="result-icon">🏆</div>
+    <h2 id="result-title">Vitória!</h2>
+    <div class="result-sub" id="result-sub">Você venceu a partida</div>
+    <div class="result-pts plus" id="result-pts">+0</div>
+    <div class="modal-actions">
+      <button type="button" class="btn-main" id="btn-result-ok" onclick="confirmResultPoints()">OK</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="ov-profile"><div class="modal profile-modal">
   <h2 id="prof-title">Perfil</h2>
   <div id="prof-body"></div>
@@ -1460,6 +1495,7 @@ let animatingMove=false, _saveGameTimer=null;
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
 let timeControl=0, clockW=0, clockB=0, clockTimer=null, clockRunning=false, lastClockTick=0;
 let boardFlipped=false, lastEndResult=null, lastEndMode=null;
+let pendingResult=null; // {result, delta, fromPts, toPts, title, sub}
 let prefs={ui:'dark', board:'classic', pieces:'classic', sound:true, coords:true};
 let rankKing='';
 
@@ -2683,6 +2719,8 @@ function aiPlay(){
   }
   var tb=document.getElementById('turn-banner');
   if(tb){ tb.className='turn-banner b'; tb.textContent='⏳ Computador pensando…'; }
+  var tu=document.getElementById('turn-under');
+  if(tu){ tu.className='turn-under b'; tu.textContent='⏳ Computador pensando…'; }
   var depth=diff==='easy'?3:diff==='hard'?7:5;
   var budget=diff==='easy'?35:diff==='hard'?120:70;
   // Yield to browser so UI stays responsive, then search
@@ -2739,13 +2777,13 @@ function status(){
     else if(mode==='online'||mode==='ai') tb.textContent='⏳ AGUARDE — Vez de '+whoName+' ('+sideName+')';
     else tb.textContent='▶ VEZ DAS '+sideName.toUpperCase()+(cap?' · CAPTURA OBRIGATÓRIA':'');
   }
-  var ov=document.getElementById('turn-overlay');
+  var ov=document.getElementById('turn-under');
   if(ov){
-    ov.className='turn-overlay '+(turn==='w'?'w':'b')+(isMine?' mine':'');
+    ov.className='turn-under '+(turn==='w'?'w':'b')+(isMine?' mine':'');
     if(!moves.length) ov.textContent=(turn==='w'?'Pretas':'Brancas')+' vencem!';
-    else if(isMine) ov.textContent='▶ SUA VEZ ('+sideName+')'+(cap?' · CAPTURE':'');
-    else if(mode==='online'||mode==='ai') ov.textContent='⏳ VEZ DE '+String(whoName).toUpperCase();
-    else ov.textContent='▶ VEZ DAS '+sideName.toUpperCase();
+    else if(isMine) ov.textContent='▶ SUA VEZ — '+sideName+(cap?' · CAPTURE':'');
+    else if(mode==='online'||mode==='ai') ov.textContent='⏳ AGUARDE — Vez de '+whoName+' ('+sideName+')';
+    else ov.textContent='▶ VEZ DAS '+sideName.toUpperCase()+(cap?' · CAPTURA OBRIGATÓRIA':'');
   }
 
   var bw=document.getElementById('bar-w'), bb=document.getElementById('bar-b');
@@ -2831,7 +2869,22 @@ function resign(){
     if(gameCh) gameCh.send({type:'broadcast',event:'resign',payload:{by:me.name}});
     finishOnline('loss','Você desistiu.'); return;
   }
-  if(mode==='ai'){ lastEndResult='loss'; recordAiResult('loss'); awardAiPoints('loss'); }
+  if(mode==='ai'){
+    lastEndResult='loss';
+    try{ recordAiResult('loss'); }catch(e){}
+    var d=0; try{ d=aiPointsDelta('loss')||0; }catch(e){}
+    var fromPts=(me&&me.points)||0;
+    pendingResult={
+      result:'loss', delta:d, fromPts:fromPts, toPts:Math.max(0,fromPts+d),
+      title:'Derrota', sub:'Você desistiu da partida.', applied:false
+    };
+    try{ awardAiPoints('loss', true); }catch(e){}
+  } else {
+    pendingResult={
+      result:'loss', delta:0, fromPts:(me&&me.points)||0, toPts:(me&&me.points)||0,
+      title:'Fim', sub:'Partida encerrada.', applied:false
+    };
+  }
   showEnd('Desistência', mode==='ai'?'Você desistiu.':'Partida encerrada.');
 }
 function endLocal(){
@@ -2839,18 +2892,36 @@ function endLocal(){
   var winner = turn==='w'?'b':'w'; // side that couldn't move lost
   lastEndResult = (winner===myColor)?'win':'loss';
   var msg = winner==='w'?'Brancas vencem.':'Pretas vencem.';
+  var d=0;
   if(mode==='ai'){
     try{ recordAiResult(lastEndResult); }catch(e){}
-    try{
-      var d=aiPointsDelta(lastEndResult);
-      if(d) msg += (d>0?' · +'+d:' · '+d)+' pts';
-    }catch(e){}
-    // award points async — never block the end screen
-    setTimeout(function(){ try{ awardAiPoints(lastEndResult); }catch(e){} }, 100);
+    try{ d=aiPointsDelta(lastEndResult)||0; }catch(e){ d=0; }
+    if(d) msg += (d>0?' · +'+d:' · '+d)+' pts';
+    var fromPts=(me&&me.points)||0;
+    pendingResult={
+      result:lastEndResult,
+      delta:d,
+      fromPts:fromPts,
+      toPts:Math.max(0,fromPts+d),
+      title:lastEndResult==='win'?'Vitória!':'Derrota',
+      sub:lastEndResult==='win'?('Você venceu o computador ('+(diff||'')+')'):'O computador venceu esta partida.',
+      applied:false
+    };
+    // award in DB but keep UI points until animation
+    setTimeout(function(){ try{ awardAiPoints(lastEndResult, true); }catch(e){} }, 80);
+  } else {
+    pendingResult={
+      result:lastEndResult,
+      delta:0,
+      fromPts:(me&&me.points)||0,
+      toPts:(me&&me.points)||0,
+      title:lastEndResult==='win'?'Vitória!':'Derrota',
+      sub:msg,
+      applied:false
+    };
   }
-  // yield one frame before modal so board isn't frozen
   requestAnimationFrame(function(){
-    showEnd('Fim de jogo', msg);
+    showEnd(lastEndResult==='win'?'Vitória!':'Derrota', msg);
   });
 }
 function endOnlineFromBoard(){
@@ -2879,7 +2950,8 @@ async function finishOnline(result, msg){
   gameId=''; mode=null;
   clearActiveGame();
   renderLiveGames();
-  showEnd('Fim de jogo', msg);
+  var tt = result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate');
+  showEnd(tt, msg);
 }
 async function applyRank(result){
   if(!me||!sb) return;
@@ -2891,13 +2963,111 @@ async function applyRank(result){
     if(result==='win'){delta=25;wins++;streak++;if(streak>best)best=streak}
     else if(result==='loss'){delta=-8;losses++;streak=0}
     else {draws++;streak=0}
-    var newPts=Math.max(0,(row.points||0)+delta);
+    var fromPts=row.points||0;
+    var newPts=Math.max(0,fromPts+delta);
     var updated=await dbUpdatePlayer(me.name,{games:games,wins:wins,losses:losses,draws:draws,streak:streak,best_streak:best,points:newPts});
+    // Keep displayed points at fromPts until animation; sync me.points to new for state after anim
     me=rowToMe(updated);
-    document.getElementById('h-pts').textContent=me.points+' pts';
-    if(delta) toast((delta>0?'+':'')+delta+' pts → '+newPts);
+    me.points=fromPts; // UI still shows old until anim
+    pendingResult={
+      result:result,
+      delta:delta,
+      fromPts:fromPts,
+      toPts:newPts,
+      title:result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate'),
+      sub:result==='win'?'Ótimo jogo online!':(result==='loss'?'Continue treinando.':'Partida equilibrada.'),
+      applied:true
+    };
+    document.getElementById('h-pts').textContent=fromPts+' pts';
   }catch(e){console.error(e)}
 }
+function setPendingResult(result, delta, extraMsg){
+  var fromPts = (me && me.points!=null) ? me.points : 0;
+  // If points already applied to me, reverse for fromPts
+  var toPts = fromPts;
+  if(typeof delta==='number' && delta!==0){
+    // me.points may already include delta — detect by caller
+  }
+  pendingResult = {
+    result: result||'',
+    delta: delta||0,
+    fromPts: fromPts,
+    toPts: fromPts + (delta||0),
+    title: result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate'),
+    sub: extraMsg||'',
+    applied: false
+  };
+}
+
+function leaveEndToResult(){
+  document.getElementById('ov-end').style.display='none';
+  // Hide game, show nav home under the result modal
+  try{
+    document.getElementById('game').style.display='none';
+    document.getElementById('nav').style.display='flex';
+    go('home');
+  }catch(e){}
+  var pr=pendingResult;
+  if(!pr || (lastEndMode==='spectate')){
+    pendingResult=null;
+    return;
+  }
+  var box=document.getElementById('result-modal-box');
+  var icon=document.getElementById('result-icon');
+  var title=document.getElementById('result-title');
+  var sub=document.getElementById('result-sub');
+  var pts=document.getElementById('result-pts');
+  if(!box){ pendingResult=null; return; }
+  box.className='modal result-modal '+(pr.result==='win'?'win':(pr.result==='loss'?'loss':'draw'));
+  if(icon) icon.textContent = pr.result==='win'?'🏆':(pr.result==='loss'?'💔':'🤝');
+  if(title) title.textContent = pr.title||'Fim';
+  if(sub) sub.textContent = pr.sub || (pr.result==='win'?'Você venceu a partida!':(pr.result==='loss'?'Não foi dessa vez.':'Partida empatada.'));
+  if(pts){
+    var d=pr.delta||0;
+    pts.className='result-pts '+(d>0?'plus':(d<0?'minus':'zero'));
+    pts.textContent = d>0?('+'+d):(d===0?'0 pts':String(d));
+  }
+  document.getElementById('ov-result').style.display='flex';
+}
+
+function confirmResultPoints(){
+  document.getElementById('ov-result').style.display='none';
+  var pr=pendingResult;
+  pendingResult=null;
+  if(!pr) return;
+  // Animate points on home
+  var from=pr.fromPts|0, to=pr.toPts|0;
+  if(from===to && !pr.delta) return;
+  animatePointsValue(from, to);
+}
+
+function animatePointsValue(from, to){
+  var el=document.getElementById('h-pts');
+  var homeB=document.querySelector('#home-stats .stat.gold b') || document.querySelector('#v-home .stat.gold b');
+  var dash=document.getElementById('dash-elo');
+  var start=performance.now();
+  var dur=Math.min(1600, 400+Math.abs(to-from)*18);
+  function frame(now){
+    var t=Math.min(1,(now-start)/dur);
+    // easeOutCubic
+    var e=1-Math.pow(1-t,3);
+    var cur=Math.round(from+(to-from)*e);
+    if(el){ el.textContent=cur+' pts'; el.classList.add('pts-pop'); }
+    if(homeB) homeB.textContent=String(cur);
+    if(dash) dash.textContent=String(cur);
+    if(me) me.points=cur;
+    if(t<1) requestAnimationFrame(frame);
+    else {
+      if(el){ el.textContent=to+' pts'; setTimeout(function(){ el.classList.remove('pts-pop'); },400); }
+      if(homeB) homeB.textContent=String(to);
+      if(dash) dash.textContent=String(to);
+      if(me) me.points=to;
+      try{ paintHome(); }catch(e){}
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
 function showEnd(t,m){
   stopClock();
   document.getElementById('end-t').textContent=t;
@@ -3367,9 +3537,24 @@ function aiPointsDelta(result){
   if(result==='loss') return -cfg.loss;
   return 0;
 }
-async function awardAiPoints(result){
+async function awardAiPoints(result, silentUI){
   var delta=aiPointsDelta(result);
-  if(delta) await adjustPoints(delta, result==='win'?'vitória vs IA':'derrota vs IA');
+  if(!delta) return;
+  // Update DB without jumping the header counter when silentUI
+  if(silentUI){
+    try{
+      if(!me||!sb) return;
+      var row=await dbGetPlayer(me.name); if(!row) return;
+      var fromPts=row.points||0;
+      var newPts=Math.max(0,fromPts+delta);
+      await dbUpdatePlayer(me.name,{points:newPts});
+      if(pendingResult){ pendingResult.fromPts=fromPts; pendingResult.toPts=newPts; pendingResult.delta=delta; }
+      // keep me.points at from for anim
+      me.points=fromPts;
+    }catch(e){console.error(e)}
+    return;
+  }
+  await adjustPoints(delta, result==='win'?'vitória vs IA':'derrota vs IA');
 }
 
 /* ===== UI NAV ===== */
