@@ -47,9 +47,29 @@ body::before{content:'';position:fixed;inset:-15%;background:radial-gradient(cir
 .piece.flying{
   position:absolute!important;pointer-events:none;z-index:60;
   margin:0!important;transition:none;
-  will-change:transform,left,top;
-  box-shadow:0 14px 28px rgba(0,0,0,.55), inset 0 2px 5px rgba(255,255,255,.25)!important;
+  will-change:transform;
+  box-shadow:0 16px 32px rgba(0,0,0,.5), inset 0 2px 5px rgba(255,255,255,.25)!important;
+  contain:layout style;
 }
+.piece.hidden-src{opacity:0!important;visibility:hidden!important}
+/* Fullscreen play mode */
+body.fs-mode #nav,
+body.fs-mode .game-side,
+body.fs-mode #install-banner{display:none!important}
+body.fs-mode{padding-top:0!important;background:#06080f}
+body.fs-mode #game{padding:.35rem!important}
+body.fs-mode .game-shell{max-width:100%!important;grid-template-columns:1fr!important}
+body.fs-mode .board-hero{
+  width:min(100vw,100vh - 120px)!important;
+  max-width:920px;
+  margin:0 auto;
+  padding:12px!important;
+  border-radius:18px!important;
+}
+body.fs-mode .game-main{gap:.4rem}
+body.fs-mode .player-bar{transform:scale(.92)}
+body.fs-mode .game-actions{width:min(96vw,720px)}
+.btn-fs-on{background:linear-gradient(135deg,var(--blue),var(--violet))!important;color:#fff!important;border:none!important}
 .piece.captured-anim{animation:piece-capture-pop .22s ease forwards}
 .piece.promote-anim{animation:piece-promote .35s ease}
 .piece.ghost{opacity:0!important;visibility:hidden!important}
@@ -830,6 +850,7 @@ body:not(.has-install-banner){padding-top:0}
             <div class="clock" id="clock-w">∞</div>
           </div>
           <div class="game-actions">
+            <button type="button" id="btn-fs" onclick="toggleFullScreen()">⛶ Tela inteira</button>
             <button type="button" id="btn-undo" onclick="undo()">↩ Desfazer</button>
             <button type="button" onclick="flipBoard()">🔄 Virar</button>
             <button type="button" id="btn-draw" class="hidden" onclick="offerDraw()">🤝 Empate</button>
@@ -899,7 +920,7 @@ body:not(.has-install-banner){padding-top:0}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1';
+const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
 const AVATAR_KEY='dm_avatar_', PEER_AV_KEY='dm_peer_av_', MUTE_KEY='dm_muted_v1';
 const FRIENDS_KEY='dm_friends_v1', FRIEND_REQ_KEY='dm_friend_req_v1', TUTORIAL_KEY='dm_tut_v1';
 const PTS={win:25,draw:0,loss:-8};
@@ -1488,6 +1509,45 @@ function tab(t){
   document.getElementById('t-up').classList.toggle('on',t==='up');
   document.getElementById('err').textContent='';
 }
+
+function saveCreds(user, pass){
+  try{ localStorage.setItem(CRED_KEY, JSON.stringify({u:user, p:pass, at:Date.now()})); }catch(e){}
+}
+function loadCreds(){
+  try{ return JSON.parse(localStorage.getItem(CRED_KEY)||'null'); }catch(e){ return null; }
+}
+function clearCreds(){
+  try{ localStorage.removeItem(CRED_KEY); }catch(e){}
+}
+
+function toggleFullScreen(){
+  var btn=document.getElementById('btn-fs');
+  // Prefer in-app board maximize (works on iOS + Android WebView)
+  var on=document.body.classList.toggle('fs-mode');
+  if(btn){
+    btn.textContent = on ? '⛶ Sair tela inteira' : '⛶ Tela inteira';
+    btn.classList.toggle('btn-fs-on', on);
+  }
+  // Also try browser Fullscreen API when available
+  try{
+    if(on){
+      var el=document.documentElement;
+      if(el.requestFullscreen) el.requestFullscreen().catch(function(){});
+      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if(document.exitFullscreen) document.exitFullscreen().catch(function(){});
+      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  }catch(e){}
+  // Re-render board after layout settles
+  setTimeout(function(){ if(board) render(); }, 120);
+}
+document.addEventListener('fullscreenchange', function(){
+  if(!document.fullscreenElement && document.body.classList.contains('fs-mode')){
+    // keep in-app fs-mode even if browser FS exits
+  }
+});
+
 async function login(){
   var u=norm(document.getElementById('in-u').value);
   var p=document.getElementById('in-p').value;
@@ -1506,6 +1566,7 @@ async function login(){
       try{await dbUpdatePlayer(u,{password:h})}catch(e){}
     }
     localStorage.setItem(SESSION, u);
+    saveCreds(u, p);
     enter(rowToMe(row));
   }catch(e){err.textContent=e.message||'Erro no login';console.error(e)}
   finally{document.getElementById('btn-login').disabled=false}
@@ -1529,6 +1590,7 @@ async function register(){
     }).select().single();
     if(res.error) throw res.error;
     localStorage.setItem(SESSION, u);
+    saveCreds(u, p);
     enter(rowToMe(res.data));
   }catch(e){err.textContent=e.message||'Erro ao criar conta';console.error(e)}
   finally{document.getElementById('btn-reg').disabled=false}
@@ -2391,8 +2453,7 @@ function doMove(move, remote){
   sel=null; legal=[];
   turn = turn==='w'?'b':'w';
 
-  // Lightweight status updates (no heavy work on hot path)
-  status(); movesUI(); updateCaps();
+  // Rede online leve (não re-renderiza ainda)
   if(mode==='online' && gameCh && !remote){
     try{
       gameCh.send({type:'broadcast', event:'move', payload:{
@@ -2401,66 +2462,74 @@ function doMove(move, remote){
       }});
     }catch(e){}
   }
-  // Debounced save — never block the frame
   if(_saveGameTimer) clearTimeout(_saveGameTimer);
-  _saveGameTimer=setTimeout(function(){ try{ saveActiveGame(); }catch(e){} }, 400);
+  _saveGameTimer=setTimeout(function(){ try{ saveActiveGame(); }catch(e){} }, 500);
 
-  // Render final position with destination ghost while flyer travels
   animatingMove=true;
-  render({skipHints:true, ghostSq:toSq});
+  var flyMs = caps>1 ? 380 : 320;
 
-  var flyMs = caps>1 ? 320 : 260;
+  // Esconde só a peça de origem — sem recriar o tabuleiro (evita piscar)
+  try{
+    var srcCell=boardEl && boardEl.querySelector('[data-sq="'+fromSq+'"] .piece');
+    if(srcCell) srcCell.classList.add('hidden-src');
+    // esconde capturadas no tabuleiro durante o voo
+    if(caps && move.steps){
+      for(var si=0;si<move.steps.length;si++){
+        var st=move.steps[si];
+        if(st.capR==null) continue;
+        var capEl=boardEl.querySelector('[data-sq="'+sqName(st.capR,st.capC)+'"] .piece');
+        if(capEl) capEl.classList.add('hidden-src');
+      }
+    }
+  }catch(e){}
+
   function afterFly(){
     animatingMove=false;
-    render(); // full hints for next turn
+    // Um único render final — suave
+    status(); movesUI(); updateCaps();
+    render();
     if(wasPromo){
       var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
       if(cellPromo) cellPromo.classList.add('promote-anim');
     }
-    // Quick emptiness check without full capture-tree when possible
     var nextMoves;
     try{ nextMoves=legalMoves(board, turn); }catch(e){ nextMoves=[]; }
     if(!nextMoves || !nextMoves.length){
       stopClock();
       try{ sfxWin(); }catch(e){}
-      // Longer delay so last animation paints cleanly before modal
-      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 350);
-      else setTimeout(function(){ endLocal(); }, 350);
+      if(mode==='online') setTimeout(function(){ endOnlineFromBoard(); }, 400);
+      else setTimeout(function(){ endLocal(); }, 400);
       return;
     }
-    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 200);
-    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 200);
+    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 260);
+    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 220);
   }
 
-  // Flyer using pre-measured rects (doesn't depend on empty from-cell)
   try{
     if(frame && preFrom && preTo && preFr){
-      var size=Math.min(preFrom.width, preFrom.height)*0.74;
+      var size=Math.min(preFrom.width, preFrom.height)*0.78;
       var startX=preFrom.left-preFr.left+(preFrom.width-size)/2;
       var startY=preFrom.top-preFr.top+(preFrom.height-size)/2;
       var endX=preTo.left-preFr.left+(preTo.width-size)/2;
       var endY=preTo.top-preFr.top+(preTo.height-size)/2;
       var flyer=document.createElement('div');
       flyer.className='piece flying '+pieceCls;
-      flyer.style.width=size+'px';
-      flyer.style.height=size+'px';
-      flyer.style.left=startX+'px';
-      flyer.style.top=startY+'px';
-      flyer.style.transform='translate3d(0,0,0)';
+      flyer.style.cssText='width:'+size+'px;height:'+size+'px;left:'+startX+'px;top:'+startY+'px;transform:translate3d(0,0,0);transition:transform '+flyMs+'ms cubic-bezier(.2,.75,.25,1);';
       frame.appendChild(flyer);
-      flyer.offsetWidth;
-      flyer.style.transition='transform '+flyMs+'ms cubic-bezier(.22,.82,.28,1)';
+      // force layout
+      void flyer.offsetWidth;
       requestAnimationFrame(function(){
-        flyer.style.transform='translate3d('+(endX-startX)+'px,'+(endY-startY)+'px,0)';
+        requestAnimationFrame(function(){
+          flyer.style.transform='translate3d('+(endX-startX)+'px,'+(endY-startY)+'px,0)';
+        });
       });
       setTimeout(function(){
         if(flyer.parentNode) flyer.parentNode.removeChild(flyer);
         afterFly();
-      }, flyMs+16);
+      }, flyMs+30);
       return;
     }
   }catch(e){}
-  // fallback no animation
   afterFly();
 }
 
@@ -3881,12 +3950,32 @@ function dismissInstall(){
 // Link do APK (mesmo pasta do site no GitHub Pages, ou URL completa do Release)
 var APK_URL = 'damas-mestre.apk';
 
-function downloadApk(){
+async function downloadApk(){
   if(!APK_URL){
     toast('APK não configurado (APK_URL vazio)');
     return;
   }
-  toast('Baixando Damas Mestre…');
+  // Prepara login automático no app (mesmo usuário/senha)
+  var creds=loadCreds();
+  if(me && creds && creds.u && creds.p && sb){
+    try{
+      var token=(Math.random().toString(36).slice(2,8)+Date.now().toString(36)).slice(0,12);
+      var until=new Date(Date.now()+48*3600*1000).toISOString();
+      await dbUpdatePlayer(me.name, {
+        transfer_token: token,
+        transfer_pass: creds.p,
+        transfer_until: until
+      });
+      try{ localStorage.setItem(TRANSFER_KEY, token); }catch(e){}
+      toast('Conta '+me.name+' pronta no app · baixando APK…');
+    }catch(e){
+      // Colunas transfer_* podem não existir — credenciais locais ainda valem no mesmo navegador
+      toast('Baixando APK… (salve o login no app na 1ª vez)');
+      console.warn('transfer', e);
+    }
+  } else {
+    toast('Baixando Damas Mestre…');
+  }
   try{
     var a=document.createElement('a');
     a.href=APK_URL;
@@ -3938,15 +4027,75 @@ window.addEventListener('DOMContentLoaded', async function(){
   loadPrefs();
   initSupabase();
   if(sb) try{await ensureMaster()}catch(e){}
+
+  // Preenche formulário com usuário/senha salvos
+  var creds=loadCreds();
+  if(creds){
+    var iu=document.getElementById('in-u'), ip=document.getElementById('in-p');
+    if(iu && !iu.value) iu.value=creds.u||'';
+    if(ip && !ip.value) ip.value=creds.p||'';
+  }
+
+  // Auto-login: sessão ativa ou credenciais salvas
   var u=localStorage.getItem(SESSION);
+  if(!u && creds && creds.u) u=creds.u;
   if(u && sb){
     try{
       var row=await dbGetPlayer(u);
-      if(row) enter(rowToMe(row));
-      else localStorage.removeItem(SESSION);
-    }catch(e){localStorage.removeItem(SESSION)}
+      if(row){
+        // Se tem senha salva, valida; se só sessão, entra direto
+        if(creds && creds.u===u && creds.p){
+          var ok=await verifyPassword(creds.p, row.password);
+          if(ok){
+            localStorage.setItem(SESSION, u);
+            enter(rowToMe(row));
+            return;
+          }
+        } else if(localStorage.getItem(SESSION)===u){
+          enter(rowToMe(row));
+          return;
+        }
+      } else {
+        localStorage.removeItem(SESSION);
+      }
+    }catch(e){ console.warn(e); }
   }
+
+  // Transferência site → app (código salvo no Supabase)
+  try{ await tryConsumeTransferLogin(); }catch(e){}
 });
+
+async function tryConsumeTransferLogin(){
+  if(!sb || me) return;
+  var token=null;
+  try{ token=localStorage.getItem(TRANSFER_KEY); }catch(e){}
+  if(!token){
+    try{
+      var q=new URLSearchParams(location.search||'');
+      token=q.get('transfer');
+    }catch(e){}
+  }
+  if(!token) return;
+  // Busca jogador pelo token de transferência
+  var res=await sb.from('players').select('*').eq('transfer_token', token).maybeSingle();
+  if(res.error || !res.data) return;
+  var row=res.data;
+  var exp=row.transfer_until ? Date.parse(row.transfer_until) : 0;
+  if(exp && Date.now()>exp) return;
+  var pass=row.transfer_pass||'';
+  if(pass){
+    saveCreds(row.username, pass);
+    var iu=document.getElementById('in-u'), ip=document.getElementById('in-p');
+    if(iu) iu.value=row.username;
+    if(ip) ip.value=pass;
+  }
+  localStorage.setItem(SESSION, row.username);
+  // limpa token no servidor
+  try{ await dbUpdatePlayer(row.username, {transfer_token:null, transfer_pass:null, transfer_until:null}); }catch(e){}
+  try{ localStorage.removeItem(TRANSFER_KEY); }catch(e){}
+  enter(rowToMe(row));
+  toast('Login automático: '+row.username);
+}
 window.addEventListener('pagehide', function(){ try{ saveActiveGame(); }catch(e){} });
 window.addEventListener('beforeunload', function(){ try{ saveActiveGame(); }catch(e){} });
 document.addEventListener('visibilitychange', function(){
