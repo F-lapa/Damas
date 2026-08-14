@@ -3942,14 +3942,28 @@ function paintPreview(){
   }
   // board swatches
   var sw=document.getElementById('board-swatches');
-  if(sw){ sw.innerHTML=''; if(true){
-    var themes=[['classic','#f0d9b5','#b58863'],['chesscom','#eeeed2','#769656'],['emerald','#e8f0d4','#5a8f45'],['ocean','#d4e8f7','#2f6fad'],['midnight','#3d4f66','#0d1520'],['rose','#ffe4e8','#c91d45'],['sand','#f5e6c8','#c4a35a'],['purple','#ede9fe','#6d28d9'],['slate','#e2e8f0','#475569'],['blood','#fecaca','#7f1d1d'],['mint','#d1fae5','#047857'],['contrast','#fafafa','#171717']];
+  if(sw){
+    sw.innerHTML='';
+    var themes=[
+      ['classic','#f0d9b5','#b58863'],['chesscom','#eeeed2','#769656'],['emerald','#e8f0d4','#5a8f45'],
+      ['ocean','#d4e8f7','#2f6fad'],['midnight','#3d4f66','#0d1520'],['rose','#ffe4e8','#c91d45'],
+      ['sand','#f5e6c8','#c4a35a'],['purple','#ede9fe','#6d28d9'],['slate','#e2e8f0','#475569'],
+      ['blood','#fecaca','#7f1d1d'],['mint','#d1fae5','#047857'],['contrast','#fafafa','#171717']
+    ];
     themes.forEach(function(t){
       var btn=document.createElement('button');
-      btn.type='button'; btn.className='board-swatch'+(prefs.board===t[0]?' on':'');
+      btn.type='button';
+      btn.className='board-swatch'+(prefs.board===t[0]?' on':'');
       btn.setAttribute('data-board', t[0]);
-      btn.onclick=function(){setBoardTheme(t[0]); document.querySelectorAll('.board-swatch').forEach(function(b){b.classList.remove('on')}); btn.classList.add('on')};
-      btn.innerHTML='<div class="board-mini">'+Array(16).fill(0).map(function(_,i){var l=(Math.floor(i/4)+i%4)%2===0;return '<i style="background:'+(l?t[1]:t[2])+'"></i>'}).join('')+'</div><span class="lbl">'+t[0]+'</span>';
+      btn.onclick=function(){
+        setBoardTheme(t[0]);
+        document.querySelectorAll('.board-swatch').forEach(function(b){b.classList.remove('on')});
+        btn.classList.add('on');
+      };
+      btn.innerHTML='<div class="board-mini">'+Array(16).fill(0).map(function(_,i){
+        var l=(Math.floor(i/4)+i%4)%2===0;
+        return '<i style="background:'+(l?t[1]:t[2])+'"></i>';
+      }).join('')+'</div><span class="lbl">'+t[0]+'</span>';
       sw.appendChild(btn);
     });
   }
