@@ -251,11 +251,25 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .home-banner{margin-bottom:1.1rem;padding:1.1rem 1.25rem;border-radius:20px;background:linear-gradient(120deg, rgba(91,157,255,.14), rgba(167,139,250,.1));border:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .home-banner .hb-title{font-weight:900;font-size:1.05rem}
 .home-banner .hb-sub{font-size:.82rem;color:var(--muted);margin-top:.2rem}
-#game{display:none;padding:0 .5rem 1.5rem}
-.game-shell{width:100%;max-width:1240px;margin:0 auto;display:grid;gap:1.25rem}
-@media(min-width:1024px){.game-shell{grid-template-columns:minmax(340px,620px) minmax(300px,380px);align-items:start;gap:1.5rem}}
-.game-main{display:flex;flex-direction:column;align-items:center;gap:.7rem}
-.game-side{display:flex;flex-direction:column;gap:.85rem;width:100%}
+#game{display:none;padding:0 .75rem 1.5rem}
+.game-shell{
+  width:100%;max-width:1080px;margin:0 auto;
+  display:flex;flex-direction:column;align-items:center;gap:1.1rem;
+}
+@media(min-width:1024px){
+  .game-shell{
+    flex-direction:row;flex-wrap:nowrap;justify-content:center;align-items:flex-start;
+    gap:1.5rem;max-width:1100px;
+  }
+}
+.game-main{
+  display:flex;flex-direction:column;align-items:center;gap:.65rem;
+  width:100%;max-width:640px;flex:0 1 640px;
+}
+.game-side{
+  display:flex;flex-direction:column;gap:.85rem;
+  width:100%;max-width:340px;flex:0 0 320px;
+}
 .board-hero{
   width:min(94vw,600px);aspect-ratio:1/1;border-radius:30px;padding:20px;
   background:
@@ -617,7 +631,21 @@ body:not(.has-install-banner){padding-top:0}
 .turn-under.b{border-color:rgba(180,140,90,.5);color:#f5e6c8;background:rgba(18,14,10,.8)}
 .turn-under.mine{border-color:#f5c542;box-shadow:0 0 0 1px rgba(245,197,66,.3),0 8px 22px rgba(245,197,66,.15)}
 /* Result modal */
+@keyframes modal-pop-in{
+  0%{transform:scale(.55) translateY(30px);opacity:0;filter:blur(4px)}
+  55%{transform:scale(1.06) translateY(-4px);opacity:1;filter:blur(0)}
+  100%{transform:scale(1) translateY(0);opacity:1}
+}
+@keyframes modal-shine{
+  0%{background-position:0% 50%}
+  100%{background-position:100% 50%}
+}
+#ov-end .modal,#ov-result .modal{
+  animation:modal-pop-in .55s cubic-bezier(.16,1.2,.3,1) both;
+}
 .result-modal{text-align:center;padding:1.6rem 1.4rem 1.35rem!important;max-width:380px}
+.result-modal.win h2{background:linear-gradient(90deg,#6ee7b7,#f5c542,#6ee7b7);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:modal-shine 2.2s linear infinite}
+.result-modal .result-icon{animation:modal-pop-in .7s .1s both}
 .result-modal .result-icon{font-size:3.4rem;line-height:1;margin-bottom:.45rem;filter:drop-shadow(0 8px 20px rgba(0,0,0,.35))}
 .result-modal.win{border:1px solid rgba(52,211,153,.45)!important;box-shadow:0 0 40px rgba(52,211,153,.15),0 28px 70px rgba(0,0,0,.55)}
 .result-modal.loss{border:1px solid rgba(251,113,133,.4)!important;box-shadow:0 0 40px rgba(251,113,133,.12),0 28px 70px rgba(0,0,0,.55)}
@@ -651,11 +679,7 @@ body:not(.has-install-banner){padding-top:0}
   filter:drop-shadow(0 12px 16px rgba(0,0,0,.55));
 }
 /* Game layout polish */
-@media(min-width:1024px){
-  .game-shell{grid-template-columns:minmax(360px,min(62vw,680px)) minmax(280px,380px)!important;gap:1.35rem!important}
-}
-.game-main{width:100%}
-.board-hero{width:min(96vw,640px)!important}
+.board-hero{width:min(94vw,600px)!important;max-width:600px}
 .turn-banner{font-size:1.02rem!important;padding:.65rem 1rem!important}
 .side-status .turn-main{font-size:1.2rem!important}
 .admin-row .adm-pass{
@@ -1689,6 +1713,15 @@ function enter(user){
   document.getElementById('h-name').textContent=me.name;
   document.getElementById('h-pts').textContent=me.points+' pts';
   document.getElementById('h-master').classList.toggle('hidden', !me.isMaster);
+  // Carrega foto do jogador (local + Supabase)
+  try{
+    ensureUserAvatar(me.name).then(function(){
+      try{ paintDashAvatar(); }catch(e){}
+      try{ refreshGameAvatars(); }catch(e){}
+      try{ shareMyAvatar(); }catch(e){}
+    });
+  }catch(e){}
+  try{ syncAvatarsFromDb().then(function(){ try{ renderOnline(); }catch(e){} }); }catch(e){}
   document.getElementById('nav-admin').classList.toggle('hidden', !me.isMaster);
   joinLobby();
   syncAvatarsFromDb().then(function(){
@@ -3781,33 +3814,40 @@ function paintPreview(){
 var avatarMemCache={};
 function getAvatarData(user){
   if(!user) return '';
+  var u=String(user).trim();
+  if(!u || u==='?' || u==='Brancas' || u==='Pretas' || u==='Computador') return '';
   try{
-    // memory first
     var keys=Object.keys(avatarMemCache||{});
     for(var i=0;i<keys.length;i++){
-      if(sameUser(keys[i], user) && avatarMemCache[keys[i]]) return avatarMemCache[keys[i]];
+      if(sameUser(keys[i], u) && avatarMemCache[keys[i]]) return avatarMemCache[keys[i]];
     }
-    if(me && sameUser(user, me.name)){
+    if(me && sameUser(u, me.name)){
       var mine=localStorage.getItem(AVATAR_KEY+'public_'+me.name)||localStorage.getItem(AVATAR_KEY+me.name)||'';
-      if(mine){ avatarMemCache[user]=mine; return mine; }
+      if(mine){ avatarMemCache[u]=mine; avatarMemCache[me.name]=mine; return mine; }
     }
-    // peer local cache (any casing)
     try{
       for(var j=0;j<localStorage.length;j++){
         var k=localStorage.key(j);
         if(k && k.indexOf(PEER_AV_KEY)===0){
           var uname=k.slice(PEER_AV_KEY.length);
-          if(sameUser(uname, user)){
+          if(sameUser(uname, u)){
             var v=localStorage.getItem(k);
-            if(v){ avatarMemCache[user]=v; return v; }
+            if(v){ avatarMemCache[u]=v; return v; }
+          }
+        }
+        if(k && k.indexOf(AVATAR_KEY)===0){
+          var un2=k.replace(AVATAR_KEY,'').replace('public_','');
+          if(sameUser(un2, u)){
+            var v2=localStorage.getItem(k);
+            if(v2){ avatarMemCache[u]=v2; return v2; }
           }
         }
       }
     }catch(e2){}
-    var peer=localStorage.getItem(PEER_AV_KEY+user)||'';
-    if(peer){ avatarMemCache[user]=peer; return peer; }
-    var op=(onlinePlayers||[]).find(function(p){return sameUser(p.user,user)});
-    if(op && op.avatar){ avatarMemCache[user]=op.avatar; return op.avatar; }
+    var peer=localStorage.getItem(PEER_AV_KEY+u)||'';
+    if(peer){ avatarMemCache[u]=peer; return peer; }
+    var op=(onlinePlayers||[]).find(function(p){return sameUser(p.user,u)});
+    if(op && op.avatar){ avatarMemCache[u]=op.avatar; return op.avatar; }
   }catch(e){}
   return '';
 }
@@ -3832,24 +3872,55 @@ function getPublicAvatar(user){
 }
 function cachePeerAvatar(user, dataUrl){
   if(!user||!dataUrl) return;
-  if(String(dataUrl).indexOf('data:')!==0 && String(dataUrl).indexOf('http')!==0) return;
-  avatarMemCache[user]=dataUrl;
-  try{ localStorage.setItem(PEER_AV_KEY+user, dataUrl); }catch(e){}
-  // keep online list in sync
+  var s=String(dataUrl);
+  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0 && s.indexOf('//')!==0) return;
+  avatarMemCache[user]=s;
+  // also store under lower key for lookup
+  try{ avatarMemCache[String(user).toLowerCase()]=s; }catch(e){}
+  try{ localStorage.setItem(PEER_AV_KEY+user, s); }catch(e){}
+  try{ localStorage.setItem(PEER_AV_KEY+String(user).toLowerCase(), s); }catch(e){}
   try{
     (onlinePlayers||[]).forEach(function(op){
-      if(sameUser(op.user, user)) op.avatar=dataUrl;
+      if(sameUser(op.user, user)) op.avatar=s;
     });
   }catch(e){}
 }
+
+async function ensureUserAvatar(username){
+  if(!username || !sb) return '';
+  var existing=getAvatarData(username);
+  if(existing) return existing;
+  try{
+    var row=await dbGetPlayer(username);
+    if(row && row.avatar){
+      cachePeerAvatar(row.username, row.avatar);
+      if(me && sameUser(row.username, me.name)){
+        try{
+          localStorage.setItem(AVATAR_KEY+'public_'+me.name, row.avatar);
+          localStorage.setItem(AVATAR_KEY+me.name, row.avatar);
+        }catch(e){}
+      }
+      return row.avatar;
+    }
+  }catch(e){}
+  return '';
+}
 function avatarHtml(user){
   var data=getAvatarData(user);
-  if(data) return '<img src="'+data+'" alt=""/>';
-  return escapeHtml((user||'?')[0].toUpperCase());
+  if(data) return '<img src="'+data+'" alt="" decoding="async"/>';
+  var letter=escapeHtml((user&&user[0]?user[0]:'?').toUpperCase());
+  return letter;
 }
 function ingestPlayerAvatar(row){
   if(!row||!row.username||!row.avatar) return;
   cachePeerAvatar(row.username, row.avatar);
+  if(me && sameUser(row.username, me.name)){
+    try{
+      localStorage.setItem(AVATAR_KEY+'public_'+me.name, row.avatar);
+      if(!localStorage.getItem(AVATAR_KEY+me.name))
+        localStorage.setItem(AVATAR_KEY+me.name, row.avatar);
+    }catch(e){}
+  }
 }
 async function syncAvatarsFromDb(){
   if(!sb) return;
@@ -3966,15 +4037,43 @@ function onAvatarFile(ev){
 }
 function refreshGameAvatars(){
   var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
-  var nameW, nameB;
+  var nameW='', nameB='';
   if(mode==='online' && me){
     nameW = myColor==='w' ? me.name : (oppName||'');
     nameB = myColor==='b' ? me.name : (oppName||'');
-  } else {
+  } else if(mode==='ai' && me){
+    nameW = myColor==='w' ? me.name : 'Computador';
+    nameB = myColor==='b' ? me.name : 'Computador';
+  } else if(me){
+    // local: usa o jogador logado nas brancas se os labels não forem nomes reais
     var nw=document.getElementById('n-w'), nb=document.getElementById('n-b');
     nameW=playerKey(nw?nw.textContent:'');
     nameB=playerKey(nb?nb.textContent:'');
+    if(!nameW || nameW==='Brancas') nameW=me.name;
+    if(!nameB || nameB==='Pretas') nameB=nameB;
+  } else {
+    var nw2=document.getElementById('n-w'), nb2=document.getElementById('n-b');
+    nameW=playerKey(nw2?nw2.textContent:'');
+    nameB=playerKey(nb2?nb2.textContent:'');
   }
+  if(aw) aw.innerHTML=avatarHtml(nameW);
+  if(ab) ab.innerHTML=avatarHtml(nameB);
+  // Busca na nuvem se ainda faltar foto
+  [nameW, nameB].forEach(function(nm){
+    if(!nm || nm==='Computador') return;
+    if(getAvatarData(nm)) return;
+    ensureUserAvatar(nm).then(function(av){
+      if(av){
+        if(aw && (mode==='online'? (myColor==='w'?me.name:oppName): nameW)===nm) aw.innerHTML=avatarHtml(nm);
+        if(ab && (mode==='online'? (myColor==='b'?me.name:oppName): nameB)===nm) ab.innerHTML=avatarHtml(nm);
+        // re-resolve simply
+        refreshGameAvatarsSimple(nameW, nameB);
+      }
+    });
+  });
+}
+function refreshGameAvatarsSimple(nameW, nameB){
+  var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
   if(aw) aw.innerHTML=avatarHtml(nameW);
   if(ab) ab.innerHTML=avatarHtml(nameB);
 }
