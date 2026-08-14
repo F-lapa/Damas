@@ -1195,7 +1195,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.15.1';
+const APP_VERSION='2026.08.15.2';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -1885,9 +1885,35 @@ async function dbGetPlayer(username){
 }
 async function dbUpdatePlayer(username, patch){
   if(!sb) return null;
-  var res=await sb.from('players').update(patch).eq('username', username).select().single();
+  // update sem .single() — evita falha de RLS no RETURNING
+  var res=await sb.from('players').update(patch).eq('username', username);
   if(res.error) throw res.error;
-  return res.data;
+  // tenta ler de volta (opcional)
+  try{
+    var r2=await sb.from('players').select('*').eq('username', username).maybeSingle();
+    if(!r2.error && r2.data) return r2.data;
+  }catch(e){}
+  return patch;
+}
+async function dbSetAvatar(username, dataUrl){
+  if(!sb || !username || !dataUrl) throw new Error('Dados inválidos');
+  var u=norm(username);
+  var res=await sb.from('players').update({avatar: dataUrl}).eq('username', u);
+  if(res.error){
+    // tenta username sem norm
+    res=await sb.from('players').update({avatar: dataUrl}).eq('username', username);
+  }
+  if(res.error) throw res.error;
+  var check=await sb.from('players').select('username,avatar').eq('username', u).maybeSingle();
+  if(check.error){
+    check=await sb.from('players').select('username,avatar').eq('username', username).maybeSingle();
+  }
+  if(check.error) throw check.error;
+  if(!check.data || !check.data.avatar){
+    // coluna pode não existir ou RLS bloqueou
+    throw new Error('Foto não gravou na nuvem. Rode o SQL da coluna avatar e permita UPDATE no RLS.');
+  }
+  return check.data;
 }
 async function dbListRanking(){
   if(!sb) return [];
@@ -2031,7 +2057,9 @@ async function login(){
     localStorage.setItem(SESSION, u);
     saveCreds(u, p);
     try{ await dbUpdatePlayer(u,{transfer_token:null, transfer_pass:null, transfer_until:null}); }catch(e){}
-    enter(rowToMe(row));
+    var meRow=rowToMe(row);
+    if(row.avatar) storeAvatarEverywhere(row.username||u, row.avatar);
+    enter(meRow);
     toast('Logado: '+u);
   }catch(e){
     var msg=(e && (e.message||e.error_description||e.details)) || 'Erro no login';
@@ -4672,41 +4700,76 @@ function getAvatarData(user){
   }catch(e){}
   return '';
 }
-function getPublicAvatar(user){
-  try{
-    if(!user) return '';
-    if(me && sameUser(user, me.name)){
-      var mine=localStorage.getItem(AVATAR_KEY+'public_'+me.name)||'';
-      if(mine) return mine;
-      // fallback to full if public missing
-      return localStorage.getItem(AVATAR_KEY+me.name)||avatarMemCache[user]||'';
-    }
-    // peers: memcache / peer storage
-    var keys=Object.keys(avatarMemCache||{});
-    for(var i=0;i<keys.length;i++){
-      if(sameUser(keys[i], user) && avatarMemCache[keys[i]]) return avatarMemCache[keys[i]];
-    }
-    var peer=localStorage.getItem(PEER_AV_KEY+user)||'';
-    if(peer) return peer;
-  }catch(e){}
-  return '';
+function avatarKeys(user){
+  var u=String(user||'').trim();
+  var n=norm(u);
+  var out=[];
+  [u, n, u.toLowerCase()].forEach(function(k){
+    if(k && out.indexOf(k)<0) out.push(k);
+  });
+  return out;
 }
-function cachePeerAvatar(user, dataUrl){
-  if(!user||!dataUrl) return;
+function storeAvatarEverywhere(user, dataUrl){
+  if(!user || !dataUrl) return;
   var s=String(dataUrl);
-  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0 && s.indexOf('//')!==0) return;
-  avatarMemCache[user]=s;
-  // also store under lower key for lookup
-  try{ avatarMemCache[String(user).toLowerCase()]=s; }catch(e){}
-  try{ localStorage.setItem(PEER_AV_KEY+user, s); }catch(e){}
-  try{ localStorage.setItem(PEER_AV_KEY+String(user).toLowerCase(), s); }catch(e){}
+  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0) return;
+  avatarKeys(user).forEach(function(k){
+    avatarMemCache[k]=s;
+    try{ localStorage.setItem(PEER_AV_KEY+k, s); }catch(e){}
+  });
+  if(me && sameUser(user, me.name)){
+    avatarKeys(me.name).forEach(function(k){
+      try{
+        localStorage.setItem(AVATAR_KEY+k, s);
+        localStorage.setItem(AVATAR_KEY+'public_'+k, s);
+      }catch(e){}
+      avatarMemCache[k]=s;
+    });
+    try{
+      if(window.DamasNative && typeof DamasNative.saveAvatar==='function'){
+        DamasNative.saveAvatar(String(me.name), s);
+        DamasNative.saveAvatar(norm(me.name), s);
+      }
+    }catch(e){}
+  }
   try{
     (onlinePlayers||[]).forEach(function(op){
       if(sameUser(op.user, user)) op.avatar=s;
     });
   }catch(e){}
 }
-
+function getPublicAvatar(user){
+  return getAvatarData(user);
+}
+function cachePeerAvatar(user, dataUrl){
+  storeAvatarEverywhere(user, dataUrl);
+}
+function getAvatarData(user){
+  if(!user) return '';
+  var u=String(user).trim();
+  if(!u || u==='?' || u==='Brancas' || u==='Pretas' || u==='Computador' || u==='Convidado') return '';
+  try{
+    var keys=avatarKeys(u);
+    for(var i=0;i<keys.length;i++){
+      var k=keys[i];
+      if(avatarMemCache[k]) return avatarMemCache[k];
+    }
+    // localStorage variants
+    for(var j=0;j<keys.length;j++){
+      var k2=keys[j];
+      var a=localStorage.getItem(AVATAR_KEY+'public_'+k2)||localStorage.getItem(AVATAR_KEY+k2)||localStorage.getItem(PEER_AV_KEY+k2)||'';
+      if(a){ avatarMemCache[k2]=a; return a; }
+    }
+    // native APK
+    if(me && sameUser(u, me.name) && window.DamasNative && typeof DamasNative.loadAvatar==='function'){
+      try{
+        var nat=DamasNative.loadAvatar(String(me.name))||DamasNative.loadAvatar(norm(me.name))||'';
+        if(nat){ storeAvatarEverywhere(me.name, nat); return nat; }
+      }catch(e){}
+    }
+  }catch(e){}
+  return '';
+}
 async function ensureUserAvatar(username, forceNet){
   if(!username) return '';
   if(!forceNet){
@@ -4716,22 +4779,24 @@ async function ensureUserAvatar(username, forceNet){
   if(!sb) return getAvatarData(username)||'';
   try{
     var row=await dbGetPlayer(username);
+    if(!row){
+      try{ row=await dbGetPlayer(norm(username)); }catch(e){}
+    }
     if(row && row.avatar){
-      cachePeerAvatar(row.username, row.avatar);
-      if(me && sameUser(row.username, me.name)){
-        saveAvatarLocal(row.avatar, row.avatar);
-      }
+      storeAvatarEverywhere(row.username||username, row.avatar);
       return row.avatar;
     }
   }catch(e){ console.warn('ensureUserAvatar', e); }
   return getAvatarData(username)||'';
 }
+
 function avatarHtml(user){
   var data=getAvatarData(user);
-  if(data) return '<img src="'+data+'" alt="" decoding="async"/>';
-  var letter=escapeHtml((user&&user[0]?user[0]:'?').toUpperCase());
+  if(data) return '<img src="'+data+'" alt="" onerror="this.style.display=\'none\'"/>';
+  var letter=escapeHtml(String(user||'?')[0].toUpperCase());
   return letter;
 }
+
 function ingestPlayerAvatar(row){
   if(!row||!row.username||!row.avatar) return;
   cachePeerAvatar(row.username, row.avatar);
@@ -4817,34 +4882,23 @@ function fillMissingAvatars(){
 function paintHeaderAvatar(){
   var el=document.getElementById('h-avatar'); if(!el||!me) return;
   var data=getAvatarData(me.name);
-  el.innerHTML=data?'<img src="'+data+'" alt=""/>':escapeHtml((me.name||'?')[0].toUpperCase());
+  el.innerHTML=data?'<img src="'+data+'" alt="" onerror="this.remove()"/>':escapeHtml((me.name||'?')[0].toUpperCase());
 }
 function paintDashAvatar(){
   var av=document.getElementById('dash-avatar'); if(!av||!me) return;
   var data=getAvatarData(me.name);
-  av.innerHTML=(data?'<img src="'+data+'" alt=""/>':escapeHtml((me.name||'?')[0].toUpperCase()))+'<span class="av-edit">📷 Foto</span>';
+  av.innerHTML=(data?'<img src="'+data+'" alt="" onerror="this.remove()"/>':escapeHtml((me.name||'?')[0].toUpperCase()))+'<span class="av-edit">📷 Foto</span>';
   paintHeaderAvatar();
 }
 function pickAvatar(){
   var inp=document.getElementById('avatar-file');
   if(!inp){ toast('Seletor de foto indisponível'); return; }
-  inp.value='';
+  try{ inp.value=''; }catch(e){}
   inp.click();
 }
 function saveAvatarLocal(full, pub){
   if(!me) return;
-  try{
-    localStorage.setItem(AVATAR_KEY+me.name, full||pub||'');
-    localStorage.setItem(AVATAR_KEY+'public_'+me.name, pub||full||'');
-  }catch(e){ console.warn('avatar local', e); }
-  avatarMemCache[me.name]=pub||full||'';
-  avatarMemCache[String(me.name).toLowerCase()]=pub||full||'';
-  // APK nativo — sobrevive troca file/https
-  try{
-    if(window.DamasNative && typeof DamasNative.saveAvatar==='function'){
-      DamasNative.saveAvatar(String(me.name), String(pub||full||''));
-    }
-  }catch(e){}
+  storeAvatarEverywhere(me.name, pub||full||'');
 }
 function onAvatarFile(ev){
   var file=ev.target.files&&ev.target.files[0];
@@ -4859,37 +4913,37 @@ function onAvatarFile(ev){
     img.onerror=function(){ toast('Arquivo de imagem inválido'); };
     img.onload=function(){
       try{
-        // 128px local + 48px pública (cabe no Supabase text)
-        var c=document.createElement('canvas'); c.width=128; c.height=128;
+        var c=document.createElement('canvas'); c.width=96; c.height=96;
         var ctx=c.getContext('2d');
         var s=Math.min(img.width,img.height);
-        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,128,128);
-        var cPub=document.createElement('canvas'); cPub.width=48; cPub.height=48;
-        cPub.getContext('2d').drawImage(c,0,0,48,48);
-        var full=c.toDataURL('image/jpeg',0.55);
-        var pub=cPub.toDataURL('image/jpeg',0.38);
-        if(!pub || pub.length<30){ toast('Falha ao gerar a foto'); return; }
-        saveAvatarLocal(full, pub);
+        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,96,96);
+        var pub=c.toDataURL('image/jpeg',0.45);
+        if(!pub || pub.length<40){ toast('Falha ao gerar a foto'); return; }
+        storeAvatarEverywhere(me.name, pub);
         paintDashAvatar();
-        try{ setPresence(presenceStatus); }catch(e){}
+        try{ refreshGameAvatars(); }catch(e){}
+        try{ renderOnline(); }catch(e){}
         if(sb){
-          dbUpdatePlayer(me.name, {avatar: pub}).then(function(row){
-            if(row && row.avatar) cachePeerAvatar(me.name, row.avatar);
+          dbSetAvatar(me.name, pub).then(function(row){
+            if(row && row.avatar) storeAvatarEverywhere(me.name, row.avatar);
+            paintDashAvatar();
             toast('Foto pública atualizada ✓');
             shareMyAvatar();
-            paintDashAvatar();
             try{ renderOnline(); }catch(e){}
           }).catch(function(err){
-            var msg=(err&&(err.message||err.details||err.hint))||'';
-            if(/column|avatar|schema/i.test(String(msg))){
-              toast('Crie a coluna avatar no Supabase (SQL)');
+            console.error(err);
+            var msg=(err&&(err.message||err.details||err.hint))||String(err);
+            if(/column|avatar|schema/i.test(msg)){
+              toast('SQL: alter table players add column avatar text;');
+            } else if(/row-level|policy|RLS|permission|42501/i.test(msg)){
+              toast('RLS bloqueou. Libere UPDATE em players.');
             } else {
-              toast('Foto só neste aparelho · nuvem: '+(msg||'erro'));
+              toast('Nuvem: '+(msg.slice(0,80)||'erro')+' — foto só neste aparelho');
             }
             shareMyAvatar();
           });
         } else {
-          toast('Foto salva neste aparelho');
+          toast('Foto salva neste aparelho (offline)');
           shareMyAvatar();
         }
       }catch(e){
@@ -4902,6 +4956,7 @@ function onAvatarFile(ev){
   reader.readAsDataURL(file);
   try{ ev.target.value=''; }catch(e){}
 }
+
 function refreshGameAvatars(){
   var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
   var nameW='', nameB='';
