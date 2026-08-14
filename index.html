@@ -1195,7 +1195,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.15.3';
+const APP_VERSION='2026.08.15.4';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5317,23 +5317,56 @@ function restoreActiveGame(){
 /* ===== INIT ===== */
 
 /* ===== APP UPDATE CHECK ===== */
+function isNativeApp(){
+  try{
+    if(window.DamasNative && (typeof DamasNative.isNative!=='function' || DamasNative.isNative())) return true;
+  }catch(e){ if(window.DamasNative) return true; }
+  try{
+    // WebView arquivo local
+    if(location && location.protocol==='file:') return true;
+  }catch(e){}
+  try{
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  }catch(e){}
+  return false;
+}
 function showUpdatePrompt(remoteVer){
   if(!remoteVer) return;
+  remoteVer=String(remoteVer);
+  // Já está na mesma versão → nunca mostrar
+  if(remoteVer === String(APP_VERSION)) return;
+  // Já dispensou esta versão
   try{ if(localStorage.getItem('dm_skip_ver_'+remoteVer)==='1') return; }catch(e){}
-  window.__remoteVersion=String(remoteVer);
+  try{
+    if(window.DamasNative && typeof DamasNative.isVersionSkipped==='function'){
+      if(DamasNative.isVersionSkipped(remoteVer)) return;
+    }
+  }catch(e){}
+  // Uma vez por sessão
+  if(window.__updatePromptShown === remoteVer) return;
+  window.__updatePromptShown = remoteVer;
+  window.__remoteVersion = remoteVer;
   var el=document.getElementById('ov-update');
   var tx=document.getElementById('update-text');
-  if(tx) tx.textContent='Versão nova: '+remoteVer+' (instalada: '+APP_VERSION+'). Deseja atualizar agora?';
+  if(tx) tx.textContent='Nova versão '+remoteVer+' disponível (você está na '+APP_VERSION+'). Atualizar agora?';
   if(el) el.style.display='flex';
 }
 function dismissUpdate(){
-  var ver=window.__remoteVersion||APP_VERSION;
-  try{ localStorage.setItem('dm_skip_ver_'+ver, '1'); }catch(e){}
+  var ver=window.__remoteVersion||'';
+  if(ver){
+    try{ localStorage.setItem('dm_skip_ver_'+ver, '1'); }catch(e){}
+    try{
+      if(window.DamasNative && typeof DamasNative.skipVersion==='function'){
+        DamasNative.skipVersion(String(ver));
+      }
+    }catch(e){}
+  }
+  window.__updatePromptShown = ver || true;
   var el=document.getElementById('ov-update'); if(el) el.style.display='none';
 }
 async function applyUpdate(){
+  var ver=window.__remoteVersion||APP_VERSION;
   try{
-    // Clear SW caches
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
       for(var i=0;i<regs.length;i++) await regs[i].unregister();
@@ -5343,21 +5376,30 @@ async function applyUpdate(){
       await Promise.all(keys.map(function(k){ return caches.delete(k); }));
     }
   }catch(e){}
-  try{ localStorage.setItem('dm_app_version', APP_VERSION); }catch(e){}
-  // APK: tenta ir para a versão online do site; web: reload forçado
-  if(typeof isNativeApp==='function' && isNativeApp()){
+  try{ localStorage.setItem('dm_app_version', String(ver)); }catch(e){}
+  // APK nativo: recarrega do servidor
+  try{
+    if(window.DamasNative && typeof DamasNative.reloadFromServer==='function'){
+      var el=document.getElementById('ov-update'); if(el) el.style.display='none';
+      toast('Atualizando…');
+      DamasNative.reloadFromServer();
+      return;
+    }
+  }catch(e){}
+  if(isNativeApp()){
     try{
-      window.location.href = REMOTE_APP_URL + '?v=' + encodeURIComponent(APP_VERSION) + '&t=' + Date.now();
+      window.location.href = (typeof REMOTE_APP_URL!=='undefined'?REMOTE_APP_URL:'https://f-lapa.github.io/Damas/') + '?v=' + encodeURIComponent(ver) + '&t=' + Date.now();
       return;
     }catch(e){}
   }
-  window.location.href = window.location.pathname + '?v=' + Date.now();
+  window.location.replace((window.location.pathname.split('?')[0]||'/') + '?v=' + encodeURIComponent(ver) + '&t=' + Date.now());
 }
 async function checkForAppUpdate(){
   try{
-    var url = VERSION_URL + '?t=' + Date.now();
-    // relative fallback for same origin
-    var urls=[url, './version.json?t='+Date.now()];
+    var urls=[
+      (typeof VERSION_URL!=='undefined'?VERSION_URL:'https://f-lapa.github.io/Damas/version.json')+'?t='+Date.now(),
+      './version.json?t='+Date.now()
+    ];
     var data=null;
     for(var i=0;i<urls.length;i++){
       try{
@@ -5367,56 +5409,15 @@ async function checkForAppUpdate(){
     }
     if(!data || !data.version) return;
     var remote=String(data.version);
-    var local=APP_VERSION;
-    try{
-      var stored=localStorage.getItem('dm_app_version');
-      if(stored) local=stored;
-    }catch(e){}
-    if(remote === local || remote === APP_VERSION){
+    // Só compara com a versão do código em execução
+    if(remote === String(APP_VERSION)){
       try{ localStorage.setItem('dm_app_version', remote); }catch(e){}
       return;
     }
-    // remote is different from what we run
-    if(remote !== APP_VERSION){
-      try{ if(localStorage.getItem('dm_skip_ver_'+remote)==='1') return; }catch(e){}
-      var el=document.getElementById('ov-update');
-      var tx=document.getElementById('update-text');
-      if(tx) tx.textContent='Versão nova: '+remote+' (você está na '+APP_VERSION+'). Deseja atualizar agora?';
-      if(el) el.style.display='flex';
-      // stash remote for apply
-      window.__remoteVersion=remote;
-    }
+    showUpdatePrompt(remote);
   }catch(e){ console.warn('update check', e); }
 }
-// Override applyUpdate to use remote version string
-applyUpdate=async function(){
-  var ver=window.__remoteVersion||APP_VERSION;
-  try{ localStorage.setItem('dm_app_version', ver); }catch(e){}
-  try{
-    if('serviceWorker' in navigator){
-      var regs=await navigator.serviceWorker.getRegistrations();
-      for(var i=0;i<regs.length;i++) await regs[i].unregister();
-    }
-    if(window.caches){
-      var keys=await caches.keys();
-      await Promise.all(keys.map(function(k){ return caches.delete(k); }));
-    }
-  }catch(e){}
-  // APK nativo: recarrega a versão do GitHub dentro do WebView (sem desinstalar)
-  try{
-    if(window.DamasNative && typeof DamasNative.reloadFromServer==='function'){
-      DamasNative.reloadFromServer();
-      var el=document.getElementById('ov-update'); if(el) el.style.display='none';
-      toast('Atualizando…');
-      return;
-    }
-  }catch(e){}
-  if(typeof isNativeApp==='function' && isNativeApp()){
-    window.location.href = REMOTE_APP_URL + '?v=' + encodeURIComponent(ver) + '&t=' + Date.now();
-    return;
-  }
-  window.location.replace((window.location.pathname.split('?')[0]||'/') + '?v=' + encodeURIComponent(ver) + '&t=' + Date.now());
-};
+
 
 /* ===== PWA / Instalar app ===== */
 var deferredInstallPrompt=null;
@@ -5458,20 +5459,6 @@ window.addEventListener('appinstalled', function(){
   try{ localStorage.setItem(INSTALL_DISMISS_KEY, 'installed'); }catch(err){}
   toast('App instalado!');
 });
-
-function isNativeApp(){
-  // APK WebView (arquivo local) ou PWA instalado — nunca mostrar "baixar app"
-  try{
-    if(location.protocol==='file:') return true;
-    if(location.href.indexOf('android_asset')>=0) return true;
-    if(window.matchMedia('(display-mode: standalone)').matches) return true;
-    if(window.navigator.standalone===true) return true;
-    // Android WebView UA
-    var ua=navigator.userAgent||'';
-    if(/; wv\)/i.test(ua) || /WebView/i.test(ua)) return true;
-  }catch(e){}
-  return false;
-}
 function isStandalone(){ return isNativeApp(); }
 
 function showInstallBanner(){
