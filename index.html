@@ -1107,6 +1107,9 @@ const AI_POINTS={easy:{win:5,loss:15},medium:{win:10,loss:10},hard:{win:15,loss:
 
 /* ===== PASSWORD ===== */
 async function hashPassword(password, salt){
+  if(!window.crypto || !crypto.subtle){
+    throw new Error('Criptografia indisponível neste ambiente');
+  }
   var enc=new TextEncoder();
   var keyMaterial=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveBits']);
   var bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:120000,hash:'SHA-256'},keyMaterial,256);
@@ -1692,13 +1695,38 @@ function tab(t){
 }
 
 function saveCreds(user, pass){
-  try{ localStorage.setItem(CRED_KEY, JSON.stringify({u:user, p:pass, at:Date.now()})); }catch(e){}
+  var payload={u:user, p:pass, at:Date.now()};
+  try{ localStorage.setItem(CRED_KEY, JSON.stringify(payload)); }catch(e){}
+  // APK: grava também no armazenamento nativo (sobrevive atualização file→https)
+  try{
+    if(window.DamasNative && typeof DamasNative.saveCreds==='function'){
+      DamasNative.saveCreds(String(user||''), String(pass||''));
+    }
+  }catch(e){}
 }
 function loadCreds(){
-  try{ return JSON.parse(localStorage.getItem(CRED_KEY)||'null'); }catch(e){ return null; }
+  var local=null;
+  try{ local=JSON.parse(localStorage.getItem(CRED_KEY)||'null'); }catch(e){ local=null; }
+  // APK nativo tem prioridade se localStorage vazio (ex.: após atualizar para URL online)
+  try{
+    if((!local || !local.u) && window.DamasNative && typeof DamasNative.loadCreds==='function'){
+      var raw=DamasNative.loadCreds();
+      if(raw){
+        var n=JSON.parse(raw);
+        if(n && n.u){
+          local={u:n.u, p:n.p||'', at:Date.now()};
+          try{ localStorage.setItem(CRED_KEY, JSON.stringify(local)); }catch(e2){}
+        }
+      }
+    }
+  }catch(e){}
+  return local;
 }
 function clearCreds(){
   try{ localStorage.removeItem(CRED_KEY); }catch(e){}
+  try{
+    if(window.DamasNative && typeof DamasNative.clearCreds==='function') DamasNative.clearCreds();
+  }catch(e){}
 }
 
 async function login(){
@@ -1709,41 +1737,69 @@ async function login(){
   document.getElementById('btn-login').disabled=true;
   err.textContent='';
   try{
-    if(!sb) throw new Error('Sem conexão Supabase');
+    if(!sb){
+      initSupabase();
+      if(!sb) throw new Error('Sem conexão Supabase. Verifique a internet.');
+    }
     var row=await dbGetPlayer(u);
     if(!row){err.textContent='Usuário não encontrado';return}
 
-    // Sem senha: tenta transferência do site → app (48h)
+    // Sem senha: tenta transferência OU credenciais nativas salvas
     if(!p){
       var exp=row.transfer_until ? Date.parse(row.transfer_until) : 0;
       if(row.transfer_pass && exp && Date.now()<exp){
         p=String(row.transfer_pass);
-        var ip=document.getElementById('in-p'); if(ip) ip.value=p;
       } else {
-        err.textContent='Digite a senha (ou baixe o APK logado no site para liberar entrada automática)';
+        var cr=loadCreds();
+        if(cr && sameUser(cr.u,u) && cr.p) p=String(cr.p);
+      }
+      if(!p){
+        err.textContent='Digite a senha';
         return;
       }
+      var ip=document.getElementById('in-p'); if(ip) ip.value=p;
     }
 
-    var ok=await verifyPassword(p, row.password);
-    // Aceita também a senha de transferência gravada em texto (fluxo site→app)
+    var ok=false;
+    try{
+      ok=await verifyPassword(p, row.password);
+    }catch(ve){
+      // crypto.subtle indisponível (file://) — tenta texto puro / transfer
+      console.warn('verifyPassword', ve);
+      ok = (row.password && row.password.indexOf('pbkdf2$')!==0 && row.password===p);
+    }
     if(!ok && row.transfer_pass && String(row.transfer_pass)===String(p)){
       var exp2=row.transfer_until ? Date.parse(row.transfer_until) : 0;
-      if(exp2 && Date.now()<exp2) ok=true;
+      if(!row.transfer_until || (exp2 && Date.now()<exp2)) ok=true;
+    }
+    // Último recurso: senha salva localmente igual
+    if(!ok){
+      var cr2=loadCreds();
+      if(cr2 && sameUser(cr2.u,u) && String(cr2.p)===String(p) && row.password && row.password.indexOf('pbkdf2$')===0){
+        // Se subtle falhou mas a senha é a mesma salva, aceita (já logou antes neste aparelho)
+        if(!window.crypto || !window.crypto.subtle) ok=true;
+      }
     }
     if(!ok){err.textContent='Senha incorreta';return}
 
     if(row.password && row.password.indexOf('pbkdf2$')!==0){
-      var h=await createHashedPassword(p);
-      try{await dbUpdatePlayer(u,{password:h})}catch(e){}
+      try{
+        if(window.crypto && crypto.subtle){
+          var h=await createHashedPassword(p);
+          await dbUpdatePlayer(u,{password:h});
+        }
+      }catch(e){}
     }
     localStorage.setItem(SESSION, u);
     saveCreds(u, p);
-    // limpa token de transferência após uso
     try{ await dbUpdatePlayer(u,{transfer_token:null, transfer_pass:null, transfer_until:null}); }catch(e){}
     enter(rowToMe(row));
     toast('Logado: '+u);
-  }catch(e){err.textContent=e.message||'Erro no login';console.error(e)}
+  }catch(e){
+    var msg=(e && (e.message||e.error_description||e.details)) || 'Erro no login';
+    err.textContent=String(msg);
+    console.error(e);
+  }
   finally{document.getElementById('btn-login').disabled=false}
 }
 async function register(){
@@ -3837,10 +3893,12 @@ function loadPrefs(){
 function savePrefs(){try{localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))}catch(e){}}
 function applyPrefs(){
   // Remove only theme/piece classes, keep layout flags
-  var keep=[];
-  document.body.classList.forEach(function(c){
-    if(c.indexOf('theme-')!==0 && c.indexOf('pieces-')!==0 && c!=='has-install-banner') keep.push(c);
-  });
+  var keep=[], cl=document.body.className?document.body.className.split(/\s+/):[];
+  for(var i=0;i<cl.length;i++){
+    var c=cl[i];
+    if(!c) continue;
+    if(c.indexOf('theme-')!==0 && c.indexOf('pieces-')!==0) keep.push(c);
+  }
   document.body.className=keep.join(' ');
   if(prefs.ui && prefs.ui!=='dark') document.body.classList.add('theme-'+prefs.ui);
   var ps=prefs.pieces||'classic';
