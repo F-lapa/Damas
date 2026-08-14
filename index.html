@@ -1520,6 +1520,7 @@ let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
 let timeControl=0, clockW=0, clockB=0, clockTimer=null, clockRunning=false, lastClockTick=0;
 let boardFlipped=false, lastEndResult=null, lastEndMode=null;
 let pendingResult=null; // {result, delta, fromPts, toPts, title, sub}
+let gameFinished=false; // true após fim — não restaurar/salvar
 let prefs={ui:'dark', board:'classic', pieces:'classic', sound:true, coords:true};
 let rankKing='';
 
@@ -2332,6 +2333,7 @@ function applyRemoteMove(d){
 
 /* ===== GAME FLOW ===== */
 function startLocal(m){
+  gameFinished=false; clearActiveGame();
   mode=m; board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[];
   capW=[]; capB=[]; chatMsgs=[]; myColor='w'; oppName=''; gameId=''; boardFlipped=false;
   lastEndMode=m; lastEndResult=null;
@@ -3103,6 +3105,8 @@ function animatePointsValue(from, to){
 
 function showEnd(t,m){
   stopClock();
+  gameFinished=true;
+  clearActiveGame();
   document.getElementById('end-t').textContent=t;
   document.getElementById('end-m').innerHTML='<div>'+escapeHtml(m||'')+'</div>';
   var br=document.getElementById('btn-rematch');
@@ -3404,7 +3408,10 @@ function exitReview(){
 }
 function toHome(){
   stopClock();
+  gameFinished=true;
+  clearActiveGame();
   document.getElementById('ov-end').style.display='none';
+  try{ document.getElementById('ov-result').style.display='none'; }catch(e){}
   document.getElementById('game').style.display='none';
   document.getElementById('nav').style.display='flex';
   stopLiveAnnounce();
@@ -4257,7 +4264,13 @@ async function adminResetPass(username){
 /* ===== ACTIVE GAME PERSISTENCE ===== */
 function saveActiveGame(){
   if(!me||!board||!mode) return;
-  if(mode==='spectate') return; // don't resume spectate as player
+  if(mode==='spectate'||mode==='review') return;
+  if(gameFinished) return; // partida já acabou — não gravar
+  // Não salvar se não há lances (fim de jogo)
+  try{
+    var ms=legalMoves(board, turn);
+    if(!ms || !ms.length){ clearActiveGame(); return; }
+  }catch(e){}
   try{
     var payload={
       v:2,
@@ -4300,68 +4313,22 @@ function loadActiveGameRaw(){
 function restoreActiveGame(){
   var data=loadActiveGameRaw();
   if(!data||!me) return false;
-  if(!sameUser(data.user, me.name)) return false;
-  if(!data.mode || data.mode==='spectate' || data.mode==='puzzle') return false;
-
-  mode=data.mode;
-  gameId=data.gameId||'';
-  oppName=data.oppName||'';
-  myColor=data.myColor||'w';
-  board=deserializeBoard(data.board);
-  turn=data.turn||'w';
-  hist=data.hist||[];
-  capW=data.capW||[];
-  capB=data.capB||[];
-  last=data.last||null;
-  boardFlipped=!!data.boardFlipped;
-  if(data.diff) diff=data.diff;
-  timeControl=data.timeControl||0;
-  clockW=data.clockW||0;
-  clockB=data.clockB||0;
-  chatMsgs=data.chatMsgs||[];
-  sel=null; legal=[];
-  lastEndMode=mode; lastEndResult=null;
-
-  openGameUI();
-
-  // UI labels
-  document.getElementById('btn-undo').style.display=(mode==='online'||mode==='spectate')?'none':'inline-block';
-  var bd=document.getElementById('btn-draw');
-  if(bd){ if(mode==='online') bd.classList.remove('hidden'); else bd.classList.add('hidden'); }
-
-  if(mode==='online'){
-    document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : oppName;
-    document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : oppName;
-    document.getElementById('chat').classList.add('on');
-    setPresence('in_game', gameId, oppName);
-    joinGameChannel(false);
-    startLiveAnnounce();
-    // Ask opponent for freshest state (in case they moved while we were away)
-    setTimeout(function(){
-      try{ if(gameCh) gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
-    }, 500);
-    setTimeout(function(){
-      try{ if(gameCh) gameCh.send({type:'broadcast', event:'state_request', payload:{by:me.name}}); }catch(e){}
-    }, 1500);
-  } else if(mode==='ai'){
-    document.getElementById('n-w').textContent=me.name+' (você)';
-    document.getElementById('n-b').textContent='Computador · '+(diff==='easy'?'Fácil':diff==='hard'?'Difícil':'Médio');
-    document.getElementById('chat').classList.remove('on');
-  } else if(mode==='local'){
-    document.getElementById('n-w').textContent='Brancas';
-    document.getElementById('n-b').textContent='Pretas';
-    document.getElementById('chat').classList.add('on');
+  if(!sameUser(data.user, me.name)){ clearActiveGame(); return false; }
+  if(!data.mode || data.mode==='spectate' || data.mode==='puzzle' || data.mode==='review'){
+    clearActiveGame(); return false;
   }
 
-  setupCoach();
-  render(); status(); movesUI(); updateCaps(); refreshGameAvatars(); renderChat();
-  updateClocksUI();
-  if(timeControl>0) startClockTick();
-  toast('Partida restaurada');
-  // If AI to move after restore
-  if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 400);
-  else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 300);
-  return true;
+  var testBoard=deserializeBoard(data.board);
+  var testTurn=data.turn||'w';
+  // Se a partida já terminou (sem lances), descarta
+  try{
+    var ms=legalMoves(testBoard, testTurn);
+    if(!ms || !ms.length){ clearActiveGame(); return false; }
+  }catch(e){ clearActiveGame(); return false; }
+
+  // Não restaurar automaticamente no F5 — volta ao lobby
+  clearActiveGame();
+  return false;
 }
 
 /* ===== INIT ===== */
