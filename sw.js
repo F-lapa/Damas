@@ -1,13 +1,11 @@
 /* Damas Mestre — Service Worker */
-const CACHE = 'damas-mestre-v1';
+const CACHE = 'damas-mestre-v3';
 const PRECACHE = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-512-maskable.png',
-  './apple-touch-icon.png'
+  './icone.png',
+  './version.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -27,37 +25,36 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
-
   const url = new URL(req.url);
 
   // Never cache Supabase API / realtime / auth
-  if (url.hostname.includes('supabase.co') || url.hostname.includes('supabase.in')) {
+  if (url.hostname.includes('supabase') || url.pathname.includes('version.json')) {
+    event.respondWith(fetch(req));
     return;
   }
 
-  // CDN scripts: network first, fallback cache
-  if (url.hostname.includes('cdn.jsdelivr.net') || url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com')) {
+  // HTML: network first so updates show up
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(req).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        caches.open(CACHE).then((c) => c.put(req, copy));
         return res;
-      }).catch(() => caches.match(req))
+      }).catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
     );
     return;
   }
 
-  // App shell: cache first, then network update
   event.respondWith(
     caches.match(req).then((cached) => {
-      const fetched = fetch(req).then((res) => {
-        if (res && res.ok && url.origin === self.location.origin) {
+      const fetcher = fetch(req).then((res) => {
+        if (res && res.status === 200) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
       }).catch(() => cached);
-      return cached || fetched;
+      return cached || fetcher;
     })
   );
 });

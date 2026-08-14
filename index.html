@@ -690,6 +690,55 @@ body:not(.has-install-banner){padding-top:0}
 }
 .admin-row .adm-pass.locked{color:var(--muted);font-family:inherit}
 
+
+/* ===== Piece styles (high specificity so they always apply) ===== */
+body.pieces-wood .piece.w{background:radial-gradient(circle at 30% 25%,#f6e2b8,#d4a574 50%,#a67c52)!important;border:3px solid #8b5e34!important;box-shadow:0 4px 10px rgba(0,0,0,.35),inset 0 2px 4px rgba(255,255,255,.35)!important}
+body.pieces-wood .piece.b{background:radial-gradient(circle at 30% 25%,#6b3f2a,#3e2214 55%,#1a0e08)!important;border:3px solid #2a160c!important}
+body.pieces-neon .piece.w{background:radial-gradient(circle at 35% 30%,#e0f2fe,#7dd3fc 45%,#0ea5e9)!important;border:2px solid #38bdf8!important;box-shadow:0 0 14px rgba(56,189,248,.55)!important}
+body.pieces-neon .piece.b{background:radial-gradient(circle at 35% 30%,#fce7f3,#e879f9 45%,#a21caf)!important;border:2px solid #e879f9!important;box-shadow:0 0 14px rgba(232,121,249,.5)!important}
+body.pieces-stone .piece.w{background:radial-gradient(circle at 35% 30%,#f8fafc,#cbd5e1 50%,#94a3b8)!important;border:2px solid #64748b!important}
+body.pieces-stone .piece.b{background:radial-gradient(circle at 35% 30%,#475569,#1e293b 55%,#0f172a)!important;border:2px solid #0f172a!important}
+body.pieces-gold .piece.w{background:radial-gradient(circle at 32% 28%,#fffbeb,#fcd34d 40%,#d97706 80%)!important;border:2.5px solid #b45309!important}
+body.pieces-gold .piece.b{background:radial-gradient(circle at 32% 28%,#44403c,#1c1917 50%,#0c0a09)!important;border:2.5px solid #292524!important}
+body.pieces-flat .piece.w{background:#f5f0e6!important;border:2px solid #c4b8a0!important;box-shadow:0 2px 6px rgba(0,0,0,.25)!important}
+body.pieces-flat .piece.b{background:#1a1410!important;border:2px solid #3a3020!important;box-shadow:0 2px 6px rgba(0,0,0,.25)!important}
+body.pieces-ruby .piece.w{background:radial-gradient(circle at 32% 28%,#fff1f2,#fda4af 45%,#e11d48)!important;border:2px solid #be123c!important}
+body.pieces-ruby .piece.b{background:radial-gradient(circle at 32% 28%,#3f3f46,#18181b 55%,#09090b)!important;border:2px solid #27272a!important}
+body.pieces-ice .piece.w{background:radial-gradient(circle at 30% 25%,#f0f9ff,#bae6fd 50%,#38bdf8)!important;border:2px solid #7dd3fc!important;box-shadow:0 0 16px rgba(125,211,252,.45)!important}
+body.pieces-ice .piece.b{background:radial-gradient(circle at 30% 25%,#1e3a5f,#0c1929 55%,#020617)!important;border:2px solid #1e40af!important}
+body.pieces-emerald .piece.w{background:radial-gradient(circle at 30% 25%,#ecfdf5,#6ee7b7 45%,#059669)!important;border:2px solid #34d399!important}
+body.pieces-emerald .piece.b{background:radial-gradient(circle at 30% 25%,#064e3b,#022c22 55%,#011411)!important;border:2px solid #065f46!important}
+body.pieces-copper .piece.w{background:radial-gradient(circle at 30% 25%,#ffedd5,#fdba74 45%,#c2410c)!important;border:2px solid #ea580c!important}
+body.pieces-copper .piece.b{background:radial-gradient(circle at 30% 25%,#431407,#1c0a05 55%,#0a0502)!important;border:2px solid #7c2d12!important}
+body.pieces-galaxy .piece.w{background:radial-gradient(circle at 30% 25%,#ede9fe,#a78bfa 40%,#6d28d9)!important;border:2px solid #8b5cf6!important;box-shadow:0 0 14px rgba(139,92,246,.45)!important}
+body.pieces-galaxy .piece.b{background:radial-gradient(circle at 30% 25%,#1e1b4b,#0f172a 55%,#020617)!important;border:2px solid #312e81!important}
+body.pieces-marble .piece.w{background:radial-gradient(circle at 25% 20%,#ffffff,#e7e5e4 40%,#a8a29e)!important;border:2px solid #d6d3d1!important}
+body.pieces-marble .piece.b{background:radial-gradient(circle at 25% 20%,#78716c,#292524 50%,#0c0a09)!important;border:2px solid #44403c!important}
+/* Boards */
+.board-frame.board-classic{--sq-l:#ecd9b0;--sq-d:#b06a3b}
+.board-frame.board-emerald{--sq-l:#e5f2d3;--sq-d:#4f8a3a}
+.board-frame.board-ocean{--sq-l:#d4e8f7;--sq-d:#2f6fad}
+.board-frame.board-midnight{--sq-l:#3d4f66;--sq-d:#0d1520}
+.board-frame.board-rose{--sq-l:#ffe4e8;--sq-d:#c91d45}
+.board-frame.board-chesscom{--sq-l:#f0f0c8;--sq-d:#6a9b4e}
+.board-frame.board-sand{--sq-l:#f5e6c8;--sq-d:#c4a35a}
+.board-frame.board-purple{--sq-l:#ede9fe;--sq-d:#6d28d9}
+.board-frame.board-slate{--sq-l:#e2e8f0;--sq-d:#475569}
+.board-frame.board-blood{--sq-l:#fecaca;--sq-d:#7f1d1d}
+.board-frame.board-mint{--sq-l:#d1fae5;--sq-d:#047857}
+.board-frame.board-contrast{--sq-l:#fafafa;--sq-d:#171717}
+/* UI themes */
+body.theme-midnight{--bg:#03050a;--card:rgba(12,18,32,.94)}
+body.theme-royal{--bg:#0b0614;--card:rgba(28,18,48,.92);--blue:#8b5cf6;--violet:#c084fc}
+body.theme-forest{--bg:#06110c;--card:rgba(14,28,22,.92);--blue:#34d399;--violet:#6ee7b7}
+body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet:#f472b6}
+body.theme-ocean{--bg:#020617;--card:rgba(12,24,40,.94);--blue:#38bdf8;--violet:#818cf8}
+body.theme-crimson{--bg:#140508;--card:rgba(40,12,18,.94);--blue:#f43f5e;--violet:#fb7185}
+body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet:#e4e4e7}
+/* Update modal */
+#ov-update .modal{text-align:center;max-width:360px}
+#ov-update .upd-icon{font-size:2.6rem;margin-bottom:.4rem}
+
 </style>
 </head>
 <body>
@@ -867,6 +916,9 @@ body:not(.has-install-banner){padding-top:0}
                 <button type="button" title="Real" data-ui="royal" style="background:linear-gradient(135deg,#4c1d95,#7c3aed)" onclick="setUiTheme('royal')"></button>
                 <button type="button" title="Floresta" data-ui="forest" style="background:linear-gradient(135deg,#064e3b,#34d399)" onclick="setUiTheme('forest')"></button>
                 <button type="button" title="Pôr do sol" data-ui="sunset" style="background:linear-gradient(135deg,#9a3412,#fb923c)" onclick="setUiTheme('sunset')"></button>
+                <button type="button" title="Oceano" data-ui="ocean" style="background:linear-gradient(135deg,#0c4a6e,#38bdf8)" onclick="setUiTheme('ocean')"></button>
+                <button type="button" title="Carmesim" data-ui="crimson" style="background:linear-gradient(135deg,#881337,#f43f5e)" onclick="setUiTheme('crimson')"></button>
+                <button type="button" title="Carbono" data-ui="carbon" style="background:linear-gradient(135deg,#18181b,#a1a1aa)" onclick="setUiTheme('carbon')"></button>
               </div>
             </div>
             <div>
@@ -875,7 +927,7 @@ body:not(.has-install-banner){padding-top:0}
             </div>
             <div>
               <label>Estilo das peças</label>
-              <div class="diff-row" id="piece-style-row">
+              <div class="diff-row" id="piece-style-row" style="flex-wrap:wrap">
                 <button type="button" data-piece="classic" class="on" onclick="setPieceStyle('classic')">Clássico</button>
                 <button type="button" data-piece="wood" onclick="setPieceStyle('wood')">Madeira</button>
                 <button type="button" data-piece="neon" onclick="setPieceStyle('neon')">Neon</button>
@@ -883,6 +935,11 @@ body:not(.has-install-banner){padding-top:0}
                 <button type="button" data-piece="gold" onclick="setPieceStyle('gold')">Ouro</button>
                 <button type="button" data-piece="flat" onclick="setPieceStyle('flat')">Flat</button>
                 <button type="button" data-piece="ruby" onclick="setPieceStyle('ruby')">Rubi</button>
+                <button type="button" data-piece="ice" onclick="setPieceStyle('ice')">Gelo</button>
+                <button type="button" data-piece="emerald" onclick="setPieceStyle('emerald')">Esmeralda</button>
+                <button type="button" data-piece="copper" onclick="setPieceStyle('copper')">Cobre</button>
+                <button type="button" data-piece="galaxy" onclick="setPieceStyle('galaxy')">Galáxia</button>
+                <button type="button" data-piece="marble" onclick="setPieceStyle('marble')">Mármore</button>
               </div>
             </div>
             <div>
@@ -997,6 +1054,17 @@ body:not(.has-install-banner){padding-top:0}
     <button type="button" class="btn-main" onclick="leaveEndToResult()">Continuar</button>
   </div>
 </div></div>
+<div class="overlay" id="ov-update" style="display:none">
+  <div class="modal">
+    <div class="upd-icon">🚀</div>
+    <h2>Nova versão disponível</h2>
+    <p id="update-text" style="color:var(--muted);margin:.5rem 0 1rem;line-height:1.45">O jogo foi atualizado. Deseja instalar a nova versão agora?</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-soft" onclick="dismissUpdate()">Agora não</button>
+      <button type="button" class="btn-main" onclick="applyUpdate()">Atualizar</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="ov-result" style="display:none">
   <div class="modal result-modal" id="result-modal-box">
     <div class="result-icon" id="result-icon">🏆</div>
@@ -1028,6 +1096,9 @@ body:not(.has-install-banner){padding-top:0}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
+const APP_VERSION='2026.08.14.2';
+const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
+const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
 const AVATAR_KEY='dm_avatar_', PEER_AV_KEY='dm_peer_av_', MUTE_KEY='dm_muted_v1';
 const FRIENDS_KEY='dm_friends_v1', FRIEND_REQ_KEY='dm_friend_req_v1', TUTORIAL_KEY='dm_tut_v1';
@@ -3765,23 +3836,31 @@ function loadPrefs(){
 }
 function savePrefs(){try{localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))}catch(e){}}
 function applyPrefs(){
-  document.body.className='';
+  // Remove only theme/piece classes, keep layout flags
+  var keep=[];
+  document.body.classList.forEach(function(c){
+    if(c.indexOf('theme-')!==0 && c.indexOf('pieces-')!==0 && c!=='has-install-banner') keep.push(c);
+  });
+  document.body.className=keep.join(' ');
   if(prefs.ui && prefs.ui!=='dark') document.body.classList.add('theme-'+prefs.ui);
   var ps=prefs.pieces||'classic';
   document.body.classList.add('pieces-'+ps);
   var bf=document.getElementById('board-frame');
   if(bf){ bf.className='board-frame board-'+(prefs.board||'classic'); }
   var pb=document.getElementById('preview-board');
-  if(pb){ pb.className='board-frame board-'+(prefs.board||'classic')+' pieces-'+ps; }
+  if(pb){ pb.className='board-frame board-'+(prefs.board||'classic'); }
   document.getElementById('opt-sound')&&document.getElementById('opt-sound').classList.toggle('on', prefs.sound!==false);
   document.getElementById('opt-coords')&&document.getElementById('opt-coords').classList.toggle('on', prefs.coords!==false);
   document.querySelectorAll('#ui-theme-swatches button').forEach(function(b){b.classList.toggle('on', b.dataset.ui===(prefs.ui||'dark'))});
   document.querySelectorAll('#piece-style-row button').forEach(function(b){b.classList.toggle('on', b.dataset.piece===ps)});
+  document.querySelectorAll('.board-swatch').forEach(function(b){
+    b.classList.toggle('on', (b.getAttribute('data-board')||'')===(prefs.board||'classic'));
+  });
 }
 function setPieceStyle(t){
   prefs.pieces=t||'classic';
   savePrefs(); applyPrefs();
-  if(board) render();
+  if(board) render({forceFull:true});
   paintPreview();
   toast('Peças: '+(t||'classic'));
 }
@@ -3805,11 +3884,12 @@ function paintPreview(){
   }
   // board swatches
   var sw=document.getElementById('board-swatches');
-  if(sw && !sw.children.length){
-    var themes=[['classic','#f0d9b5','#b58863'],['chesscom','#eeeed2','#769656'],['emerald','#e8f0d4','#5a8f45'],['ocean','#d4e8f7','#2f6fad'],['midnight','#3d4f66','#0d1520'],['rose','#ffe4e8','#c91d45']];
+  if(sw){ sw.innerHTML=''; if(true){
+    var themes=[['classic','#f0d9b5','#b58863'],['chesscom','#eeeed2','#769656'],['emerald','#e8f0d4','#5a8f45'],['ocean','#d4e8f7','#2f6fad'],['midnight','#3d4f66','#0d1520'],['rose','#ffe4e8','#c91d45'],['sand','#f5e6c8','#c4a35a'],['purple','#ede9fe','#6d28d9'],['slate','#e2e8f0','#475569'],['blood','#fecaca','#7f1d1d'],['mint','#d1fae5','#047857'],['contrast','#fafafa','#171717']];
     themes.forEach(function(t){
       var btn=document.createElement('button');
       btn.type='button'; btn.className='board-swatch'+(prefs.board===t[0]?' on':'');
+      btn.setAttribute('data-board', t[0]);
       btn.onclick=function(){setBoardTheme(t[0]); document.querySelectorAll('.board-swatch').forEach(function(b){b.classList.remove('on')}); btn.classList.add('on')};
       btn.innerHTML='<div class="board-mini">'+Array(16).fill(0).map(function(_,i){var l=(Math.floor(i/4)+i%4)%2===0;return '<i style="background:'+(l?t[1]:t[2])+'"></i>'}).join('')+'</div><span class="lbl">'+t[0]+'</span>';
       sw.appendChild(btn);
@@ -4332,6 +4412,109 @@ function restoreActiveGame(){
 }
 
 /* ===== INIT ===== */
+
+/* ===== APP UPDATE CHECK ===== */
+function showUpdatePrompt(remoteVer){
+  if(!remoteVer) return;
+  try{ if(localStorage.getItem('dm_skip_ver_'+remoteVer)==='1') return; }catch(e){}
+  window.__remoteVersion=String(remoteVer);
+  var el=document.getElementById('ov-update');
+  var tx=document.getElementById('update-text');
+  if(tx) tx.textContent='Versão nova: '+remoteVer+' (instalada: '+APP_VERSION+'). Deseja atualizar agora?';
+  if(el) el.style.display='flex';
+}
+function dismissUpdate(){
+  var ver=window.__remoteVersion||APP_VERSION;
+  try{ localStorage.setItem('dm_skip_ver_'+ver, '1'); }catch(e){}
+  var el=document.getElementById('ov-update'); if(el) el.style.display='none';
+}
+async function applyUpdate(){
+  try{
+    // Clear SW caches
+    if('serviceWorker' in navigator){
+      var regs=await navigator.serviceWorker.getRegistrations();
+      for(var i=0;i<regs.length;i++) await regs[i].unregister();
+    }
+    if(window.caches){
+      var keys=await caches.keys();
+      await Promise.all(keys.map(function(k){ return caches.delete(k); }));
+    }
+  }catch(e){}
+  try{ localStorage.setItem('dm_app_version', APP_VERSION); }catch(e){}
+  // APK: tenta ir para a versão online do site; web: reload forçado
+  if(typeof isNativeApp==='function' && isNativeApp()){
+    try{
+      window.location.href = REMOTE_APP_URL + '?v=' + encodeURIComponent(APP_VERSION) + '&t=' + Date.now();
+      return;
+    }catch(e){}
+  }
+  window.location.href = window.location.pathname + '?v=' + Date.now();
+}
+async function checkForAppUpdate(){
+  try{
+    var url = VERSION_URL + '?t=' + Date.now();
+    // relative fallback for same origin
+    var urls=[url, './version.json?t='+Date.now()];
+    var data=null;
+    for(var i=0;i<urls.length;i++){
+      try{
+        var res=await fetch(urls[i], {cache:'no-store'});
+        if(res.ok){ data=await res.json(); break; }
+      }catch(e){}
+    }
+    if(!data || !data.version) return;
+    var remote=String(data.version);
+    var local=APP_VERSION;
+    try{
+      var stored=localStorage.getItem('dm_app_version');
+      if(stored) local=stored;
+    }catch(e){}
+    if(remote === local || remote === APP_VERSION){
+      try{ localStorage.setItem('dm_app_version', remote); }catch(e){}
+      return;
+    }
+    // remote is different from what we run
+    if(remote !== APP_VERSION){
+      try{ if(localStorage.getItem('dm_skip_ver_'+remote)==='1') return; }catch(e){}
+      var el=document.getElementById('ov-update');
+      var tx=document.getElementById('update-text');
+      if(tx) tx.textContent='Versão nova: '+remote+' (você está na '+APP_VERSION+'). Deseja atualizar agora?';
+      if(el) el.style.display='flex';
+      // stash remote for apply
+      window.__remoteVersion=remote;
+    }
+  }catch(e){ console.warn('update check', e); }
+}
+// Override applyUpdate to use remote version string
+applyUpdate=async function(){
+  var ver=window.__remoteVersion||APP_VERSION;
+  try{ localStorage.setItem('dm_app_version', ver); }catch(e){}
+  try{
+    if('serviceWorker' in navigator){
+      var regs=await navigator.serviceWorker.getRegistrations();
+      for(var i=0;i<regs.length;i++) await regs[i].unregister();
+    }
+    if(window.caches){
+      var keys=await caches.keys();
+      await Promise.all(keys.map(function(k){ return caches.delete(k); }));
+    }
+  }catch(e){}
+  // APK nativo: recarrega a versão do GitHub dentro do WebView (sem desinstalar)
+  try{
+    if(window.DamasNative && typeof DamasNative.reloadFromServer==='function'){
+      DamasNative.reloadFromServer();
+      var el=document.getElementById('ov-update'); if(el) el.style.display='none';
+      toast('Atualizando…');
+      return;
+    }
+  }catch(e){}
+  if(typeof isNativeApp==='function' && isNativeApp()){
+    window.location.href = REMOTE_APP_URL + '?v=' + encodeURIComponent(ver) + '&t=' + Date.now();
+    return;
+  }
+  window.location.replace((window.location.pathname.split('?')[0]||'/') + '?v=' + encodeURIComponent(ver) + '&t=' + Date.now());
+};
+
 /* ===== PWA / Instalar app ===== */
 var deferredInstallPrompt=null;
 var INSTALL_DISMISS_KEY='dm_install_dismiss_v1';
@@ -4339,8 +4522,20 @@ var INSTALL_DISMISS_KEY='dm_install_dismiss_v1';
 function registerPWA(){
   if(!('serviceWorker' in navigator)) return;
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('./sw.js').then(function(reg){
+    navigator.serviceWorker.register('./sw.js?v='+APP_VERSION).then(function(reg){
       console.log('[PWA] SW ativo', reg.scope);
+      reg.addEventListener('updatefound', function(){
+        var nw=reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', function(){
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            var el=document.getElementById('ov-update');
+            var tx=document.getElementById('update-text');
+            if(tx) tx.textContent='Uma nova versão do app foi baixada. Deseja atualizar agora?';
+            if(el) el.style.display='flex';
+          }
+        });
+      });
     }).catch(function(err){
       console.warn('[PWA] SW falhou', err);
     });
@@ -4486,6 +4681,12 @@ window.addEventListener('DOMContentLoaded', function(){
 
 window.addEventListener('DOMContentLoaded', async function(){
   loadPrefs();
+  setTimeout(checkForAppUpdate, 2500);
+  setInterval(checkForAppUpdate, 10*60*1000);
+  // APK: pede checagem nativa (contorna bloqueio file:// → https)
+  setTimeout(function(){
+    try{ if(window.DamasNative && DamasNative.checkUpdate) DamasNative.checkUpdate(); }catch(e){}
+  }, 2000);
   initSupabase();
   if(sb) try{await ensureMaster()}catch(e){}
 
