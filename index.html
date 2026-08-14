@@ -739,6 +739,43 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 #ov-update .modal{text-align:center;max-width:360px}
 #ov-update .upd-icon{font-size:2.6rem;margin-bottom:.4rem}
 
+
+/* Modern profile modal */
+.profile-modal-modern{max-width:420px;padding:0!important;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.profile-modal-modern .prof-top{
+  padding:1.35rem 1.25rem 1.1rem;
+  background:radial-gradient(ellipse at 20% 0%,rgba(91,157,255,.28),transparent 55%),
+             linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  border-bottom:1px solid var(--line);
+  text-align:center;
+}
+.profile-modal-modern .prof-av-lg{
+  width:84px;height:84px;border-radius:24px;margin:0 auto .75rem;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,var(--blue),var(--violet));
+  border:3px solid rgba(255,255,255,.2);
+  box-shadow:0 12px 32px rgba(0,0,0,.35);overflow:hidden;
+}
+.profile-modal-modern .prof-av-lg img{width:100%;height:100%;object-fit:cover}
+.profile-modal-modern .prof-name{font-size:1.35rem;font-weight:900;margin:0}
+.profile-modal-modern .prof-pts{color:var(--gold);font-weight:900;font-size:1.05rem;margin-top:.25rem}
+.profile-modal-modern .prof-badges{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;margin-top:.55rem}
+.profile-modal-modern .prof-badges span{
+  font-size:.7rem;font-weight:800;padding:.2rem .5rem;border-radius:999px;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--muted);
+}
+.profile-modal-modern .prof-body{padding:1rem 1.15rem 1.2rem}
+.profile-modal-modern .prof-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:.55rem;margin-bottom:.9rem;
+}
+.profile-modal-modern .prof-stat-card{
+  padding:.7rem .75rem;border-radius:14px;border:1px solid var(--line);
+  background:rgba(0,0,0,.22);text-align:center;
+}
+.profile-modal-modern .prof-stat-card b{display:block;font-size:1.2rem;font-weight:900}
+.profile-modal-modern .prof-stat-card span{font-size:.72rem;color:var(--muted);font-weight:700}
+.profile-modal-modern .prof-actions{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center}
 </style>
 </head>
 <body>
@@ -1076,10 +1113,9 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
     </div>
   </div>
 </div>
-<div class="overlay" id="ov-profile"><div class="modal profile-modal">
-  <h2 id="prof-title">Perfil</h2>
+<div class="overlay" id="ov-profile"><div class="modal profile-modal profile-modal-modern">
   <div id="prof-body"></div>
-  <div class="modal-actions"><button type="button" class="btn-main" onclick="closePlayerProfile()">Fechar</button></div>
+  <div class="modal-actions" style="padding:0 1rem 1rem"><button type="button" class="btn-main" onclick="closePlayerProfile()">Fechar</button></div>
 </div></div>
 <div class="overlay" id="ov-draw"><div class="modal"><h2>🤝 Empate?</h2><p id="draw-text">O adversário oferece empate.</p>
   <div class="modal-actions"><button type="button" class="btn-decline" onclick="respondDraw(false)">Recusar</button><button type="button" class="btn-accept" onclick="respondDraw(true)">Aceitar</button></div>
@@ -3052,6 +3088,7 @@ function resign(){
 function endLocal(){
   stopClock();
   var winner = turn==='w'?'b':'w'; // side that couldn't move lost
+  if(mode==='ai'||mode==='local') lastEndMode=mode;
   lastEndResult = (winner===myColor)?'win':'loss';
   var msg = winner==='w'?'Brancas vencem.':'Pretas vencem.';
   var d=0;
@@ -3260,9 +3297,10 @@ function showEnd(t,m){
         mode: lastEndMode||'?',
         result: lastEndResult||'',
         msg: m||'',
-        opp: oppName||'',
+        opp: (lastEndMode==='ai'?'Computador':(oppName||'')) || (lastEndMode==='ai'?'Computador':''),
         white: whiteName,
         black: blackName,
+        diff: (lastEndMode==='ai'?diff:''),
         myColor: myColor||'w',
         moves: (hist||[]).map(function(h){ return {from:h.from,to:h.to,captures:h.captures||0,san:h.san||(h.from+'-'+h.to)}; }),
         ply: (hist||[]).length,
@@ -3438,36 +3476,111 @@ function findMoveOnBoard(brd, color, from, to){
   }
   return null;
 }
-function reviewGoto(i){
+function reviewGoto(i, opts){
   if(!reviewMoves) return;
-  i = Math.max(-1, Math.min(reviewMoves.length-1, i|0));
-  reviewCursor=i;
-  board=newBoard();
-  turn='w';
-  capW=[]; capB=[];
-  last=null;
-  for(var k=0;k<=i;k++){
-    var mv=reviewMoves[k];
-    if(!mv || !mv.from || !mv.to) continue;
-    var found=findMoveOnBoard(board, turn, mv.from, mv.to);
-    if(!found){
-      // try opposite color once if desync
-      found=findMoveOnBoard(board, turn==='w'?'b':'w', mv.from, mv.to);
-      if(found) turn = turn==='w'?'b':'w';
+  opts = opts || {};
+  var max = reviewMoves.length - 1;
+  if(i < -1) i = -1;
+  if(i > max) i = max;
+  var prev = reviewCursor;
+  // Passo único para frente: anima o lance (sem piscar o tabuleiro)
+  if(!opts.forceFull && prev >= -1 && i === prev + 1 && i >= 0){
+    reviewCursor = i;
+    var mv = reviewMoves[i];
+    if(mv && mv.from && mv.to){
+      var found = findMoveOnBoard(board, turn, mv.from, mv.to);
+      if(!found){
+        found = findMoveOnBoard(board, turn==='w'?'b':'w', mv.from, mv.to);
+        if(found) turn = turn==='w'?'b':'w';
+      }
+      if(found){
+        var pieceBefore = null;
+        try{
+          var ps = parseSq(found.from);
+          pieceBefore = board[ps.r][ps.c];
+        }catch(e){}
+        var pieceCls = pieceBefore ? ((pieceBefore>0?'w':'b')+(Math.abs(pieceBefore)===2?' king':'')) : 'w';
+        var caps = found.captures||0;
+        // esconde origem
+        try{
+          var boardEl=document.getElementById('board');
+          var src=boardEl && boardEl.querySelector('[data-sq="'+found.from+'"] .piece');
+          if(src) src.classList.add('hidden-src');
+          if(caps && found.steps){
+            found.steps.forEach(function(st){
+              if(st.capR==null) return;
+              var ce=boardEl.querySelector('[data-sq="'+sqName(st.capR,st.capC)+'"] .piece');
+              if(ce) ce.classList.add('cap-pop');
+            });
+          }
+        }catch(e){}
+        // aplica lógica
+        if(caps){ for(var c=0;c<caps;c++){ if(turn==='w') capW.push('●'); else capB.push('●'); } }
+        board=applyMove(board, found);
+        last={from:found.from,to:found.to};
+        turn = turn==='w'?'b':'w';
+        // flyer
+        try{
+          var frame=document.getElementById('board-frame');
+          var boardEl2=document.getElementById('board');
+          var a=boardEl2.querySelector('[data-sq="'+found.from+'"]');
+          var b=boardEl2.querySelector('[data-sq="'+found.to+'"]');
+          if(frame && a && b){
+            var fr=frame.getBoundingClientRect();
+            var ar=a.getBoundingClientRect(), br=b.getBoundingClientRect();
+            var size=Math.min(ar.width,ar.height)*0.78;
+            var flyer=document.createElement('div');
+            flyer.className='piece flying '+pieceCls;
+            var sx=ar.left-fr.left+(ar.width-size)/2;
+            var sy=ar.top-fr.top+(ar.height-size)/2;
+            var ex=br.left-fr.left+(br.width-size)/2;
+            var ey=br.top-fr.top+(br.height-size)/2;
+            flyer.style.cssText='width:'+size+'px;height:'+size+'px;left:'+sx+'px;top:'+sy+'px;transform:translate3d(0,0,0);transition:transform 320ms cubic-bezier(.2,.7,.25,1);';
+            frame.appendChild(flyer);
+            void flyer.offsetWidth;
+            requestAnimationFrame(function(){ flyer.style.transform='translate3d('+(ex-sx)+'px,'+(ey-sy)+'px,0)'; });
+            setTimeout(function(){
+              if(flyer.parentNode) flyer.parentNode.removeChild(flyer);
+              try{ syncBoardDom({}); }catch(e){ render({}); }
+              statusReview(); movesUIReview(); updateCaps();
+            }, 340);
+            statusReview(); movesUIReview();
+            return;
+          }
+        }catch(e){}
+        try{ syncBoardDom({}); }catch(e){ render({}); }
+        statusReview(); movesUIReview(); updateCaps();
+        return;
+      }
     }
-    if(!found) continue;
-    var caps=found.captures||0;
-    if(caps){
-      for(var c=0;c<caps;c++){
+  }
+  // Rebuild completo (início, fim, salto, voltar)
+  reviewCursor = i;
+  board = newBoard();
+  turn = 'w';
+  capW = []; capB = [];
+  last = null;
+  for(var k=0;k<=i;k++){
+    var mv2=reviewMoves[k];
+    if(!mv2 || !mv2.from || !mv2.to) continue;
+    var found2=findMoveOnBoard(board, turn, mv2.from, mv2.to);
+    if(!found2){
+      found2=findMoveOnBoard(board, turn==='w'?'b':'w', mv2.from, mv2.to);
+      if(found2) turn = turn==='w'?'b':'w';
+    }
+    if(!found2) continue;
+    var caps2=found2.captures||0;
+    if(caps2){
+      for(var c2=0;c2<caps2;c2++){
         if(turn==='w') capW.push('●'); else capB.push('●');
       }
     }
-    board=applyMove(board, found);
-    last={from:mv.from, to:mv.to};
+    board=applyMove(board, found2);
+    last={from:mv2.from, to:mv2.to};
     turn = turn==='w'?'b':'w';
   }
   sel=null; legal=[];
-  render();
+  try{ syncBoardDom({forceFull:true}); }catch(e){ render({forceFull:true}); }
   statusReview();
   movesUIReview();
   updateCaps();
@@ -3752,10 +3865,27 @@ function paintHome(){
     '<div class="stat green"><b>'+s.wins+'</b><span>Vitórias</span></div>'+
     '<div class="stat red"><b>'+s.losses+'</b><span>Derrotas</span></div>';
 }
+function getAiStatsMerged(){
+  var ai=loadAiStats();
+  // Completa com histórico local (vs Computador) caso stats antigas estejam vazias
+  try{
+    var list=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')||[];
+    var fromHist={games:0,wins:0,losses:0,draws:0};
+    list.forEach(function(g){
+      if(!g || g.mode!=='ai') return;
+      fromHist.games++;
+      if(g.result==='win') fromHist.wins++;
+      else if(g.result==='loss') fromHist.losses++;
+      else fromHist.draws++;
+    });
+    if(fromHist.games > (ai.games||0)) ai=fromHist;
+  }catch(e){}
+  return ai;
+}
 function paintDash(){
   if(!me) return;
   var s=me.stats, wr=s.games?Math.round(s.wins/s.games*100):0;
-  var ai=loadAiStats(), aiWr=ai.games?Math.round(ai.wins/ai.games*100):0;
+  var ai=getAiStatsMerged(), aiWr=ai.games?Math.round(ai.wins/ai.games*100):0;
   paintDashAvatar();
   document.getElementById('dash-name').textContent=me.name;
   document.getElementById('dash-sub').textContent=s.games+' online · '+ai.games+' vs IA';
@@ -4303,21 +4433,55 @@ function searchCard(p){
     '<button type="button" class="btn-soft" style="padding:.45rem .7rem;font-size:.78rem;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;border:none" onclick="challengePlayer(\''+name+'\')">Desafiar</button></div>';
 }
 async function viewPlayerProfile(username){
-  var ov=document.getElementById('ov-profile'), body=document.getElementById('prof-body'), title=document.getElementById('prof-title');
-  title.textContent='Perfil'; body.innerHTML='Carregando…'; ov.style.display='flex';
+  var ov=document.getElementById('ov-profile'), body=document.getElementById('prof-body');
+  if(!ov||!body) return;
+  body.innerHTML='<div class="prof-body" style="text-align:center;padding:2rem;color:var(--muted)">Carregando…</div>';
+  ov.style.display='flex';
   try{
-    var row=await dbGetPlayer(username); if(!row){body.innerHTML='Jogador não encontrado';return}
+    var row=await dbGetPlayer(username);
+    if(!row){ body.innerHTML='<div style="padding:1.5rem;text-align:center">Jogador não encontrado</div>'; return; }
     ingestPlayerAvatar(row);
-    var games=row.games||0, wins=row.wins||0, wr=games?Math.round(wins/games*100):0;
-    title.textContent=username;
-    body.innerHTML='<div class="prof-hero"><div class="prof-avatar">'+avatarHtml(username)+'</div><div><div style="font-weight:900;font-size:1.1rem">'+escapeHtml(username)+'</div><div style="color:var(--gold);font-weight:800">'+(row.points||0)+' pts</div></div></div>'+
-      '<div class="prof-grid">'+
-      '<div class="prof-stat"><b>'+wins+'</b><span>Vitórias</span></div>'+
-      '<div class="prof-stat"><b>'+(row.draws||0)+'</b><span>Empates</span></div>'+
-      '<div class="prof-stat"><b>'+(row.losses||0)+'</b><span>Derrotas</span></div>'+
-      '<div class="prof-stat"><b>'+wr+'%</b><span>Taxa</span></div></div>'+
-      (me&&!sameUser(username,me.name)?'<button type="button" class="btn-main" style="margin-top:.8rem" onclick="closePlayerProfile();challengePlayer(\''+username+'\')">⚔️ Desafiar</button>':'');
-  }catch(e){body.innerHTML='Erro ao carregar'}
+    var games=row.games||0, wins=row.wins||0, losses=row.losses||0, draws=row.draws||0;
+    var wr=games?Math.round(wins/games*100):0;
+    var streak=row.streak||0, best=row.best_streak||0;
+    var pts=row.points||0;
+    var online=(onlinePlayers||[]).some(function(p){return sameUser(p.user, username)});
+    var isM=MASTER.indexOf(String(username).toLowerCase())>=0;
+    var av=getAvatarData(username);
+    var letter=escapeHtml((username||'?')[0].toUpperCase());
+    body.innerHTML=
+      '<div class="prof-top">'+
+        '<div class="prof-av-lg">'+(av?'<img src="'+av+'" alt=""/>':letter)+'</div>'+
+        '<div class="prof-name">'+escapeHtml(username)+'</div>'+
+        '<div class="prof-pts">'+pts+' pontos</div>'+
+        '<div class="prof-badges">'+
+          (isM?'<span>🛡️ Mestre</span>':'')+
+          (online?'<span style="color:#6ee7b7;border-color:rgba(52,211,153,.35)">● Online</span>':'<span>Offline</span>')+
+          (wr>=60&&games>=5?'<span>🔥 Forte</span>':'')+
+          (streak>=3?'<span>⚡ Seq. '+streak+'</span>':'')+
+        '</div>'+
+      '</div>'+
+      '<div class="prof-body">'+
+        '<div class="prof-grid">'+
+          '<div class="prof-stat-card"><b>'+games+'</b><span>Partidas online</span></div>'+
+          '<div class="prof-stat-card"><b style="color:#6ee7b7">'+wins+'</b><span>Vitórias</span></div>'+
+          '<div class="prof-stat-card"><b style="color:#fda4af">'+losses+'</b><span>Derrotas</span></div>'+
+          '<div class="prof-stat-card"><b style="color:#fde68a">'+draws+'</b><span>Empates</span></div>'+
+          '<div class="prof-stat-card"><b>'+wr+'%</b><span>Taxa de vitória</span></div>'+
+          '<div class="prof-stat-card"><b>'+streak+'</b><span>Sequência atual</span></div>'+
+          '<div class="prof-stat-card"><b>'+best+'</b><span>Melhor sequência</span></div>'+
+          '<div class="prof-stat-card"><b>'+pts+'</b><span>Pontuação</span></div>'+
+        '</div>'+
+        (me&&!sameUser(username,me.name)?
+          '<div class="prof-actions">'+
+            '<button type="button" class="btn-main" onclick="closePlayerProfile();challengePlayer(\''+username+'\')">⚔️ Desafiar</button>'+
+            (isFriend(username)?'':'<button type="button" class="btn-soft" onclick="sendFriendRequest(\''+username+'\')">👥 Amigo</button>')+
+          '</div>':'')+
+      '</div>';
+  }catch(e){
+    body.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--red)">Erro ao carregar perfil</div>';
+    console.error(e);
+  }
 }
 function closePlayerProfile(){document.getElementById('ov-profile').style.display='none'}
 function renderChat(){
