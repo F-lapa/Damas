@@ -776,7 +776,35 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 .profile-modal-modern .prof-stat-card b{display:block;font-size:1.2rem;font-weight:900}
 .profile-modal-modern .prof-stat-card span{font-size:.72rem;color:var(--muted);font-weight:700}
 .profile-modal-modern .prof-actions{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center}
+
+/* FEATURE PACK */
+.tut-overlay{position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:1rem}
+.tut-card{max-width:400px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1.35rem 1.25rem;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.tut-card h2{margin:0 0 .5rem;font-size:1.2rem}
+.tut-card p{color:var(--muted);font-size:.9rem;line-height:1.45;margin:0 0 1rem}
+.tut-dots{display:flex;gap:.35rem;justify-content:center;margin-bottom:.9rem}
+.tut-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.2)}
+.tut-dots i.on{background:var(--blue)}
+.daily-card{margin-bottom:.85rem;padding:.85rem 1rem;border-radius:16px;border:1px solid rgba(245,197,66,.35);
+  background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(91,157,255,.08))}
+.daily-card h3{margin:0 0 .35rem;font-size:.95rem}
+.daily-card .prog{height:8px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden;margin:.45rem 0}
+.daily-card .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),#f59e0b);border-radius:99px}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.5rem;margin-top:.6rem}
+.ach-item{padding:.65rem;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.2);text-align:center;font-size:.78rem}
+.ach-item.on{border-color:rgba(245,197,66,.45);background:rgba(245,197,66,.1)}
+.ach-item b{display:block;font-size:1.3rem;margin-bottom:.2rem}
+.lobby-chat{margin-top:.75rem;border-top:1px solid var(--line);padding-top:.65rem}
+.lobby-chat-log{max-height:120px;overflow:auto;font-size:.8rem;margin-bottom:.4rem}
+.lobby-chat-log .msg{padding:.2rem 0;color:var(--muted)}
+.lobby-chat-log .msg b{color:var(--text)}
+.lobby-chat-row{display:flex;gap:.4rem}
+.lobby-chat-row input{flex:1;min-width:0}
+.week-rank{margin-top:.75rem}
+.time-inc-note{font-size:.72rem;color:var(--muted);margin-top:.25rem}
+.invite-row{display:flex;gap:.4rem;margin-top:.55rem;flex-wrap:wrap}
 </style>
+
 </head>
 <body>
 <div id="install-banner" role="dialog" aria-label="Baixar aplicativo">
@@ -808,6 +836,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
         </div>
       </div>
       <button type="button" class="btn-go" id="btn-login" onclick="login()">Entrar</button>
+      <button type="button" class="btn-soft" style="width:100%;margin-top:.45rem;padding:.55rem;font-size:.82rem" onclick="openForgotPassword()">Esqueci a senha</button>
     </div>
     <div id="p-up" class="hidden">
       <div class="fld"><label>Usuário</label><input id="up-u" placeholder="escolha um nome" autocomplete="username"/></div>
@@ -835,7 +864,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
     <div class="logo">⬤ Damas Mestre</div>
     <div class="hdr-right">
       <span class="conn" id="conn-status">conectando…</span>
-      <div class="chip"><span id="h-name">—</span><span class="tag-m hidden" id="h-master">MESTRE</span></div>
+      <div class="h-avatar" id="h-avatar" onclick="go('dash')" title="Sua foto">?</div><div class="chip"><span id="h-name">—</span><span class="tag-m hidden" id="h-master">MESTRE</span></div>
       <span class="pts" id="h-pts">0 pts</span>
       <button type="button" class="btn-out" onclick="logout()">Sair</button>
     </div>
@@ -870,14 +899,33 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
           <div class="friends-panel">
             <h3>🤝 Amigos</h3>
             <div id="friends-list"><div class="empty" style="padding:.35rem 0">Carregando…</div></div>
+            <div class="invite-row">
+              <button type="button" class="btn-soft" style="padding:.4rem .7rem;font-size:.78rem" onclick="copyInviteLink()">🔗 Convidar por link</button>
+              <button type="button" class="btn-soft" style="padding:.4rem .7rem;font-size:.78rem" onclick="shareInviteWhatsApp()">WhatsApp</button>
+            </div>
+          </div>
+          <div class="lobby-chat">
+            <h3 style="margin:0 0 .4rem;font-size:.9rem">💬 Chat do lobby</h3>
+            <div class="lobby-chat-log" id="lobby-chat-log"><div class="empty">Nenhuma mensagem ainda</div></div>
+            <div class="lobby-chat-row">
+              <input id="lobby-chat-in" type="text" maxlength="120" placeholder="Mensagem no lobby…" onkeydown="if(event.key==='Enter')sendLobbyChat()"/>
+              <button type="button" class="btn-soft" onclick="sendLobbyChat()">Enviar</button>
+            </div>
           </div>
           <p class="note">Toque no perfil · captura obrigatória · pedra só captura p/ trás em sequência (2+) · dama voadora.</p>
         </div>
         <div class="card">
+          <div class="daily-card" id="daily-card">
+            <h3>📅 Desafio do dia</h3>
+            <div id="daily-text">Carregando…</div>
+            <div class="prog"><i id="daily-bar" style="width:0%"></i></div>
+            <div id="daily-status" style="font-size:.78rem;color:var(--muted)"></div>
+          </div>
           <h2>🎯 Treino local</h2>
           <div class="modes">
-            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · regras brasileiras · não altera ranking online</div></div></div>
+            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · offline ok · não altera ranking online</div></div></div>
             <div class="mode" onclick="startLocal('local')"><div class="i">👥</div><div><div class="t">Dois jogadores</div><div class="d">Mesmo dispositivo</div></div></div>
+            <div class="mode" onclick="startGuestAi()"><div class="i">📶</div><div><div class="t">Offline rápido</div><div class="d">Jogar vs IA sem precisar de conta</div></div></div>
           </div>
           <div class="section-label" style="margin-top:1rem">Dificuldade da IA</div>
           <div class="diff-row">
@@ -889,6 +937,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
           <div class="diff-row" id="time-row">
             <button type="button" id="t-inf" class="on" onclick="setTimeControl(0)">∞ Livre</button>
             <button type="button" id="t-3" onclick="setTimeControl(180)">3 min</button>
+            <button type="button" id="t-3p2" onclick="setTimeControl(180,2)">3+2</button>
             <button type="button" id="t-5" onclick="setTimeControl(300)">5 min</button>
             <button type="button" id="t-10" onclick="setTimeControl(600)">10 min</button>
           </div>
@@ -913,7 +962,16 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
       </div>
       <div class="card" style="margin-top:1.1rem">
         <div class="panel-title">
-          <h2 style="margin:0">📜 Histórico de partidas</h2>
+          
+      <div class="card" style="margin-bottom:.85rem">
+        <div class="panel-title"><h2>🏅 Conquistas</h2></div>
+        <div class="ach-grid" id="ach-grid"></div>
+        <div style="margin-top:.85rem;display:flex;flex-wrap:wrap;gap:.45rem">
+          <button type="button" class="btn-soft" style="padding:.45rem .75rem;font-size:.8rem" onclick="openChangePassword()">🔑 Alterar senha</button>
+          <button type="button" class="btn-soft" style="padding:.45rem .75rem;font-size:.8rem" onclick="startTutorial(true)">📖 Tutorial</button>
+        </div>
+      </div>
+<h2 style="margin:0">📜 Histórico de partidas</h2>
           <span class="chip-soft" id="hist-count">0</span>
         </div>
         <p class="note" style="margin-top:0;margin-bottom:.75rem">Toque em uma partida para ver todas as jogadas e analisar.</p>
@@ -930,6 +988,11 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
         <div class="rank-stats">
           <span class="rs" id="rank-total">— jogadores</span>
           <span class="rs" id="rank-you">Sua pos. —</span>
+      <div class="card week-rank">
+        <div class="panel-title"><h2>📅 Ranking da semana</h2><span class="chip-soft" id="week-rank-label">local</span></div>
+        <div id="week-rank-list" class="empty" style="padding:.5rem 0">Jogue partidas esta semana para aparecer aqui.</div>
+      </div>
+
           <button type="button" class="rs" style="cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;color:#fff" onclick="paintRank()">↻ Atualizar</button>
         </div>
       </div>
@@ -1132,12 +1195,14 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.14.4';
+const APP_VERSION='2026.08.15.1';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
 const AVATAR_KEY='dm_avatar_', PEER_AV_KEY='dm_peer_av_', MUTE_KEY='dm_muted_v1';
 const FRIENDS_KEY='dm_friends_v1', FRIEND_REQ_KEY='dm_friend_req_v1', TUTORIAL_KEY='dm_tut_v1';
+const DAILY_KEY='dm_daily_v1', ACH_KEY='dm_ach_v1', WEEK_KEY='dm_week_v1', LOBBY_CHAT_KEY='dm_lobby_chat_v1';
+let timeIncrement=0, lobbyChatMsgs=[], _tutStep=0;
 const PTS={win:25,draw:0,loss:-8};
 const AI_POINTS={easy:{win:5,loss:15},medium:{win:10,loss:10},hard:{win:15,loss:5}};
 
@@ -2016,8 +2081,9 @@ function enter(user){
   document.getElementById('h-master').classList.toggle('hidden', !me.isMaster);
   // Carrega foto do jogador (local + Supabase)
   try{
-    ensureUserAvatar(me.name).then(function(){
+    ensureUserAvatar(me.name, true).then(function(){
       try{ paintDashAvatar(); }catch(e){}
+      try{ paintHeaderAvatar(); }catch(e){}
       try{ refreshGameAvatars(); }catch(e){}
       try{ shareMyAvatar(); }catch(e){}
     });
@@ -2035,6 +2101,8 @@ function enter(user){
   var resumed=false;
   try{ resumed=restoreActiveGame(); }catch(e){ console.warn(e); }
   if(!resumed) go('home');
+  setTimeout(function(){ try{ startTutorial(false); }catch(e){} }, 600);
+  setTimeout(function(){ try{ handleInviteParam(); if(window.__pendingInvite){ var u=window.__pendingInvite; window.__pendingInvite=null; viewPlayerProfile(u); } }catch(e){} }, 1200);
 }
 
 /* ===== LOBBY / ONLINE ===== */
@@ -2069,6 +2137,13 @@ function joinLobby(){
       // Pull missing avatars from DB so everyone sees photos
       fillMissingAvatars();
     });
+    lobbyCh.on('broadcast',{event:'lobby_chat'}, function(p){
+      var d=p.payload||{}; if(!d.by||!d.text) return;
+      if(typeof isMuted==='function' && isMuted(d.by)) return;
+      lobbyChatMsgs.push({by:d.by, text:String(d.text).slice(0,120), at:Date.now()});
+      if(lobbyChatMsgs.length>60) lobbyChatMsgs=lobbyChatMsgs.slice(-60);
+      try{ renderLobbyChat(); }catch(e){}
+    });
     lobbyCh.on('broadcast',{event:'avatar_share'}, function(p){
       var d=p.payload||{};
       if(!d.user || !d.avatar) return;
@@ -2089,6 +2164,7 @@ function joinLobby(){
       pendingChallenge=d;
       if(d.avatar) cachePeerAvatar(d.from, d.avatar);
       document.getElementById('challenge-text').textContent=d.from+' desafiou você para uma partida de damas!';
+      try{ sfxChallenge(); toast('⚔️ '+d.from+' desafiou você!'); }catch(e){}
       document.getElementById('ov-challenge').style.display='flex';
     });
     lobbyCh.on('broadcast',{event:'challenge_response'}, function(p){
@@ -2946,6 +3022,7 @@ function doMove(move, remote){
     if(wasPromo){
       var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
       if(cellPromo) cellPromo.classList.add('promote-anim');
+      try{ unlockAch('king'); }catch(e){}
     }
     var nextMoves;
     try{ nextMoves=legalMoves(board, turn); }catch(e){ nextMoves=[]; }
@@ -2956,7 +3033,8 @@ function doMove(move, remote){
       else setTimeout(function(){ endLocal(); }, 450);
       return;
     }
-    if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 300);
+    try{ if(timeControl>0 && timeIncrement>0){ if(turn==='b') clockW+=timeIncrement; else clockB+=timeIncrement; updateClocksUI(); } }catch(e){}
+  if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 300);
     else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 240);
   }
 
@@ -3371,6 +3449,8 @@ function confirmResultPoints(){
   var pr=pendingResult;
   pendingResult=null;
   if(!pr) return;
+  if(pr.result==='win'&&me) try{ addWeekPoints(me.name, Math.abs(pr.delta||25)); }catch(e){}
+  try{ checkAchFromStats(); }catch(e){}
   // Animate points on home
   var from=pr.fromPts|0, to=pr.toPts|0;
   if(from===to && !pr.delta) return;
@@ -3829,6 +3909,285 @@ function respondDraw(accept){
   if(accept) finishOnline('draw','Empate acordado.');
 }
 
+
+/* ===== FEATURE PACK: daily, week, achievements, tutorial, lobby chat, password ===== */
+function todayKey(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function weekKey(){
+  var d=new Date();
+  var onejan=new Date(d.getFullYear(),0,1);
+  var week=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);
+  return d.getFullYear()+'-W'+String(week).padStart(2,'0');
+}
+function loadDaily(){
+  try{
+    var o=JSON.parse(localStorage.getItem(DAILY_KEY)||'{}');
+    if(o.day!==todayKey()) return {day:todayKey(), target:3, wins:0, done:false, type:'ai_wins'};
+    return o;
+  }catch(e){ return {day:todayKey(), target:3, wins:0, done:false, type:'ai_wins'}; }
+}
+function saveDaily(o){ try{ localStorage.setItem(DAILY_KEY, JSON.stringify(o)); }catch(e){} }
+function paintDaily(){
+  var o=loadDaily();
+  var tx=document.getElementById('daily-text');
+  var bar=document.getElementById('daily-bar');
+  var st=document.getElementById('daily-status');
+  if(!tx) return;
+  var tgt=o.target||3;
+  var cur=Math.min(o.wins||0, tgt);
+  tx.textContent='Vença '+tgt+' partidas contra o computador hoje.';
+  if(bar) bar.style.width=Math.round(100*cur/tgt)+'%';
+  if(st){
+    if(o.done) st.innerHTML='<span style="color:#6ee7b7;font-weight:800">✓ Desafio concluído! +bônus de treino</span>';
+    else st.textContent=cur+' / '+tgt+' vitórias';
+  }
+}
+function onDailyWin(){
+  var o=loadDaily();
+  if(o.day!==todayKey()) o={day:todayKey(), target:3, wins:0, done:false, type:'ai_wins'};
+  o.wins=(o.wins||0)+1;
+  if(!o.done && o.wins>=o.target){
+    o.done=true;
+    toast('📅 Desafio do dia completo!');
+    unlockAch('daily3');
+  }
+  saveDaily(o);
+  paintDaily();
+}
+
+function loadAch(){ try{ return JSON.parse(localStorage.getItem(ACH_KEY+(me?me.name:''))||'{}'); }catch(e){ return {}; } }
+function saveAch(a){ try{ localStorage.setItem(ACH_KEY+(me?me.name:''), JSON.stringify(a)); }catch(e){} }
+var ACH_DEFS=[
+  {id:'first_win', icon:'🏆', name:'Primeira vitória', desc:'Vença 1 partida'},
+  {id:'win5', icon:'⭐', name:'Em forma', desc:'5 vitórias online'},
+  {id:'win25', icon:'💎', name:'Veterano', desc:'25 vitórias online'},
+  {id:'streak3', icon:'🔥', name:'Em sequência', desc:'Sequência de 3'},
+  {id:'streak5', icon:'⚡', name:'Imparável', desc:'Sequência de 5'},
+  {id:'ai10', icon:'🤖', name:'Caçador de IA', desc:'10 vitórias vs PC'},
+  {id:'daily3', icon:'📅', name:'Disciplina', desc:'Complete o desafio do dia'},
+  {id:'king', icon:'♛', name:'Dama voadora', desc:'Promova uma dama'},
+  {id:'social', icon:'🤝', name:'Social', desc:'Adicione 1 amigo'},
+  {id:'coach', icon:'📖', name:'Estudioso', desc:'Use o Coach 5 vezes'}
+];
+function unlockAch(id){
+  if(!me) return;
+  var a=loadAch();
+  if(a[id]) return;
+  a[id]=Date.now();
+  saveAch(a);
+  var def=ACH_DEFS.find(function(x){return x.id===id});
+  toast('🏅 Conquista: '+(def?def.name:id));
+  paintAchievements();
+}
+function paintAchievements(){
+  var box=document.getElementById('ach-grid'); if(!box) return;
+  var a=loadAch();
+  box.innerHTML=ACH_DEFS.map(function(d){
+    var on=!!a[d.id];
+    return '<div class="ach-item'+(on?' on':'')+'"><b>'+d.icon+'</b><strong>'+escapeHtml(d.name)+'</strong><div style="color:var(--muted);margin-top:.15rem">'+escapeHtml(d.desc)+'</div></div>';
+  }).join('');
+}
+function checkAchFromStats(){
+  if(!me||!me.stats) return;
+  var s=me.stats;
+  if(s.wins>=1) unlockAch('first_win');
+  if(s.wins>=5) unlockAch('win5');
+  if(s.wins>=25) unlockAch('win25');
+  if((s.streak||0)>=3) unlockAch('streak3');
+  if((s.streak||0)>=5) unlockAch('streak5');
+  var ai=typeof getAiStatsMerged==='function'?getAiStatsMerged():loadAiStats();
+  if((ai.wins||0)>=10) unlockAch('ai10');
+}
+
+function loadWeekScores(){
+  try{
+    var o=JSON.parse(localStorage.getItem(WEEK_KEY)||'{}');
+    if(o.week!==weekKey()) return {week:weekKey(), scores:{}};
+    return o;
+  }catch(e){ return {week:weekKey(), scores:{}}; }
+}
+function saveWeekScores(o){ try{ localStorage.setItem(WEEK_KEY, JSON.stringify(o)); }catch(e){} }
+function addWeekPoints(user, delta){
+  if(!user || !delta) return;
+  var o=loadWeekScores();
+  if(o.week!==weekKey()) o={week:weekKey(), scores:{}};
+  o.scores[user]=(o.scores[user]|0)+delta;
+  saveWeekScores(o);
+}
+function paintWeekRank(){
+  var box=document.getElementById('week-rank-list'); if(!box) return;
+  var o=loadWeekScores();
+  var pairs=Object.keys(o.scores||{}).map(function(u){return {u:u, p:o.scores[u]|0};});
+  pairs.sort(function(a,b){return b.p-a.p});
+  if(!pairs.length){
+    box.innerHTML='<div class="empty">Jogue partidas esta semana para pontuar aqui.</div>';
+    return;
+  }
+  box.innerHTML=pairs.slice(0,15).map(function(x,i){
+    return '<div class="friend-row" style="cursor:default"><div style="width:28px;font-weight:900;color:var(--muted)">'+(i+1)+'</div>'+
+      '<div class="avatar" style="width:32px;height:32px">'+avatarHtml(x.u)+'</div>'+
+      '<div style="flex:1;font-weight:800">'+escapeHtml(x.u)+'</div>'+
+      '<div style="color:var(--gold);font-weight:900">'+x.p+' pts</div></div>';
+  }).join('');
+}
+
+/* Tutorial */
+var TUT_STEPS=[
+  {t:'Bem-vindo ao Damas Mestre', b:'Damas brasileiras: captura obrigatória, dama voadora e ranking online.'},
+  {t:'Jogar online', b:'Na lista Online, toque em um jogador para ver o perfil e desafiar.'},
+  {t:'Treinar com a IA', b:'Use vs Computador. O Coach Supremo sugere o melhor lance na sua vez.'},
+  {t:'Sua conta', b:'Em Conta você troca a foto, vê estatísticas, conquistas e o histórico com replay.'},
+  {t:'Pronto!', b:'Boa sorte nas partidas. Toque em Tutorial em Conta quando quiser ver de novo.'}
+];
+function startTutorial(force){
+  try{ if(!force && localStorage.getItem(TUTORIAL_KEY)==='1') return; }catch(e){}
+  _tutStep=0;
+  var ov=document.getElementById('ov-tutorial');
+  if(!ov) return;
+  ov.style.display='flex';
+  ov.classList.remove('hidden');
+  renderTutorial();
+}
+function renderTutorial(){
+  var s=TUT_STEPS[_tutStep]||TUT_STEPS[0];
+  document.getElementById('tut-title').textContent=s.t;
+  document.getElementById('tut-text').textContent=s.b;
+  document.getElementById('tut-dots').innerHTML=TUT_STEPS.map(function(_,i){return '<i class="'+(i===_tutStep?'on':'')+'"></i>';}).join('');
+  document.getElementById('tut-next').textContent=_tutStep>=TUT_STEPS.length-1?'Começar':'Próximo';
+}
+function nextTutorial(){
+  if(_tutStep>=TUT_STEPS.length-1){ skipTutorial(); return; }
+  _tutStep++;
+  renderTutorial();
+}
+function skipTutorial(){
+  var ov=document.getElementById('ov-tutorial');
+  if(ov){ ov.style.display='none'; ov.classList.add('hidden'); }
+  try{ localStorage.setItem(TUTORIAL_KEY,'1'); }catch(e){}
+}
+
+/* Lobby chat */
+function renderLobbyChat(){
+  var log=document.getElementById('lobby-chat-log'); if(!log) return;
+  if(!lobbyChatMsgs.length){ log.innerHTML='<div class="empty">Nenhuma mensagem ainda</div>'; return; }
+  log.innerHTML=lobbyChatMsgs.slice(-40).map(function(m){
+    return '<div class="msg"><b>'+escapeHtml(m.by)+':</b> '+escapeHtml(m.text)+'</div>';
+  }).join('');
+  log.scrollTop=log.scrollHeight;
+}
+function sendLobbyChat(){
+  if(!me||!lobbyCh){ toast('Entre no lobby para enviar'); return; }
+  var inp=document.getElementById('lobby-chat-in');
+  var t=(inp&&inp.value||'').trim(); if(!t) return;
+  if(inp) inp.value='';
+  var msg={by:me.name, text:t.slice(0,120), at:Date.now()};
+  lobbyChatMsgs.push(msg);
+  if(lobbyChatMsgs.length>60) lobbyChatMsgs=lobbyChatMsgs.slice(-60);
+  renderLobbyChat();
+  try{ lobbyCh.send({type:'broadcast', event:'lobby_chat', payload:msg}); }catch(e){}
+}
+function copyInviteLink(){
+  if(!me){ toast('Faça login'); return; }
+  var url=location.origin+location.pathname+'?invite='+encodeURIComponent(me.name);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){ toast('Link de convite copiado'); }).catch(function(){ prompt('Copie o link:', url); });
+  } else prompt('Copie o link:', url);
+}
+function shareInviteWhatsApp(){
+  if(!me){ toast('Faça login'); return; }
+  var url=location.origin+location.pathname+'?invite='+encodeURIComponent(me.name);
+  var text=encodeURIComponent('Jogue damas comigo no Damas Mestre! '+url);
+  window.open('https://wa.me/?text='+text, '_blank');
+}
+function handleInviteParam(){
+  try{
+    var q=new URLSearchParams(location.search||'');
+    var inv=q.get('invite');
+    if(inv){ window.__pendingInvite=inv; }
+  }catch(e){}
+}
+
+/* Password */
+function openChangePassword(){
+  if(!me) return;
+  document.getElementById('pw-err').textContent='';
+  document.getElementById('pw-old').value='';
+  document.getElementById('pw-new').value='';
+  document.getElementById('pw-new2').value='';
+  document.getElementById('ov-password').style.display='flex';
+}
+async function submitChangePassword(){
+  var err=document.getElementById('pw-err');
+  var oldp=document.getElementById('pw-old').value;
+  var n1=document.getElementById('pw-new').value;
+  var n2=document.getElementById('pw-new2').value;
+  err.textContent='';
+  if(!oldp||!n1){ err.textContent='Preencha os campos'; return; }
+  if(n1.length<4){ err.textContent='Nova senha mín. 4 caracteres'; return; }
+  if(n1!==n2){ err.textContent='Confirmação não confere'; return; }
+  try{
+    var row=await dbGetPlayer(me.name);
+    if(!row){ err.textContent='Conta não encontrada'; return; }
+    var ok=await verifyPassword(oldp, row.password);
+    if(!ok){ err.textContent='Senha atual incorreta'; return; }
+    var hash=await createHashedPassword(n1);
+    await dbUpdatePlayer(me.name, {password:hash});
+    saveCreds(me.name, n1);
+    document.getElementById('ov-password').style.display='none';
+    toast('Senha alterada');
+  }catch(e){ err.textContent=e.message||'Erro'; }
+}
+function openForgotPassword(){
+  document.getElementById('fg-err').textContent='';
+  document.getElementById('ov-forgot').style.display='flex';
+}
+async function submitForgotPassword(){
+  var err=document.getElementById('fg-err');
+  var u=norm(document.getElementById('fg-user').value);
+  var temp=document.getElementById('fg-temp').value;
+  var n1=document.getElementById('fg-new').value;
+  err.textContent='';
+  if(!u||!temp||!n1){ err.textContent='Preencha usuário, senha temporária e nova senha'; return; }
+  if(n1.length<4){ err.textContent='Nova senha mín. 4 caracteres'; return; }
+  try{
+    if(!sb) initSupabase();
+    var row=await dbGetPlayer(u);
+    if(!row){ err.textContent='Usuário não encontrado'; return; }
+    var exp=row.transfer_until?Date.parse(row.transfer_until):0;
+    if(!row.transfer_pass || String(row.transfer_pass)!==String(temp)){
+      err.textContent='Senha temporária inválida. Peça ao mestre para gerar uma.';
+      return;
+    }
+    if(exp && Date.now()>exp){ err.textContent='Senha temporária expirada'; return; }
+    var hash=await createHashedPassword(n1);
+    await dbUpdatePlayer(u, {password:hash, transfer_pass:null, transfer_token:null, transfer_until:null});
+    document.getElementById('ov-forgot').style.display='none';
+    document.getElementById('in-u').value=u;
+    document.getElementById('in-p').value=n1;
+    toast('Senha redefinida — entre agora');
+    tab('in');
+  }catch(e){ err.textContent=e.message||'Erro'; }
+}
+
+function startGuestAi(){
+  if(!me){
+    me={name:'Convidado', points:0, isMaster:false, stats:{games:0,wins:0,losses:0,draws:0,streak:0,best_streak:0,trainGames:0}};
+    document.getElementById('auth').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('h-name').textContent='Convidado';
+    document.getElementById('h-pts').textContent='offline';
+    try{ document.getElementById('nav-admin').classList.add('hidden'); }catch(e){}
+  }
+  startLocal('ai');
+}
+
+function sfxChallenge(){
+  try{ playTone(880,0.08,'sine',0.09); setTimeout(function(){playTone(1175,0.12,'sine',0.08)},90); }catch(e){}
+}
+
+
 /* ===== COACH ===== */
 function coachBest(auto){
   if(!canUseCoach()||!board) return;
@@ -3853,12 +4212,32 @@ function coachBest(auto){
     var landed = m.board ? m.board[to.r][to.c] : 0;
     var meta='d'+(res.depth||'?')+' · '+Math.round(res.score)+' · '+(res.nodes||0)+' nós';
     var why;
-    if(m.captures>1) why='♛ Sequência perfeita ('+m.captures+'x). Coach Supremo — jogue a sequência inteira. ('+meta+')';
-    else if(m.captures===1) why='✦ Melhor captura. Material e iniciativa. ('+meta+')';
-    else if(Math.abs(landed)===2) why='♛ Promoção para dama voadora. ('+meta+')';
-    else if(to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5) why='✦ Centro e restrição do rival. ('+meta+')';
-    else why='✦ Melhor lance encontrado: '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+' ('+meta+').';
+    var lines=[];
+    if(m.captures>1){
+      lines.push('Sequência forçada de '+m.captures+' capturas — jogue até o fim sem interromper.');
+      lines.push('Em damas brasileiras o 1º salto da pedra é à frente; na sequência pode voltar.');
+    } else if(m.captures===1){
+      lines.push('Melhor captura disponível (captura é obrigatória).');
+      lines.push('Ganha material ou melhora a estrutura após a troca.');
+    } else if(Math.abs(landed)===2){
+      lines.push('Promoção: a dama voadora controla diagonais longas.');
+      lines.push('Use a dama para restringir o rival e criar novas capturas.');
+    } else if(to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5){
+      lines.push('Ocupa o centro e limita as opções do adversário.');
+      lines.push('Prepara avanço de pedras e futuras promoções.');
+    } else {
+      lines.push('Melhor lance da busca profunda: '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+'.');
+      lines.push('Mantém equilíbrio de material e inicia a melhor continuidade.');
+    }
+    if(res.score>80) lines.push('Avaliação favorável ('+Math.round(res.score)+').');
+    else if(res.score<-80) lines.push('Posição difícil — este lance minimiza o dano.');
+    lines.push('('+meta+')');
+    why=lines.join(' ');
     document.getElementById('coach-text').textContent=why;
+    try{
+      var ca=loadAch(); ca._coachUses=(ca._coachUses|0)+1; saveAch(ca);
+      if(ca._coachUses>=5) unlockAch('coach');
+    }catch(e){}
     sel=m.from;
     legal=[m];
     last={from:m.from, to:m.to};
@@ -3880,12 +4259,17 @@ function coachPlan(){
 }
 
 /* ===== CLOCK ===== */
-function setTimeControl(sec){
+function setTimeControl(sec, inc){
   timeControl=sec|0;
-  ['inf','3','5','10'].forEach(function(k){
+  timeIncrement=(inc|0)||0;
+  ['inf','3','3p2','5','10'].forEach(function(k){
     var el=document.getElementById('t-'+k); if(!el) return;
-    var v=k==='inf'?0:k==='3'?180:k==='5'?300:600;
-    el.classList.toggle('on', timeControl===v);
+    var v=0, i=0;
+    if(k==='3'){ v=180; i=0; }
+    else if(k==='3p2'){ v=180; i=2; }
+    else if(k==='5'){ v=300; i=0; }
+    else if(k==='10'){ v=600; i=0; }
+    el.classList.toggle('on', timeControl===v && timeIncrement===i);
   });
 }
 function fmtClock(s){
@@ -3946,7 +4330,10 @@ function saveAiStats(s){try{localStorage.setItem(AI_STATS_KEY,JSON.stringify(s))
 function recordAiResult(result){
   var s=loadAiStats(); s.games=(s.games||0)+1;
   if(result==='win') s.wins++; else if(result==='loss') s.losses++; else s.draws++;
-  saveAiStats(s); return s;
+  saveAiStats(s);
+  if(result==='win'){ try{ onDailyWin(); }catch(e){} try{ unlockAch('ai10'); }catch(e){} }
+  if(me && result==='win') try{ addWeekPoints(me.name, 5); }catch(e){}
+  return s;
 }
 function aiPointsDelta(result){
   var cfg=AI_POINTS[diff]||AI_POINTS.medium;
@@ -3991,7 +4378,7 @@ function go(v){
 async function paintAll(){
   if(!me) return;
   try{var row=await dbGetPlayer(me.name); if(row) me=rowToMe(row)}catch(e){}
-  paintHome(); paintDash(); renderFriends();
+  paintHome(); paintDash(); renderFriends(); try{paintDaily();}catch(e){} try{paintAchievements();}catch(e){} try{paintWeekRank();}catch(e){} try{checkAchFromStats();}catch(e){}
   paintRank();
 }
 function paintHome(){
@@ -4078,6 +4465,7 @@ async function paintHistory(){
   }).join('');
 }
 async function paintRank(){
+  try{ paintWeekRank(); }catch(e){}
   var el=document.getElementById('rank-list'), pod=document.getElementById('rank-podium');
   var tot=document.getElementById('rank-total'), youEl=document.getElementById('rank-you');
   if(el) el.innerHTML='<li class="empty" style="text-align:center;padding:1.5rem;color:var(--muted)">Carregando ranking…</li>';
@@ -4249,6 +4637,13 @@ function getAvatarData(user){
     }
     if(me && sameUser(u, me.name)){
       var mine=localStorage.getItem(AVATAR_KEY+'public_'+me.name)||localStorage.getItem(AVATAR_KEY+me.name)||'';
+      if(!mine){
+        try{
+          if(window.DamasNative && typeof DamasNative.loadAvatar==='function'){
+            mine=DamasNative.loadAvatar(String(me.name))||'';
+          }
+        }catch(eN){}
+      }
       if(mine){ avatarMemCache[u]=mine; avatarMemCache[me.name]=mine; return mine; }
     }
     try{
@@ -4312,24 +4707,24 @@ function cachePeerAvatar(user, dataUrl){
   }catch(e){}
 }
 
-async function ensureUserAvatar(username){
-  if(!username || !sb) return '';
-  var existing=getAvatarData(username);
-  if(existing) return existing;
+async function ensureUserAvatar(username, forceNet){
+  if(!username) return '';
+  if(!forceNet){
+    var existing=getAvatarData(username);
+    if(existing) return existing;
+  }
+  if(!sb) return getAvatarData(username)||'';
   try{
     var row=await dbGetPlayer(username);
     if(row && row.avatar){
       cachePeerAvatar(row.username, row.avatar);
       if(me && sameUser(row.username, me.name)){
-        try{
-          localStorage.setItem(AVATAR_KEY+'public_'+me.name, row.avatar);
-          localStorage.setItem(AVATAR_KEY+me.name, row.avatar);
-        }catch(e){}
+        saveAvatarLocal(row.avatar, row.avatar);
       }
       return row.avatar;
     }
-  }catch(e){}
-  return '';
+  }catch(e){ console.warn('ensureUserAvatar', e); }
+  return getAvatarData(username)||'';
 }
 function avatarHtml(user){
   var data=getAvatarData(user);
@@ -4419,47 +4814,93 @@ function fillMissingAvatars(){
     }catch(e){}
   }, 200);
 }
+function paintHeaderAvatar(){
+  var el=document.getElementById('h-avatar'); if(!el||!me) return;
+  var data=getAvatarData(me.name);
+  el.innerHTML=data?'<img src="'+data+'" alt=""/>':escapeHtml((me.name||'?')[0].toUpperCase());
+}
 function paintDashAvatar(){
   var av=document.getElementById('dash-avatar'); if(!av||!me) return;
   var data=getAvatarData(me.name);
   av.innerHTML=(data?'<img src="'+data+'" alt=""/>':escapeHtml((me.name||'?')[0].toUpperCase()))+'<span class="av-edit">📷 Foto</span>';
+  paintHeaderAvatar();
 }
-function pickAvatar(){document.getElementById('avatar-file').click()}
+function pickAvatar(){
+  var inp=document.getElementById('avatar-file');
+  if(!inp){ toast('Seletor de foto indisponível'); return; }
+  inp.value='';
+  inp.click();
+}
+function saveAvatarLocal(full, pub){
+  if(!me) return;
+  try{
+    localStorage.setItem(AVATAR_KEY+me.name, full||pub||'');
+    localStorage.setItem(AVATAR_KEY+'public_'+me.name, pub||full||'');
+  }catch(e){ console.warn('avatar local', e); }
+  avatarMemCache[me.name]=pub||full||'';
+  avatarMemCache[String(me.name).toLowerCase()]=pub||full||'';
+  // APK nativo — sobrevive troca file/https
+  try{
+    if(window.DamasNative && typeof DamasNative.saveAvatar==='function'){
+      DamasNative.saveAvatar(String(me.name), String(pub||full||''));
+    }
+  }catch(e){}
+}
 function onAvatarFile(ev){
-  var file=ev.target.files&&ev.target.files[0]; if(!file||!me) return;
+  var file=ev.target.files&&ev.target.files[0];
+  if(!file){ toast('Nenhum arquivo selecionado'); return; }
+  if(!me){ toast('Faça login para salvar a foto'); return; }
+  if(file.size>12*1024*1024){ toast('Imagem muito grande (máx. 12MB)'); return; }
+  toast('Processando foto…');
   var reader=new FileReader();
+  reader.onerror=function(){ toast('Falha ao ler a imagem'); };
   reader.onload=function(){
     var img=new Image();
+    img.onerror=function(){ toast('Arquivo de imagem inválido'); };
     img.onload=function(){
-      var c=document.createElement('canvas'); c.width=192; c.height=192;
-      var ctx=c.getContext('2d');
-      var s=Math.min(img.width,img.height);
-      ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,192,192);
-      // Compact public version for peer share / DB (~64px, small base64)
-      var cPub=document.createElement('canvas'); cPub.width=64; cPub.height=64;
-      cPub.getContext('2d').drawImage(c,0,0,64,64);
       try{
-        var full=c.toDataURL('image/jpeg',0.68);
-        var pub=cPub.toDataURL('image/jpeg',0.42);
-        localStorage.setItem(AVATAR_KEY+me.name, full);
-        localStorage.setItem(AVATAR_KEY+'public_'+me.name, pub);
-        avatarMemCache[me.name]=pub; // prefer public for sharing
-        paintDashAvatar(); setPresence(presenceStatus);
-        // Persist to Supabase so everyone sees the photo
+        // 128px local + 48px pública (cabe no Supabase text)
+        var c=document.createElement('canvas'); c.width=128; c.height=128;
+        var ctx=c.getContext('2d');
+        var s=Math.min(img.width,img.height);
+        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,128,128);
+        var cPub=document.createElement('canvas'); cPub.width=48; cPub.height=48;
+        cPub.getContext('2d').drawImage(c,0,0,48,48);
+        var full=c.toDataURL('image/jpeg',0.55);
+        var pub=cPub.toDataURL('image/jpeg',0.38);
+        if(!pub || pub.length<30){ toast('Falha ao gerar a foto'); return; }
+        saveAvatarLocal(full, pub);
+        paintDashAvatar();
+        try{ setPresence(presenceStatus); }catch(e){}
         if(sb){
-          dbUpdatePlayer(me.name, {avatar: pub}).then(function(){
-            toast('Foto pública atualizada');
+          dbUpdatePlayer(me.name, {avatar: pub}).then(function(row){
+            if(row && row.avatar) cachePeerAvatar(me.name, row.avatar);
+            toast('Foto pública atualizada ✓');
             shareMyAvatar();
-          }).catch(function(){
-            toast('Foto salva neste aparelho (nuvem indisponível)');
+            paintDashAvatar();
+            try{ renderOnline(); }catch(e){}
+          }).catch(function(err){
+            var msg=(err&&(err.message||err.details||err.hint))||'';
+            if(/column|avatar|schema/i.test(String(msg))){
+              toast('Crie a coluna avatar no Supabase (SQL)');
+            } else {
+              toast('Foto só neste aparelho · nuvem: '+(msg||'erro'));
+            }
             shareMyAvatar();
           });
-        } else { toast('Foto salva neste aparelho'); shareMyAvatar(); }
-      }catch(e){toast('Não coube no storage')}
+        } else {
+          toast('Foto salva neste aparelho');
+          shareMyAvatar();
+        }
+      }catch(e){
+        console.error(e);
+        toast('Erro ao processar foto');
+      }
     };
     img.src=reader.result;
   };
-  reader.readAsDataURL(file); ev.target.value='';
+  reader.readAsDataURL(file);
+  try{ ev.target.value=''; }catch(e){}
 }
 function refreshGameAvatars(){
   var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
@@ -4520,6 +4961,7 @@ function saveFriends(l){try{localStorage.setItem(friendsStorageKey(),JSON.string
 function loadFriendReqs(){try{return Object.assign({in:[],out:[]},JSON.parse(localStorage.getItem(friendReqStorageKey())||'{}'))}catch(e){return{in:[],out:[]}}}
 function saveFriendReqs(r){try{localStorage.setItem(friendReqStorageKey(),JSON.stringify(r))}catch(e){}}
 function isFriend(user){return loadFriends().some(function(x){return sameUser(x,user)})}
+function afterFriendAdded(){ try{ unlockAch('social'); }catch(e){} }
 function renderFriends(){
   var box=document.getElementById('friends-list'); if(!box||!me) return;
   var friends=loadFriends(), reqs=loadFriendReqs(), html='';
@@ -4541,7 +4983,7 @@ function renderFriends(){
 function respondFriend(from, accept){
   var r=loadFriendReqs();
   r.in=r.in.filter(function(x){return !sameUser(x,from)});
-  if(accept){var f=loadFriends(); if(!f.some(function(x){return sameUser(x,from)})) f.push(from); saveFriends(f)}
+  if(accept){var f=loadFriends(); if(!f.some(function(x){return sameUser(x,from)})) f.push(from); saveFriends(f); try{ unlockAch('social'); }catch(e){} }
   saveFriendReqs(r);
   if(lobbyCh) lobbyCh.send({type:'broadcast',event:'friend_response',payload:{from:me.name,to:from,accept:!!accept}});
   toast(accept?(from+' agora é amigo'):('Pedido recusado'));
@@ -5162,5 +5604,47 @@ document.addEventListener('keydown', function(e){
   }
 });
 </script>
+
+<div class="tut-overlay hidden" id="ov-tutorial" style="display:none">
+  <div class="tut-card">
+    <h2 id="tut-title">Bem-vindo</h2>
+    <div class="tut-dots" id="tut-dots"></div>
+    <p id="tut-text"></p>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end">
+      <button type="button" class="btn-soft" onclick="skipTutorial()">Pular</button>
+      <button type="button" class="btn-main" id="tut-next" onclick="nextTutorial()">Próximo</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="ov-password" style="display:none"><div class="modal">
+  <h2>🔑 Alterar senha</h2>
+  <label>Senha atual</label>
+  <input id="pw-old" type="password" autocomplete="current-password"/>
+  <label>Nova senha</label>
+  <input id="pw-new" type="password" autocomplete="new-password"/>
+  <label>Confirmar nova senha</label>
+  <input id="pw-new2" type="password" autocomplete="new-password"/>
+  <p class="err" id="pw-err"></p>
+  <div class="modal-actions">
+    <button type="button" class="btn-soft" onclick="document.getElementById('ov-password').style.display='none'">Cancelar</button>
+    <button type="button" class="btn-main" onclick="submitChangePassword()">Salvar</button>
+  </div>
+</div></div>
+<div class="overlay" id="ov-forgot" style="display:none"><div class="modal">
+  <h2>Esqueci a senha</h2>
+  <p style="color:var(--muted);font-size:.88rem;margin:0 0 .75rem">Digite seu usuário. Se o mestre tiver liberado uma senha temporária, use-a. Caso contrário, peça ao mestre para redefinir.</p>
+  <label>Usuário</label>
+  <input id="fg-user" type="text" maxlength="24"/>
+  <label>Senha temporária (se tiver)</label>
+  <input id="fg-temp" type="password"/>
+  <label>Nova senha</label>
+  <input id="fg-new" type="password"/>
+  <p class="err" id="fg-err"></p>
+  <div class="modal-actions">
+    <button type="button" class="btn-soft" onclick="document.getElementById('ov-forgot').style.display='none'">Fechar</button>
+    <button type="button" class="btn-main" onclick="submitForgotPassword()">Redefinir</button>
+  </div>
+</div></div>
+
 </body>
 </html>
