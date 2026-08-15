@@ -1084,6 +1084,26 @@ main{overflow-anchor:none!important}
 .hist-list-modern li:hover{border-color:rgba(91,157,255,.35)}
 .hist-empty{text-align:center;color:var(--muted);cursor:default!important}
 
+
+/* Avatar picker */
+.av-picker-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:.45rem;
+  max-height:min(55vh,380px);overflow:auto;padding:.25rem;
+}
+.av-pick{
+  width:100%;aspect-ratio:1;border-radius:14px;border:2px solid var(--line);
+  background:rgba(255,255,255,.05);font-size:1.55rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:.15s ease;
+}
+.av-pick:hover{transform:scale(1.06);border-color:rgba(91,157,255,.45)}
+.av-pick.on{border-color:var(--gold);background:rgba(245,197,66,.12);box-shadow:0 0 0 2px rgba(245,197,66,.2)}
+.av-emoji{
+  display:flex;align-items:center;justify-content:center;width:100%;height:100%;
+  font-size:1.25em;line-height:1;user-select:none;
+}
+.dash-avatar .av-emoji{font-size:1.6rem}
+.pc-avatar .av-emoji{font-size:1.2rem}
+
 </style>
 
 </head>
@@ -1229,8 +1249,7 @@ main{overflow-anchor:none!important}
     <div id="v-dash" class="hidden">
       <div class="dash-page">
         <section class="dash-hero">
-          <div class="dash-avatar" id="dash-avatar" onclick="pickAvatar()" title="Trocar foto">?<span class="av-edit">Foto</span></div>
-          <input type="file" id="avatar-file" accept="image/*" class="hidden" onchange="onAvatarFile(event)"/>
+          <div class="dash-avatar" id="dash-avatar" onclick="openAvatarPicker()" title="Escolher avatar">?<span class="av-edit">Avatar</span></div>
           <div class="dash-hero-info">
             <div class="name" id="dash-name">Jogador</div>
             <div class="sub" id="dash-sub">Carregando perfil…</div>
@@ -1498,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.16.4';
+const APP_VERSION='2026.08.16.5';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5319,7 +5338,8 @@ function avatarKeys(user){
 function storeAvatarEverywhere(user, dataUrl){
   if(!user || !dataUrl) return;
   var s=String(dataUrl);
-  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0) return;
+  // aceita dataURL, http ou emoji/token
+  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0 && !isEmojiAvatar(s)) return;
   avatarKeys(user).forEach(function(k){
     avatarMemCache[k]=s;
     try{ localStorage.setItem(PEER_AV_KEY+k, s); }catch(e){}
@@ -5349,7 +5369,7 @@ function getPublicAvatar(user){
   return getAvatarData(user);
 }
 function cachePeerAvatar(user, dataUrl){
-  storeAvatarEverywhere(user, dataUrl);
+  if(dataUrl) storeAvatarEverywhere(user, dataUrl);
 }
 function getAvatarData(user){
   if(!user) return '';
@@ -5398,12 +5418,9 @@ async function ensureUserAvatar(username, forceNet){
 }
 
 function avatarHtml(user){
-  var data=getAvatarData(user);
-  if(data){
-    return '<img src="'+data+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display=\'none\'"/>';
-  }
-  return escapeHtml(String(user||'?')[0].toUpperCase());
+  return avatarDisplayHtml(user);
 }
+
 
 function ingestPlayerAvatar(row){
   if(!row||!row.username||!row.avatar) return;
@@ -5487,6 +5504,94 @@ function fillMissingAvatars(){
     }catch(e){}
   }, 200);
 }
+
+/* ===== AVATAR PICKER (sem galeria) ===== */
+var AVATAR_CATALOG=[
+  '😀','😎','🤩','😊','🤓','🧐','😇','🥳','🤠','😈',
+  '👻','🤖','👽','🎃','💀','🦊','🐱','🐶','🐼','🐨',
+  '🐯','🦁','🐸','🐵','🦄','🐲','🐦','🐧','🐢','🐙',
+  '🏀','⚽','🎮','🎯','🏆','♟️','🎲','🎸','🎧','🚀',
+  '⭐','🔥','💎','👑','🍀','🌈','⚡','🌙','☀️','🌸',
+  '🍕','🍩','☕','🎂','🍉','🥑','🍔','🍿','🧁','🍪',
+  '❤️','💙','💚','💜','🧡','🖤','🤍','🤎','💛','🩵',
+  '🐶','🐺','🐻','🐰','🐹','🐷','🐮','🐔','🦆','🦅'
+];
+// 70 avatares (com alguns repetidos de tema - unicos suficientes)
+var _pendingAvatar=null;
+
+function isEmojiAvatar(v){
+  if(!v) return false;
+  v=String(v);
+  if(v.indexOf('data:')===0 || v.indexOf('http')===0) return false;
+  // emoji / short token
+  return v.length<=8;
+}
+function avatarDisplayHtml(user, data){
+  data = data || getAvatarData(user);
+  if(data && isEmojiAvatar(data)){
+    return '<span class="av-emoji">'+data+'</span>';
+  }
+  if(data && (data.indexOf('data:')===0 || data.indexOf('http')===0)){
+    return '<img src="'+data+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display=\'none\'"/>';
+  }
+  return escapeHtml(String(user||'?')[0].toUpperCase());
+}
+function openAvatarPicker(){
+  if(!me){ toast('Faca login'); return; }
+  _pendingAvatar = getAvatarData(me.name) || null;
+  var grid=document.getElementById('avatar-picker-grid');
+  if(!grid) return;
+  var cur=isEmojiAvatar(_pendingAvatar)?_pendingAvatar:null;
+  // unique list
+  var seen={}, list=[];
+  AVATAR_CATALOG.forEach(function(e){ if(!seen[e]){ seen[e]=1; list.push(e);} });
+  grid.innerHTML=list.map(function(e){
+    var on = (cur===e) ? ' on' : '';
+    return '<button type="button" class="av-pick'+on+'" data-av="'+e+'" onclick="selectAvatarPick(this)">'+e+'</button>';
+  }).join('');
+  document.getElementById('ov-avatar').style.display='flex';
+}
+function selectAvatarPick(btn){
+  if(!btn) return;
+  _pendingAvatar = btn.getAttribute('data-av');
+  var grid=document.getElementById('avatar-picker-grid');
+  if(!grid) return;
+  var all=grid.querySelectorAll('.av-pick');
+  for(var i=0;i<all.length;i++) all[i].classList.toggle('on', all[i]===btn);
+}
+function closeAvatarPicker(){
+  var ov=document.getElementById('ov-avatar');
+  if(ov) ov.style.display='none';
+  _pendingAvatar=null;
+}
+async function confirmAvatarPick(){
+  if(!me){ closeAvatarPicker(); return; }
+  if(!_pendingAvatar){ toast('Escolha um avatar'); return; }
+  var av=_pendingAvatar;
+  try{ storeAvatarEverywhere(me.name, av); }catch(e){}
+  try{ paintDashAvatar(); }catch(e){}
+  try{ refreshGameAvatars(); }catch(e){}
+  try{ renderOnline(); }catch(e){}
+  closeAvatarPicker();
+  if(sb){
+    try{
+      await dbSetAvatar(me.name, av);
+      toast('Avatar atualizado');
+      try{ shareMyAvatar(); }catch(e){}
+    }catch(err){
+      console.error(err);
+      toast('Avatar salvo neste aparelho');
+      try{ shareMyAvatar(); }catch(e){}
+    }
+  } else {
+    toast('Avatar salvo');
+  }
+}
+// remove galeria
+function pickAvatar(){ openAvatarPicker(); }
+function onAvatarFile(ev){ try{ if(ev&&ev.target) ev.target.value=''; }catch(e){} toast('Use a escolha de avatar'); }
+
+
 function paintHeaderAvatar(){
   // foto grande no topo removida — mantido só por compatibilidade
   return;
@@ -5494,17 +5599,19 @@ function paintHeaderAvatar(){
 function setAvatarEl(el, data, letter){
   if(!el) return;
   letter = letter || '?';
-  if(data){
-    // background-image costuma funcionar melhor no WebView do APK
+  el.style.backgroundImage = '';
+  if(data && isEmojiAvatar(data)){
+    el.innerHTML = '<span class="av-emoji">'+data+'</span><span class="av-edit">Avatar</span>';
+  } else if(data && (String(data).indexOf('data:')===0 || String(data).indexOf('http')===0)){
     el.style.backgroundImage = 'url('+JSON.stringify(data)+')';
     el.style.backgroundSize = 'cover';
     el.style.backgroundPosition = 'center';
-    el.innerHTML = '<span class="av-edit">📷 Foto</span>';
+    el.innerHTML = '<span class="av-edit">Avatar</span>';
   } else {
-    el.style.backgroundImage = '';
-    el.innerHTML = escapeHtml(letter) + '<span class="av-edit">📷 Foto</span>';
+    el.innerHTML = escapeHtml(letter) + '<span class="av-edit">Avatar</span>';
   }
 }
+
 function paintDashAvatar(){
   var av=document.getElementById('dash-avatar'); if(!av||!me) return;
   var data=getAvatarData(me.name);
@@ -5521,82 +5628,9 @@ function paintDashAvatar(){
     });
   }
 }
-function pickAvatar(){
-  var inp=document.getElementById('avatar-file');
-  if(!inp){ toast('Seletor de foto indisponível'); return; }
-  try{ inp.value=''; }catch(e){}
-  inp.click();
-}
 function saveAvatarLocal(full, pub){
   if(!me) return;
   storeAvatarEverywhere(me.name, pub||full||'');
-}
-function onAvatarFile(ev){
-  var file=ev.target.files&&ev.target.files[0];
-  if(!file){ toast('Nenhum arquivo selecionado'); return; }
-  if(!me){ toast('Faça login para salvar a foto'); return; }
-  if(file.size>12*1024*1024){ toast('Imagem muito grande (máx. 12MB)'); return; }
-  toast('Processando foto…');
-  var reader=new FileReader();
-  reader.onerror=function(){ toast('Falha ao ler a imagem'); };
-  reader.onload=function(){
-    var img=new Image();
-    img.onerror=function(){ toast('Arquivo de imagem inválido'); };
-    img.onload=function(){
-      try{
-        var c=document.createElement('canvas'); c.width=96; c.height=96;
-        var ctx=c.getContext('2d');
-        var s=Math.min(img.width,img.height);
-        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,96,96);
-        var pub=c.toDataURL('image/jpeg',0.45);
-        if(!pub || pub.length<40){ toast('Falha ao gerar a foto'); return; }
-        storeAvatarEverywhere(me.name, pub);
-        try{
-          var el=document.getElementById('dash-avatar');
-          setAvatarEl(el, pub, (me.name||'?')[0].toUpperCase());
-        }catch(e){}
-        paintDashAvatar();
-        try{ refreshGameAvatars(); }catch(e){}
-        try{ renderOnline(); }catch(e){}
-        if(sb){
-          dbSetAvatar(me.name, pub).then(function(row){
-            var finalAv=(row && row.avatar) ? row.avatar : pub;
-            storeAvatarEverywhere(me.name, finalAv);
-            try{
-              if(window.DamasNative && DamasNative.saveAvatar){
-                DamasNative.saveAvatar(String(me.name), finalAv);
-              }
-            }catch(e){}
-            paintDashAvatar();
-            toast('Foto pública atualizada ✓');
-            shareMyAvatar();
-            try{ renderOnline(); }catch(e){}
-            try{ refreshGameAvatars(); }catch(e){}
-          }).catch(function(err){
-            console.error(err);
-            var msg=(err&&(err.message||err.details||err.hint))||String(err);
-            if(/column|avatar|schema/i.test(msg)){
-              toast('SQL: alter table players add column avatar text;');
-            } else if(/row-level|policy|RLS|permission|42501/i.test(msg)){
-              toast('RLS bloqueou. Libere UPDATE em players.');
-            } else {
-              toast('Nuvem: '+(msg.slice(0,80)||'erro')+' — foto só neste aparelho');
-            }
-            shareMyAvatar();
-          });
-        } else {
-          toast('Foto salva neste aparelho (offline)');
-          shareMyAvatar();
-        }
-      }catch(e){
-        console.error(e);
-        toast('Erro ao processar foto');
-      }
-    };
-    img.src=reader.result;
-  };
-  reader.readAsDataURL(file);
-  try{ ev.target.value=''; }catch(e){}
 }
 
 function refreshGameAvatars(){
@@ -6368,6 +6402,17 @@ document.addEventListener('keydown', function(e){
   <div class="modal-actions">
     <button type="button" class="btn-soft" onclick="document.getElementById('ov-forgot').style.display='none'">Fechar</button>
     <button type="button" class="btn-main" onclick="submitForgotPassword()">Redefinir</button>
+  </div>
+</div></div>
+
+
+<div class="overlay" id="ov-avatar" style="display:none"><div class="modal" style="max-width:440px">
+  <h2>Escolha seu avatar</h2>
+  <p style="color:var(--muted);font-size:.85rem;margin:0 0 .75rem">Mais de 50 opcoes. Toque para selecionar.</p>
+  <div class="av-picker-grid" id="avatar-picker-grid"></div>
+  <div class="modal-actions" style="margin-top:1rem">
+    <button type="button" class="btn-soft" onclick="closeAvatarPicker()">Cancelar</button>
+    <button type="button" class="btn-main" onclick="confirmAvatarPick()">Usar este</button>
   </div>
 </div></div>
 
