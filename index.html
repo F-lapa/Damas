@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.3';
+const APP_VERSION='2026.08.17.4';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2186,6 +2186,8 @@ let sb=null, lobbyCh=null, gameCh=null, liveCh=null;
 let me=null, presenceStatus='available', onlinePlayers=[];
 let liveGamesMap={}; // gameId -> {id,a,b,at}
 let pendingChallenge=null;
+let outgoingChallenge=null; // {to, gameId, at} — desafio enviado (persistido no DB)
+let _challengeResendTimer=null;
 let board=null, turn='w', mode=null, diff='medium', sel=null, legal=[], last=null, hist=[];
 let animatingMove=false, _saveGameTimer=null;
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
@@ -2572,11 +2574,22 @@ function sendLobbyHello(){
 /** Heartbeat no banco — funciona mesmo se Realtime falhar */
 async function dbOnlineBeat(){
   if(!sb||!me) return;
+  var st=presenceStatus||'available';
+  var gid=null, op=null;
+  // Desafio pendente tem prioridade no status do banco (entrega confiável)
+  if(outgoingChallenge && outgoingChallenge.to && (!presenceStatus || presenceStatus==='available')){
+    st='challenging';
+    gid=outgoingChallenge.gameId||null;
+    op=outgoingChallenge.to;
+  } else if(st==='in_game'){
+    gid=gameId||null;
+    op=oppName||null;
+  }
   var row={
     username: me.name,
-    status: presenceStatus||'available',
-    game_id: (presenceStatus==='in_game'?(gameId||null):null),
-    opp: (presenceStatus==='in_game'?(oppName||null):null),
+    status: st,
+    game_id: gid,
+    opp: op,
     updated_at: new Date().toISOString()
   };
   try{
@@ -2597,9 +2610,23 @@ async function dbFetchOnline(){
     if(r.error) throw r.error;
     (r.data||[]).forEach(function(row){
       if(!row||!row.username) return;
+      // Detecta desafio vindo pelo banco (fallback quando Realtime falha)
+      if(row.status==='challenging' && sameUser(row.opp, me.name) && row.game_id){
+        var age=row.updated_at ? (Date.now()-Date.parse(row.updated_at)) : 999999;
+        if(age<90000){
+          tryShowIncomingChallenge({
+            from: row.username,
+            to: me.name,
+            gameId: row.game_id,
+            avatar: ''
+          });
+        }
+      }
+      // Quem está desafiando aparece como disponível na lista (não em partida)
+      var uiStatus=(row.status==='challenging') ? 'available' : (row.status||'available');
       upsertOnline(row.username, {
-        status: row.status||'available',
-        gameId: row.game_id||'',
+        status: uiStatus,
+        gameId: (uiStatus==='in_game'?(row.game_id||''):''),
         opp: row.opp||''
       });
     });
@@ -2717,23 +2744,33 @@ function joinLobby(){
     });
     lobbyCh.on('broadcast',{event:'challenge'}, function(p){
       var d=p.payload||{};
+      if(!d || !d.from || !d.to) return;
       if(!sameUser(d.to, me.name)) return;
-      if(isMuted(d.from)) return;
-      pendingChallenge=d;
-      if(d.avatar) cachePeerAvatar(d.from, d.avatar);
-      document.getElementById('challenge-text').textContent=d.from+' desafiou você para uma partida de damas!';
-      try{ sfxChallenge(); toast('⚔️ '+d.from+' desafiou você!'); }catch(e){}
-      document.getElementById('ov-challenge').style.display='flex';
+      if(typeof isMuted==='function' && isMuted(d.from)) return;
+      tryShowIncomingChallenge(d);
     });
     lobbyCh.on('broadcast',{event:'challenge_response'}, function(p){
       var d=p.payload||{};
+      if(!d || !d.from || !d.to) return;
       if(!sameUser(d.to, me.name)) return;
+      // Já entramos na partida / já processamos
+      if(mode==='online' && gameId && d.gameId && gameId===d.gameId) return;
+      var hadOutgoing=!!outgoingChallenge;
+      // Limpa estado de desafio enviado
+      if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+      outgoingChallenge=null;
       document.getElementById('ov-wait').style.display='none';
+      try{ dbOnlineBeat(); }catch(e){}
       if(d.accept){
-        if(d.avatar) cachePeerAvatar(d.from, d.avatar);
-        // Challenger is always White; accepter sent their own color ('b')
-        startOnlineGame(d.gameId, d.from, 'w');
-      } else toast(d.from+' recusou o desafio');
+        if(d.avatar) try{ cachePeerAvatar(d.from, d.avatar); }catch(e){}
+        // Desafiante joga de Brancas
+        if(mode!=='online') startOnlineGame(d.gameId, d.from, 'w');
+      } else {
+        if(hadOutgoing || (pendingChallenge && sameUser(pendingChallenge.to, d.from))){
+          toast(d.from+' recusou o desafio');
+        }
+        pendingChallenge=null;
+      }
     });
     lobbyCh.on('broadcast',{event:'friend_request'}, function(p){
       var d=p.payload||{};
@@ -2964,31 +3001,129 @@ function renderLiveGames(){
   }).join('');
 }
 
+/** Mostra modal de desafio recebido (Realtime ou banco). Idempotente. */
+function tryShowIncomingChallenge(d){
+  if(!d||!d.from||!me) return;
+  if(sameUser(d.from, me.name)) return;
+  if(typeof isMuted==='function' && isMuted(d.from)) return;
+  // Já em partida / espectando — ignora
+  if(mode==='online'||mode==='spectate') return;
+  // Já mostrando o mesmo desafio
+  var ov=document.getElementById('ov-challenge');
+  if(ov && ov.style.display==='flex' && pendingChallenge && sameUser(pendingChallenge.from, d.from) && pendingChallenge.gameId===d.gameId) return;
+  // Se já estamos esperando resposta de alguém, não sobrescreve com outro
+  var wait=document.getElementById('ov-wait');
+  if(wait && wait.style.display==='flex' && outgoingChallenge) return;
+
+  pendingChallenge={
+    from: d.from,
+    to: d.to||me.name,
+    gameId: d.gameId||('g_'+Date.now()),
+    avatar: d.avatar||''
+  };
+  if(d.avatar) try{ cachePeerAvatar(d.from, d.avatar); }catch(e){}
+  var tx=document.getElementById('challenge-text');
+  if(tx) tx.textContent=d.from+' desafiou você para uma partida de damas!';
+  try{ sfxChallenge(); toast('⚔️ '+d.from+' desafiou você!'); }catch(e){}
+  if(ov) ov.style.display='flex';
+}
+
+function sendChallengeBroadcast(user, gid){
+  if(!lobbyCh||!me) return;
+  try{
+    lobbyCh.send({
+      type:'broadcast',
+      event:'challenge',
+      payload:{
+        from: me.name,
+        to: user,
+        gameId: gid,
+        avatar: (typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
+        at: Date.now()
+      }
+    });
+  }catch(e){ console.warn('challenge broadcast', e); }
+}
+
 function challengePlayer(user){
-  if(!lobbyCh||!me||sameUser(user,me.name)) return;
-  if(isMuted(user)) return toast('Você silenciou este jogador');
-  var gameId='g_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-  pendingChallenge={to:user, from:me.name, gameId:gameId, myColor:'w'};
-  lobbyCh.send({type:'broadcast', event:'challenge', payload:{from:me.name, to:user, gameId:gameId, avatar:getPublicAvatar(me.name)||''}});
+  if(!me||sameUser(user,me.name)) return;
+  if(!lobbyCh){ toast('Lobby ainda conectando… tente de novo em 2s'); return; }
+  if(typeof isMuted==='function' && isMuted(user)) return toast('Você silenciou este jogador');
+  if(mode==='online'||mode==='spectate') return toast('Saia da partida atual primeiro');
+  // Cancela reenvio anterior se houver
+  if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+
+  var gid='g_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+  outgoingChallenge={to:user, gameId:gid, at:Date.now()};
+  pendingChallenge={to:user, from:me.name, gameId:gid, myColor:'w'};
+
+  // Entrega imediata via Realtime
+  sendChallengeBroadcast(user, gid);
+  // Reenvios (Realtime pode perder msg no mobile/APK)
+  _challengeResendTimer=setInterval(function(){
+    var w=document.getElementById('ov-wait');
+    if(!outgoingChallenge || !w || w.style.display!=='flex'){
+      clearInterval(_challengeResendTimer); _challengeResendTimer=null; return;
+    }
+    // Expira após 60s
+    if(Date.now()-(outgoingChallenge.at||0)>60000){
+      cancelChallenge();
+      toast('Desafio expirou — ninguém respondeu');
+      return;
+    }
+    sendChallengeBroadcast(outgoingChallenge.to, outgoingChallenge.gameId);
+    try{ dbOnlineBeat(); }catch(e){}
+  }, 2500);
+
+  // Persistência no banco (status=challenging) — o outro jogador detecta no heartbeat
+  try{ dbOnlineBeat(); }catch(e){}
+
   document.getElementById('wait-text').textContent='Aguardando '+user+'…';
   document.getElementById('ov-wait').style.display='flex';
+  toast('Desafio enviado para '+user);
 }
+
 function cancelChallenge(){
   document.getElementById('ov-wait').style.display='none';
+  if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+  outgoingChallenge=null;
   pendingChallenge=null;
+  try{ dbOnlineBeat(); sendLobbyHello(); }catch(e){}
 }
+
 function respondChallenge(accept){
   document.getElementById('ov-challenge').style.display='none';
-  if(!pendingChallenge||!lobbyCh) return;
+  if(!pendingChallenge) return;
   var d=pendingChallenge;
-  lobbyCh.send({type:'broadcast', event:'challenge_response', payload:{
-    from:me.name, to:d.from, accept:accept, gameId:d.gameId, myColor:accept?'b':'w',
-    avatar:getPublicAvatar(me.name)||''
-  }});
-  if(accept) startOnlineGame(d.gameId, d.from, 'b');
+  function sendResp(){
+    if(!lobbyCh) return;
+    try{
+      lobbyCh.send({type:'broadcast', event:'challenge_response', payload:{
+        from:me.name, to:d.from, accept:!!accept, gameId:d.gameId, myColor:accept?'b':'w',
+        avatar:(typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
+        at: Date.now()
+      }});
+    }catch(e){ console.warn('challenge_response', e); }
+  }
+  // Envia 3 vezes (Realtime mobile/APK pode perder o 1º pacote)
+  sendResp();
+  setTimeout(sendResp, 400);
+  setTimeout(sendResp, 1200);
+  // Limpa qualquer estado de desafio nosso
+  if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+  outgoingChallenge=null;
+  if(accept){
+    startOnlineGame(d.gameId, d.from, 'b');
+  }
   pendingChallenge=null;
+  try{ dbOnlineBeat(); }catch(e){}
 }
+
 function startOnlineGame(gid, opponent, color){
+  // Limpa desafio pendente ao iniciar partida
+  if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+  outgoingChallenge=null;
+  pendingChallenge=null;
   mode='online'; gameId=gid; oppName=opponent; myColor=color;
   board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[];
   boardFlipped=(myColor==='b');
