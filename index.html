@@ -1005,7 +1005,7 @@ button:focus-visible{box-shadow:0 0 0 2px rgba(91,157,255,.45)}
   border-radius:16px!important;padding:.85rem 1rem!important;font-weight:800!important;
   background:rgba(255,255,255,.04)!important;border:1px solid var(--line)!important;
 }
-.moves-box{max-height:180px!important;border-radius:12px!important}
+.moves-box{max-height:180px!important;border-radius:12px!important;overflow:auto!important;overflow-anchor:none!important}
 .chat-modern{border-radius:16px!important;border:1px solid var(--line)!important;background:rgba(0,0,0,.2)!important}
 
 /* Coach pro */
@@ -1498,7 +1498,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.16.3';
+const APP_VERSION='2026.08.16.4';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -4267,6 +4267,7 @@ function findMoveOnBoard(brd, color, from, to){
 }
 function reviewGoto(i, opts){
   if(!reviewMoves) return;
+  try{ rememberScroll(); }catch(e){}
   opts = opts || {};
   var max = reviewMoves.length - 1;
   if(i < -1) i = -1;
@@ -4372,11 +4373,16 @@ function reviewGoto(i, opts){
   try{ syncBoardDom({forceFull:true}); }catch(e){ render({forceFull:true}); }
   statusReview();
   movesUIReview();
+  try{ lockScrollY(); }catch(e){}
   updateCaps();
 }
 function reviewStep(d){
   if(!reviewMoves) return;
+  try{ rememberScroll(); }catch(e){}
+  var y=window.scrollY||0;
   reviewGoto(reviewCursor + d);
+  try{ window.scrollTo(0,y); }catch(e){}
+  try{ lockScrollY(); }catch(e){}
 }
 function statusReview(){
   var st=document.getElementById('status');
@@ -4428,7 +4434,11 @@ function movesUIReview(){
   // scroll to current
   try{
     var on=box.querySelector('.clickable.on');
-    if(on) on.scrollIntoView({block:'nearest'});
+    if(on && box){
+      // Scroll SOMENTE dentro da lista de lances — nao move a pagina
+      var y = on.offsetTop - (box.clientHeight/2) + (on.clientHeight/2);
+      box.scrollTop = Math.max(0, y);
+    }
   }catch(e){}
 }
 
