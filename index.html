@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.1';
+const APP_VERSION='2026.08.17.2';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -6184,23 +6184,30 @@ function isNativeApp(){
 function showUpdatePrompt(remoteVer){
   if(!remoteVer) return;
   remoteVer=String(remoteVer);
-  // Já está na mesma versão → nunca mostrar
   if(remoteVer === String(APP_VERSION)) return;
-  // Já dispensou esta versão
   try{ if(localStorage.getItem('dm_skip_ver_'+remoteVer)==='1') return; }catch(e){}
   try{
     if(window.DamasNative && typeof DamasNative.isVersionSkipped==='function'){
       if(DamasNative.isVersionSkipped(remoteVer)) return;
     }
   }catch(e){}
-  // Uma vez por sessão
+  // Se ja esta visivel, nao reabre em loop
+  var el=document.getElementById('ov-update');
+  if(el && el.style.display==='flex') return;
   if(window.__updatePromptShown === remoteVer) return;
   window.__updatePromptShown = remoteVer;
   window.__remoteVersion = remoteVer;
-  var el=document.getElementById('ov-update');
   var tx=document.getElementById('update-text');
   if(tx) tx.textContent='Nova versão '+remoteVer+' disponível (você está na '+APP_VERSION+'). Atualizar agora?';
-  if(el) el.style.display='flex';
+  if(el){
+    el.style.display='flex';
+    el.style.zIndex='99999';
+  } else {
+    // fallback se o modal nao existir no HTML antigo em cache
+    try{
+      if(confirm('Nova versão '+remoteVer+' disponível. Atualizar agora?')) applyUpdate();
+    }catch(e){}
+  }
 }
 function dismissUpdate(){
   var ver=window.__remoteVersion||'';
@@ -6247,24 +6254,34 @@ async function applyUpdate(){
 }
 async function checkForAppUpdate(){
   try{
+    var base=(typeof VERSION_URL!=='undefined'&&VERSION_URL)?VERSION_URL:'https://f-lapa.github.io/Damas/version.json';
     var urls=[
-      (typeof VERSION_URL!=='undefined'?VERSION_URL:'https://f-lapa.github.io/Damas/version.json')+'?t='+Date.now(),
+      base+(base.indexOf('?')>=0?'&':'?')+'t='+Date.now(),
+      'https://f-lapa.github.io/Damas/version.json?t='+Date.now(),
       './version.json?t='+Date.now()
     ];
-    var data=null;
+    var data=null, lastErr=null;
     for(var i=0;i<urls.length;i++){
       try{
-        var res=await fetch(urls[i], {cache:'no-store'});
-        if(res.ok){ data=await res.json(); break; }
-      }catch(e){}
+        var res=await fetch(urls[i], {cache:'no-store', mode:'cors', credentials:'omit'});
+        if(res && res.ok){
+          data=await res.json();
+          if(data && data.version) break;
+        }
+      }catch(e){ lastErr=e; }
     }
-    if(!data || !data.version) return;
-    var remote=String(data.version);
-    // Só compara com a versão do código em execução
-    if(remote === String(APP_VERSION)){
-      try{ localStorage.setItem('dm_app_version', remote); }catch(e){}
+    if(!data || !data.version){
+      if(lastErr) console.warn('update check fail', lastErr);
       return;
     }
+    var remote=String(data.version).trim();
+    if(!remote) return;
+    if(remote === String(APP_VERSION)){
+      try{ localStorage.setItem('dm_app_version', remote); }catch(e){}
+      // limpa skip de versoes antigas
+      return;
+    }
+    console.log('[update] remote='+remote+' local='+APP_VERSION);
     showUpdatePrompt(remote);
   }catch(e){ console.warn('update check', e); }
 }
@@ -6422,8 +6439,13 @@ window.addEventListener('DOMContentLoaded', function(){
 
 window.addEventListener('DOMContentLoaded', async function(){
   loadPrefs();
-  setTimeout(checkForAppUpdate, 2500);
-  setInterval(checkForAppUpdate, 10*60*1000);
+  setTimeout(checkForAppUpdate, 1500);
+  setTimeout(checkForAppUpdate, 5000);
+  setInterval(checkForAppUpdate, 45*1000);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible') setTimeout(checkForAppUpdate, 400);
+  });
+  window.addEventListener('focus', function(){ setTimeout(checkForAppUpdate, 400); });
   // APK: pede checagem nativa (contorna bloqueio file:// → https)
   setTimeout(function(){
     try{ if(window.DamasNative && DamasNative.checkUpdate) DamasNative.checkUpdate(); }catch(e){}
