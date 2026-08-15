@@ -1195,7 +1195,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.15.5';
+const APP_VERSION='2026.08.15.6';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -1745,12 +1745,15 @@ function searchBestMove(board, color, depth, timeMs){
 }
 
 /** Coach Supremo — busca elite: muito mais profunda e tática que o PC. */
-function searchCoachMove(board, color){
+function searchCoachMove(board, color, opts){
+  opts = opts || {};
+  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 2200;
+  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 22;
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
   if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
 
-  // Tática imediata: se há captura forçada, analisar capturas com prioridade máxima
+  // Capturas primeiro (obrigatórias nas regras)
   moves.sort(function(a,b){
     var ca=a.captures||0, cb=b.captures||0;
     if(cb!==ca) return cb-ca;
@@ -1758,68 +1761,67 @@ function searchCoachMove(board, color){
     return sb-sa;
   });
 
+  // Tática óbvia: única captura ou multi-captura dominante
+  if((moves[0].captures||0)>0){
+    var onlyCap = moves.every(function(m){ return (m.captures||0)>0; });
+    if(onlyCap && moves.length===1){
+      return {move:moves[0], score:50, nodes:1, depth:1, coach:true};
+    }
+  }
+
   _tt=new Map(); _nodes=0; _killers=[]; _history={};
-  var maxDepth=36;
-  // Até ~12s de cálculo — coach deve ser o mais forte possível
-  _deadline=Date.now()+12000;
+  _deadline=Date.now()+Math.max(200, budgetMs);
   var best=moves[0], bestScore=-1e15, completedDepth=0;
   var rootPV=null;
 
-  // Iterative deepening com janela de aspiração
   for(var d=1; d<=maxDepth; d++){
     if(Date.now()>_deadline) break;
     orderMoves(moves, d, rootPV);
     var localBest=null, localScore=-1e15;
     var alpha=-1e15, beta=1e15;
-    if(d>=4 && bestScore>-1e14 && bestScore<1e14){
-      alpha=bestScore-35;
-      beta=bestScore+35;
+    if(d>=3 && bestScore>-1e14 && bestScore<1e14){
+      alpha=bestScore-40;
+      beta=bestScore+40;
     }
     for(var i=0;i<moves.length;i++){
       if(Date.now()>_deadline) break;
       var nb=applyMove(board, moves[i]);
       var sc=-negamax(nb, d-1, -beta, -alpha, color==='w'?'b':'w', 0);
-      // Re-search se saiu da janela
-      if((sc<=alpha || sc>=beta) && d>=4){
+      if((sc<=alpha || sc>=beta) && d>=3){
         sc=-negamax(nb, d-1, -1e15, 1e15, color==='w'?'b':'w', 0);
       }
       var cap=moves[i].captures||0;
-      if(cap>=2) sc += 0.35*cap;
-      else if(cap===1) sc += 0.08;
+      if(cap>=2) sc += 0.4*cap;
+      else if(cap===1) sc += 0.1;
       if(sc>localScore){ localScore=sc; localBest=moves[i]; }
       if(sc>alpha) alpha=sc;
     }
     if(localBest){
       best=localBest; bestScore=localScore; completedDepth=d; rootPV=localBest;
-      // Mate detectado — pode parar
       if(bestScore>90000 || bestScore<-90000) break;
     }
   }
 
-  // Verificação final dos melhores candidatos com profundidade extra
-  orderMoves(moves, completedDepth||14, best);
-  var topN = Math.min(10, moves.length);
-  var top=moves.slice(0, topN);
-  var verifyBudget=Math.max(2500, _deadline - Date.now());
-  if(verifyBudget>400){
-    var vDeadline=Date.now()+Math.min(verifyBudget, 4000);
-    var oldDl=_deadline;
-    _deadline=vDeadline;
-    var vd=Math.max(18, (completedDepth||12)+3);
+  // Verificação rápida só do top 4 se ainda houver tempo
+  var left=_deadline - Date.now();
+  if(left>250 && completedDepth>=4){
+    orderMoves(moves, completedDepth, best);
+    var top=moves.slice(0, Math.min(4, moves.length));
+    var vd=Math.min(completedDepth+2, maxDepth);
     for(var t=0;t<top.length;t++){
       if(Date.now()>_deadline) break;
       var nb2=applyMove(board, top[t]);
       var sc2=-negamax(nb2, vd, -1e15, 1e15, color==='w'?'b':'w', 0);
       var cap2=top[t].captures||0;
-      if(cap2>=2) sc2 += 0.35*cap2;
+      if(cap2>=2) sc2 += 0.4*cap2;
       if(sc2>bestScore){ bestScore=sc2; best=top[t]; }
     }
-    _deadline=oldDl;
   }
 
   _deadline=0;
   return {move:best, score:bestScore, nodes:_nodes, depth:completedDepth, coach:true};
 }
+
 
 /* ===== STATE ===== */
 let sb=null, lobbyCh=null, gameCh=null, liveCh=null;
@@ -2918,14 +2920,14 @@ function render(opts){
 function click(sq){
   if(!board || mode==='spectate' || mode==='review' || animatingMove) return;
   if((mode==='ai'||mode==='online') && turn!==myColor) return;
-  var moves=legalMoves(board, turn);
   if(sel){
     var match=null;
     for(var i=0;i<legal.length;i++) if(legal[i].to===sq){ match=legal[i]; break; }
     if(match){ doMove(match, false); return; }
     var pos=parseSq(sq);
     if(pieceColor(board[pos.r][pos.c])===turn){ pick(sq); return; }
-    sel=null; legal=[]; render();
+    sel=null; legal=[];
+    try{ syncBoardDom({}); }catch(e){ render({}); }
   } else {
     var pos2=parseSq(sq);
     if(pieceColor(board[pos2.r][pos2.c])===turn) pick(sq);
@@ -2934,9 +2936,8 @@ function click(sq){
 function pick(sq){
   sel=sq;
   var moves=legalMoves(board, turn);
-  // Com captura obrigatória, legalMoves já filtra — mostra só lances legais da peça
   legal=moves.filter(function(m){return m.from===sq});
-  render();
+  try{ syncBoardDom({}); }catch(e){ render({}); }
 }
 function getCellRect(sq){
   var el=document.getElementById('board');
@@ -2996,8 +2997,9 @@ function animatePieceMove(fromSq, toSq, pieceClass, onDone, duration){
 function doMove(move, remote){
   if(!move) return;
   if(animatingMove){
-    // Queue the move so AI final move is never lost
-    setTimeout(function(){ doMove(move, remote); }, 50);
+    // Fila curta — evita enfileirar dezenas de doMove
+    if(!window._moveQueue) window._moveQueue=[];
+    if(window._moveQueue.length<3) window._moveQueue.push({move:move, remote:remote});
     return;
   }
   var caps=move.captures||0;
@@ -3052,14 +3054,31 @@ function doMove(move, remote){
   _saveGameTimer=setTimeout(function(){ try{ saveActiveGame(); }catch(e){} }, 500);
 
   animatingMove=true;
+  if(window._animSafety) clearTimeout(window._animSafety);
+  window._animSafety=setTimeout(function(){
+    // trava de segurança: nunca deixar animatingMove preso
+    if(animatingMove){
+      animatingMove=false;
+      try{ syncBoardDom({}); }catch(e){}
+      try{ status(); }catch(e){}
+    }
+  }, 4000);
 
   function afterFly(){
     animatingMove=false;
+    if(window._animSafety){ clearTimeout(window._animSafety); window._animSafety=null; }
+    // Drena fila de lances (ex.: IA)
+    try{
+      if(window._moveQueue && window._moveQueue.length){
+        var q=window._moveQueue.shift();
+        setTimeout(function(){ doMove(q.move, q.remote); }, 30);
+      }
+    }catch(e){}
     // Só sincroniza peças — nunca recria o grid (sem piscar)
+    try{ syncBoardDom({skipHints:false}); }catch(e){ try{ render({}); }catch(e2){} }
     try{ status(); }catch(e){}
     try{ movesUI(); }catch(e){}
     try{ updateCaps(); }catch(e){}
-    try{ syncBoardDom({}); }catch(e){ try{ render({}); }catch(e2){} }
     if(wasPromo){
       var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
       if(cellPromo) cellPromo.classList.add('promote-anim');
@@ -3074,9 +3093,18 @@ function doMove(move, remote){
       else setTimeout(function(){ endLocal(); }, 450);
       return;
     }
-    try{ if(timeControl>0 && timeIncrement>0){ if(turn==='b') clockW+=timeIncrement; else clockB+=timeIncrement; updateClocksUI(); } }catch(e){}
-  if(mode==='ai' && turn!==myColor) setTimeout(aiPlay, 300);
-    else if(canUseCoach() && turn===myColor) setTimeout(function(){coachBest(true)}, 240);
+    try{
+      if(timeControl>0 && timeIncrement>0){
+        if(turn==='b') clockW+=timeIncrement; else clockB+=timeIncrement;
+        updateClocksUI();
+      }
+    }catch(e){}
+    if(mode==='ai' && turn!==myColor){
+      setTimeout(aiPlay, 280);
+    } else if(canUseCoach() && turn===myColor){
+      // Auto: coach rápido (não trava o jogo)
+      setTimeout(function(){ try{ coachBest(true); }catch(e){} }, 120);
+    }
   }
 
   // Monta hops visíveis (cada captura aparece)
@@ -3152,7 +3180,7 @@ function doMove(move, remote){
   function runNextHop(){
     if(hopIndex>=hops.length){ afterFly(); return; }
     var hop=hops[hopIndex++];
-    var ms = hop.capSq ? 420 : 340;
+    var ms = hop.capSq ? 320 : 260;
     flyHop(hop, pieceCls, ms, function(){ setTimeout(runNextHop, hop.capSq?90:40); });
   }
   runNextHop();
@@ -4252,16 +4280,21 @@ function sfxChallenge(){
 /* ===== COACH ===== */
 function coachBest(auto){
   if(!canUseCoach()||!board) return;
+  if(animatingMove){ setTimeout(function(){ coachBest(auto); }, 100); return; }
   if((mode==='ai'||mode==='online') && turn!==myColor){
     document.getElementById('coach-move').textContent='…';
     document.getElementById('coach-text').textContent='Aguarde a sua vez.';
     return;
   }
   document.getElementById('coach-move').textContent='…';
-  document.getElementById('coach-text').textContent='♛ Coach Supremo analisando em profundidade (até 12s)…';
+  // auto = rápido e leve; clique manual = mais profundo (ainda < 3s)
+  var budget = auto ? 700 : 2500;
+  var depthCap = auto ? 14 : 22;
+  document.getElementById('coach-text').textContent=auto
+    ? '♛ Coach analisando…'
+    : '♛ Coach Supremo pensando (até 2,5s)…';
   setTimeout(function(){
-    // Coach Supremo: busca dedicada >> nível Difícil (9 / 180ms)
-    var res=searchCoachMove(board, turn);
+    var res=searchCoachMove(board, turn, {budgetMs:budget, maxDepth:depthCap});
     if(!res||!res.move){
       document.getElementById('coach-move').textContent='—';
       document.getElementById('coach-text').textContent='Sem lances disponíveis.';
@@ -4302,8 +4335,8 @@ function coachBest(auto){
     sel=m.from;
     legal=[m];
     last={from:m.from, to:m.to};
-    render();
-  }, 10);
+    try{ syncBoardDom({}); }catch(e){ try{ render({}); }catch(e2){} }
+  }, auto ? 10 : 20);
 }
 function coachPlan(){
   if(!canUseCoach()||!board) return;
