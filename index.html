@@ -818,6 +818,226 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 .week-rank{margin-top:.75rem}
 .time-inc-note{font-size:.72rem;color:var(--muted);margin-top:.25rem}
 .invite-row{display:flex;gap:.4rem;margin-top:.55rem;flex-wrap:wrap}
+
+/* ========== PRO UI 2026 ========== */
+:root{
+  --bg0:#070a12;
+  --bg1:#0c1220;
+  --panel:rgba(16,22,38,.92);
+  --panel2:rgba(22,30,50,.95);
+  --line:rgba(255,255,255,.08);
+  --line2:rgba(255,255,255,.14);
+  --text:#eef2ff;
+  --muted:#93a0bd;
+  --blue:#5b9dff;
+  --violet:#8b7cff;
+  --gold:#f5c542;
+  --green:#34d399;
+  --red:#f87171;
+  --radius:18px;
+  --shadow:0 18px 50px rgba(0,0,0,.45);
+}
+html,body{background:var(--bg0)!important;color:var(--text)!important;overflow-x:hidden;overflow-anchor:none;scroll-behavior:auto!important}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(900px 500px at 10% -10%, rgba(91,157,255,.18), transparent 55%),
+    radial-gradient(700px 420px at 90% 0%, rgba(139,124,255,.14), transparent 50%),
+    radial-gradient(600px 400px at 50% 100%, rgba(245,197,66,.06), transparent 55%),
+    linear-gradient(180deg,#070a12 0%,#0a1020 100%);
+}
+#app,#auth{position:relative;z-index:1}
+button,a,.mode,.friend-row,.live-card{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button:focus{outline:none}
+button:focus-visible{box-shadow:0 0 0 2px rgba(91,157,255,.45)}
+
+/* Header pro */
+.hdr{
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  background:rgba(10,14,26,.82)!important;
+  border-bottom:1px solid var(--line)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.25);
+}
+.hdr .chip{
+  background:rgba(255,255,255,.05)!important;border:1px solid var(--line)!important;
+  border-radius:999px!important;padding:.35rem .75rem!important;
+}
+
+/* Bottom nav dock */
+.nav, nav.nav, #nav{
+  position:fixed!important;left:50%!important;transform:translateX(-50%)!important;
+  bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;
+  width:min(520px,calc(100% - 20px))!important;
+  display:flex!important;gap:.25rem!important;padding:.35rem!important;
+  background:rgba(12,16,28,.92)!important;border:1px solid var(--line2)!important;
+  border-radius:20px!important;backdrop-filter:blur(18px)!important;
+  box-shadow:0 16px 40px rgba(0,0,0,.5)!important;z-index:5000!important;
+}
+.nav button, #nav button{
+  flex:1!important;border-radius:14px!important;padding:.55rem .25rem!important;
+  font-size:.68rem!important;font-weight:800!important;color:var(--muted)!important;
+  background:transparent!important;border:none!important;transition:.15s ease!important;
+}
+.nav button.on, #nav button.on{
+  background:linear-gradient(135deg,rgba(91,157,255,.25),rgba(139,124,255,.22))!important;
+  color:#fff!important;box-shadow:inset 0 0 0 1px rgba(91,157,255,.35)!important;
+}
+#app{padding-bottom:88px!important}
+
+/* Cards */
+.card, .side-card, .auth-card, .daily-card{
+  background:linear-gradient(165deg,rgba(22,30,50,.95),rgba(12,16,28,.96))!important;
+  border:1px solid var(--line)!important;border-radius:var(--radius)!important;
+  box-shadow:var(--shadow)!important;
+}
+.home-banner{
+  background:linear-gradient(135deg,rgba(91,157,255,.16),rgba(139,124,255,.1))!important;
+  border:1px solid rgba(91,157,255,.22)!important;border-radius:22px!important;
+}
+
+/* Modes */
+.mode{
+  border-radius:16px!important;border:1px solid var(--line)!important;
+  background:rgba(255,255,255,.03)!important;transition:.18s ease!important;
+}
+.mode:hover{border-color:rgba(91,157,255,.4)!important;background:rgba(91,157,255,.08)!important;transform:translateY(-1px)}
+
+/* Buttons */
+.btn-main,.btn-go{
+  background:linear-gradient(135deg,var(--blue),var(--violet))!important;
+  border:none!important;border-radius:14px!important;font-weight:900!important;
+  box-shadow:0 10px 28px rgba(91,157,255,.28)!important;
+}
+.btn-soft{
+  background:rgba(255,255,255,.06)!important;border:1px solid var(--line)!important;
+  border-radius:12px!important;color:var(--text)!important;
+}
+.btn-gold{
+  background:linear-gradient(135deg,#f5c542,#e8a317)!important;color:#1a1200!important;
+  border:none!important;border-radius:12px!important;font-weight:900!important;
+}
+
+/* GAME LAYOUT PRO */
+.game-shell{
+  width:100%!important;max-width:1120px!important;margin:0 auto!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;gap:.85rem!important;
+  padding:.5rem .65rem 1rem!important;
+}
+@media(min-width:1024px){
+  .game-shell{flex-direction:row!important;align-items:flex-start!important;justify-content:center!important;gap:1.25rem!important}
+}
+.game-main{
+  display:flex!important;flex-direction:column!important;align-items:center!important;gap:.5rem!important;
+  width:100%!important;max-width:560px!important;
+}
+.game-side{
+  width:100%!important;max-width:340px!important;
+  display:flex!important;flex-direction:column!important;gap:.7rem!important;
+}
+.player-card{
+  width:100%!important;max-width:560px!important;
+  display:flex!important;align-items:center!important;gap:.65rem!important;
+  padding:.55rem .75rem!important;border-radius:16px!important;
+  background:rgba(255,255,255,.04)!important;border:1px solid var(--line)!important;
+}
+.player-card.active{
+  border-color:rgba(245,197,66,.45)!important;
+  box-shadow:0 0 0 1px rgba(245,197,66,.15),0 8px 24px rgba(245,197,66,.08)!important;
+}
+.pc-avatar{
+  width:40px!important;height:40px!important;border-radius:12px!important;overflow:hidden!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  font-weight:900!important;background:linear-gradient(135deg,var(--blue),var(--violet))!important;
+}
+.pc-avatar img{width:100%;height:100%;object-fit:cover}
+.turn-banner,.turn-under{
+  width:100%!important;max-width:560px!important;min-height:2.4rem!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  border-radius:14px!important;font-weight:900!important;font-size:.9rem!important;
+  letter-spacing:.02em!important;padding:.45rem .75rem!important;
+  background:rgba(255,255,255,.05)!important;border:1px solid var(--line)!important;
+}
+.turn-banner.mine,.turn-under.mine{
+  background:linear-gradient(135deg,rgba(245,197,66,.18),rgba(245,197,66,.08))!important;
+  border-color:rgba(245,197,66,.5)!important;color:#ffe9a8!important;
+}
+.board-hero{width:100%!important;max-width:560px!important;display:flex!important;justify-content:center!important}
+.board-frame{
+  width:min(96vw,520px)!important;aspect-ratio:1!important;
+  border-radius:18px!important;overflow:hidden!important;
+  box-shadow:0 20px 50px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08)!important;
+}
+#board{width:100%!important;height:100%!important}
+.game-actions{
+  display:flex!important;flex-wrap:wrap!important;gap:.4rem!important;justify-content:center!important;
+  width:100%!important;max-width:560px!important;
+}
+.game-actions button{
+  padding:.5rem .85rem!important;border-radius:12px!important;font-size:.78rem!important;font-weight:800!important;
+  background:rgba(255,255,255,.06)!important;border:1px solid var(--line)!important;color:var(--text)!important;
+}
+
+/* Review panel pro - fixed under board, no page jump */
+.review-panel{
+  width:100%!important;max-width:560px!important;
+  display:none;flex-direction:column;gap:.45rem;
+  padding:.65rem .75rem;border-radius:16px;
+  background:linear-gradient(165deg,rgba(20,28,48,.98),rgba(12,16,28,.98));
+  border:1px solid rgba(91,157,255,.28);
+  box-shadow:0 12px 32px rgba(0,0,0,.35);
+}
+.review-panel.on{display:flex!important}
+.review-panel .rp-title{font-size:.82rem;font-weight:800;color:var(--muted);text-align:center}
+.review-panel .rp-btns{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center}
+.review-panel .rp-btns button{
+  min-width:44px;padding:.48rem .7rem;border-radius:11px;font-weight:900;font-size:.8rem;
+  background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--text);
+}
+.review-panel .rp-btns button.primary{
+  background:linear-gradient(135deg,var(--blue),var(--violet));border:none;color:#fff;
+}
+.review-panel .rp-btns button.back{
+  background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.35);color:#fecaca;width:100%;
+}
+
+/* Side panels */
+.side-status{
+  border-radius:16px!important;padding:.85rem 1rem!important;font-weight:800!important;
+  background:rgba(255,255,255,.04)!important;border:1px solid var(--line)!important;
+}
+.moves-box{max-height:180px!important;border-radius:12px!important}
+.chat-modern{border-radius:16px!important;border:1px solid var(--line)!important;background:rgba(0,0,0,.2)!important}
+
+/* Coach pro */
+#coach{
+  display:none;border-radius:18px!important;padding:1rem 1.1rem!important;
+  background:linear-gradient(165deg,rgba(60,42,8,.98),rgba(18,16,28,.98))!important;
+  border:1px solid rgba(245,197,66,.4)!important;
+  box-shadow:0 14px 36px rgba(245,197,66,.08)!important;
+}
+#coach h3{margin:0 0 .4rem;color:var(--gold);font-size:1rem}
+#coach-move{font-size:1.25rem;font-weight:900;color:#fff;margin:.25rem 0}
+#coach-text{font-size:.82rem;color:#e8d5a0;line-height:1.4;margin-bottom:.65rem}
+.coach-btns{display:flex;flex-wrap:wrap;gap:.4rem}
+
+/* Overlay modals */
+.overlay .modal{
+  border-radius:22px!important;
+  background:linear-gradient(165deg,rgba(22,30,50,.98),rgba(10,14,24,.99))!important;
+  border:1px solid var(--line2)!important;box-shadow:0 30px 80px rgba(0,0,0,.6)!important;
+}
+
+/* Scroll lock helpers */
+body.in-game{overflow:hidden!important;height:100vh!important;height:100dvh!important}
+body.in-game #app{height:100vh!important;height:100dvh!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}
+body.in-game #views{flex:1!important;overflow:auto!important;-webkit-overflow-scrolling:touch}
+body.in-game #game{overflow:auto!important;max-height:100%!important;padding-bottom:12px!important}
+
+@media(max-width:720px){
+  .game-actions button{flex:1 1 auto;min-width:30%}
+  .board-frame{width:min(94vw,100%)!important}
+}
+
 </style>
 
 </head>
@@ -1114,6 +1334,16 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
             </div>
           </div>
           <div class="turn-under w" id="turn-under">▶ Vez das Brancas</div>
+          <div class="review-panel" id="review-panel">
+            <div class="rp-title" id="review-title">Revisão da partida</div>
+            <div class="rp-btns">
+              <button type="button" class="back" onclick="exitReview();return false">← Voltar para Jogar</button>
+              <button type="button" onclick="reviewGoto(-1);return false">⏮</button>
+              <button type="button" onclick="reviewStep(-1);return false">◀</button>
+              <button type="button" onclick="reviewStep(1);return false">▶</button>
+              <button type="button" onclick="reviewGoto(reviewMoves.length-1);return false">⏭</button>
+            </div>
+          </div>
           <div class="player-card active" id="bar-w">
             <div class="pc-avatar" id="av-w">?</div>
             <div class="who-wrap" style="flex:1"><div class="who" id="n-w">Brancas</div><div class="caps" id="caps-w"></div></div>
@@ -1210,7 +1440,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.16.1';
+const APP_VERSION='2026.08.16.2';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2799,12 +3029,17 @@ function openGameUI(){
 function canUseCoach(){
   if(!me) return false;
   if(mode==='review'||mode==='spectate') return false;
-  return String(me.name||'').toLowerCase()==='fernandolapa';
+  // Coach exclusivo do mestre
+  return String(me.name||'').toLowerCase().replace(/\s+/g,'_')==='fernandolapa';
 }
 function setupCoach(){
   var coach=document.getElementById('coach');
   if(!coach) return;
-  if(!canUseCoach()){coach.style.display='none';return}
+  if(!canUseCoach()){ coach.style.display='none'; coach.innerHTML=''; return; }
+  // restaura UI se foi limpa
+  if(!document.getElementById('coach-move')){
+    coach.innerHTML='<h3>Coach Supremo</h3><div id="coach-move">—</div><div id="coach-text">Analise de elite.</div><div class="coach-btns"><button type="button" class="btn-gold" onclick="coachBest();return false">Jogada perfeita</button><button type="button" class="btn-soft" onclick="coachPlan();return false">Plano</button></div>';
+  }
   coach.style.display='block';
   document.getElementById('coach-move').textContent='—';
   document.getElementById('coach-text').textContent='♛ Coach Supremo ativo · nível elite (muito acima do Difícil). Use na sua vez.';
@@ -3907,7 +4142,7 @@ function reviewLastFinished(){
 function startReview(g){
   reviewMoves = (g.moves||[]).slice();
   if(!reviewMoves.length){ toast('Esta partida não tem lances salvos'); return; }
-  mode='review';
+  mode='review'; try{ showReviewPanel(true); }catch(e){}
   lastEndMode='review';
   gameId='';
   oppName = g.opp || (me && sameUser(g.white, me.name) ? (g.black||'') : (g.white||'')) || '';
@@ -4087,21 +4322,32 @@ function reviewStep(d){
 }
 function statusReview(){
   var st=document.getElementById('status');
-  if(!st||!reviewMoves) return;
+  if(!reviewMoves) return;
   var cur = reviewCursor<0
-    ? 'Início da partida'
+    ? 'Inicio da partida'
     : ('Lance '+(reviewCursor+1)+'/'+reviewMoves.length+(reviewMoves[reviewCursor]?' · '+(reviewMoves[reviewCursor].san||(reviewMoves[reviewCursor].from+'-'+reviewMoves[reviewCursor].to)):'') );
-  st.className='side-status';
-  st.innerHTML='📜 <strong>Revisão</strong> — '+escapeHtml(cur)+
-    '<div class="review-bar">'+
-    '<button type="button" class="btn-back" onclick="exitReview()">← Voltar para Jogar</button>'+
-    '<button type="button" onclick="reviewGoto(-1)">⏮ Início</button>'+
-    '<button type="button" onclick="reviewStep(-1)">◀</button>'+
-    '<button type="button" onclick="reviewStep(1)">▶</button>'+
-    '<button type="button" onclick="reviewGoto(reviewMoves.length-1)">⏭ Fim</button>'+
-    '</div>';
-  document.getElementById('bar-w').classList.toggle('active', turn==='w');
-  document.getElementById('bar-b').classList.toggle('active', turn==='b');
+  if(st){
+    st.className='side-status';
+    st.innerHTML='<span class="turn-label">Revisao</span><span class="turn-main">'+escapeHtml(cur)+'</span>';
+  }
+  var rp=document.getElementById('review-panel');
+  if(rp){
+    rp.classList.add('on');
+    var rt=document.getElementById('review-title');
+    if(rt) rt.textContent=cur;
+  }
+  var tb=document.getElementById('turn-banner');
+  if(tb){ tb.textContent='REPLAY · '+cur; tb.className='turn-banner'; }
+  var tu=document.getElementById('turn-under');
+  if(tu){ tu.textContent='REPLAY · '+cur; tu.className='turn-under'; }
+  try{
+    document.getElementById('bar-w').classList.toggle('active', turn==='w');
+    document.getElementById('bar-b').classList.toggle('active', turn==='b');
+  }catch(e){}
+}
+function showReviewPanel(on){
+  var rp=document.getElementById('review-panel');
+  if(rp) rp.classList.toggle('on', !!on);
 }
 function movesUIReview(){
   var box=document.getElementById('moves'), h='';
@@ -4129,6 +4375,7 @@ function movesUIReview(){
 }
 
 function exitReview(){
+  try{ showReviewPanel(false); }catch(e){}
   reviewCursor=-1; reviewMoves=null;
   mode=null;
   // remove temporary review home button
@@ -4498,8 +4745,8 @@ function coachBest(auto){
   }
   document.getElementById('coach-move').textContent='…';
   // auto = forte e razoavel; manual = maximo
-  var budget = auto ? 1600 : 4500;
-  var depthCap = auto ? 20 : 30;
+  var budget = auto ? 2200 : 6000;
+  var depthCap = auto ? 24 : 36;
   document.getElementById('coach-text').textContent=auto
     ? '♛ Coach analisando…'
     : '♛ Coach Supremo pensando (ate 4,5s)…';
@@ -4671,6 +4918,9 @@ async function awardAiPoints(result, silentUI){
 
 /* ===== UI NAV ===== */
 function go(v){
+  try{ document.body.classList.toggle('in-game', v==='game'); }catch(e){}
+  try{ if(v!=='game') showReviewPanel(false); }catch(e){}
+  lockScrollY();
   if(v==='admin' && !(me&&me.isMaster)){toast('Acesso restrito');v='home'}
   ['home','dash','rank','settings','admin'].forEach(function(k){
     var el=document.getElementById('v-'+k); if(el) el.classList.toggle('hidden',k!==v);
@@ -5595,6 +5845,27 @@ function restoreActiveGame(){
   clearActiveGame();
   return false;
 }
+
+
+function lockScrollY(){
+  try{
+    window.__scrollY = window.scrollY || 0;
+    requestAnimationFrame(function(){
+      try{ window.scrollTo(0, window.__scrollY||0); }catch(e){}
+    });
+  }catch(e){}
+}
+// Evita a tela "ir para baixo" ao apertar botoes
+document.addEventListener('click', function(ev){
+  var t=ev.target;
+  if(!t) return;
+  var btn = (t.closest && t.closest('button, .mode, .friend-row, .live-card, [onclick]'));
+  if(btn){
+    lockScrollY();
+    setTimeout(lockScrollY, 0);
+    setTimeout(lockScrollY, 50);
+  }
+}, true);
 
 /* ===== INIT ===== */
 
