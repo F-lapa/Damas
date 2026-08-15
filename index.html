@@ -183,7 +183,7 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .nm{flex:1;font-weight:800}
 .el{color:var(--gold);font-weight:900}
 .dash-hero{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;padding:1.25rem 1.35rem;margin-bottom:1.1rem;border-radius:22px;background:radial-gradient(ellipse at 0% 0%, rgba(91,157,255,.22), transparent 55%),linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.02));border:1px solid var(--line2)}
-.dash-avatar{width:72px;height:72px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:900;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;box-shadow:0 10px 28px rgba(91,157,255,.35);flex-shrink:0;overflow:hidden;cursor:pointer;border:2px solid rgba(255,255,255,.18);position:relative}
+.dash-avatar{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;font-weight:900;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;box-shadow:0 10px 28px rgba(91,157,255,.35);flex-shrink:0;overflow:hidden;cursor:pointer;border:2px solid rgba(255,255,255,.18);position:relative}
 .dash-avatar img{width:100%;height:100%;object-fit:cover}
 .dash-avatar .av-edit{position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.55);font-size:.62rem;font-weight:800;padding:.2rem;text-align:center;opacity:0;color:#fff}
 .dash-avatar:hover .av-edit{opacity:1}
@@ -750,12 +750,12 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
   text-align:center;
 }
 .profile-modal-modern .prof-av-lg{
-  width:84px;height:84px;border-radius:24px;margin:0 auto .75rem;
+  width:48px;height:48px;border-radius:14px;margin:0 auto .55rem;
   display:flex;align-items:center;justify-content:center;
-  font-size:2rem;font-weight:900;color:#fff;
+  font-size:1.1rem;font-weight:900;color:#fff;
   background:linear-gradient(135deg,var(--blue),var(--violet));
-  border:3px solid rgba(255,255,255,.2);
-  box-shadow:0 12px 32px rgba(0,0,0,.35);overflow:hidden;
+  border:2px solid rgba(255,255,255,.18);
+  box-shadow:0 6px 16px rgba(0,0,0,.28);overflow:hidden;
 }
 .profile-modal-modern .prof-av-lg img{width:100%;height:100%;object-fit:cover}
 .profile-modal-modern .prof-name{font-size:1.35rem;font-weight:900;margin:0}
@@ -864,7 +864,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
     <div class="logo">⬤ Damas Mestre</div>
     <div class="hdr-right">
       <span class="conn" id="conn-status">conectando…</span>
-      <div class="h-avatar" id="h-avatar" onclick="go('dash')" title="Sua foto">?</div><div class="chip"><span id="h-name">—</span><span class="tag-m hidden" id="h-master">MESTRE</span></div>
+      <div class="chip"><span id="h-name">—</span><span class="tag-m hidden" id="h-master">MESTRE</span></div>
       <span class="pts" id="h-pts">0 pts</span>
       <button type="button" class="btn-out" onclick="logout()">Sair</button>
     </div>
@@ -1195,7 +1195,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.15.4';
+const APP_VERSION='2026.08.15.5';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -4825,9 +4825,10 @@ async function ensureUserAvatar(username, forceNet){
 
 function avatarHtml(user){
   var data=getAvatarData(user);
-  if(data) return '<img src="'+data+'" alt="" onerror="this.style.display=\'none\'"/>';
-  var letter=escapeHtml(String(user||'?')[0].toUpperCase());
-  return letter;
+  if(data){
+    return '<img src="'+data+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display=\'none\'"/>';
+  }
+  return escapeHtml(String(user||'?')[0].toUpperCase());
 }
 
 function ingestPlayerAvatar(row){
@@ -4913,15 +4914,38 @@ function fillMissingAvatars(){
   }, 200);
 }
 function paintHeaderAvatar(){
-  var el=document.getElementById('h-avatar'); if(!el||!me) return;
-  var data=getAvatarData(me.name);
-  el.innerHTML=data?'<img src="'+data+'" alt="" onerror="this.remove()"/>':escapeHtml((me.name||'?')[0].toUpperCase());
+  // foto grande no topo removida — mantido só por compatibilidade
+  return;
+}
+function setAvatarEl(el, data, letter){
+  if(!el) return;
+  letter = letter || '?';
+  if(data){
+    // background-image costuma funcionar melhor no WebView do APK
+    el.style.backgroundImage = 'url('+JSON.stringify(data)+')';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.innerHTML = '<span class="av-edit">📷 Foto</span>';
+  } else {
+    el.style.backgroundImage = '';
+    el.innerHTML = escapeHtml(letter) + '<span class="av-edit">📷 Foto</span>';
+  }
 }
 function paintDashAvatar(){
   var av=document.getElementById('dash-avatar'); if(!av||!me) return;
   var data=getAvatarData(me.name);
-  av.innerHTML=(data?'<img src="'+data+'" alt="" onerror="this.remove()"/>':escapeHtml((me.name||'?')[0].toUpperCase()))+'<span class="av-edit">📷 Foto</span>';
-  paintHeaderAvatar();
+  setAvatarEl(av, data, (me.name||'?')[0].toUpperCase());
+  // Se vazio no APK, busca na nuvem na hora
+  if(!data && typeof ensureUserAvatar==='function'){
+    ensureUserAvatar(me.name, true).then(function(av2){
+      if(av2){
+        try{ storeAvatarEverywhere(me.name, av2); }catch(e){}
+        setAvatarEl(av, av2, (me.name||'?')[0].toUpperCase());
+        try{ refreshGameAvatars(); }catch(e){}
+        try{ renderOnline(); }catch(e){}
+      }
+    });
+  }
 }
 function pickAvatar(){
   var inp=document.getElementById('avatar-file');
@@ -4953,16 +4977,27 @@ function onAvatarFile(ev){
         var pub=c.toDataURL('image/jpeg',0.45);
         if(!pub || pub.length<40){ toast('Falha ao gerar a foto'); return; }
         storeAvatarEverywhere(me.name, pub);
+        try{
+          var el=document.getElementById('dash-avatar');
+          setAvatarEl(el, pub, (me.name||'?')[0].toUpperCase());
+        }catch(e){}
         paintDashAvatar();
         try{ refreshGameAvatars(); }catch(e){}
         try{ renderOnline(); }catch(e){}
         if(sb){
           dbSetAvatar(me.name, pub).then(function(row){
-            if(row && row.avatar) storeAvatarEverywhere(me.name, row.avatar);
+            var finalAv=(row && row.avatar) ? row.avatar : pub;
+            storeAvatarEverywhere(me.name, finalAv);
+            try{
+              if(window.DamasNative && DamasNative.saveAvatar){
+                DamasNative.saveAvatar(String(me.name), finalAv);
+              }
+            }catch(e){}
             paintDashAvatar();
             toast('Foto pública atualizada ✓');
             shareMyAvatar();
             try{ renderOnline(); }catch(e){}
+            try{ refreshGameAvatars(); }catch(e){}
           }).catch(function(err){
             console.error(err);
             var msg=(err&&(err.message||err.details||err.hint))||String(err);
