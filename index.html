@@ -57,6 +57,14 @@ body::before{content:'';position:fixed;inset:-15%;background:radial-gradient(cir
 .piece.promote-anim{animation:piece-promote .35s ease}
 .piece.ghost{opacity:0!important;visibility:hidden!important}
 .piece.no-anim{animation:none!important;transition:none!important}
+/* anti-flash board */
+#board{contain:layout style;transform:translateZ(0)}
+#board .cell{contain:layout style;transform:translateZ(0)}
+#board .piece{transition:none!important}
+#board .piece:not(.flying){will-change:auto}
+#board .dot,#board .ring{pointer-events:none}
+.board-frame{transform:translateZ(0);backface-visibility:hidden}
+
 button,input{font-family:inherit}
 button{cursor:pointer;border:none;background:none;color:inherit}
 input{border:none;outline:none}
@@ -1195,7 +1203,7 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.15.6';
+const APP_VERSION='2026.08.15.7';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2823,46 +2831,83 @@ function bindBoardClicks(el){
 function syncBoardDom(opts){
   var el=document.getElementById('board'); if(!el||!board) return;
   opts=opts||{};
-  if(el.children.length!==64){ render(opts); return; }
+  if(el.children.length!==64){ render({forceFull:true}); return; }
+
   var skipHints=!!opts.skipHints || animatingMove;
   var legalTo={};
   if(!skipHints && legal && legal.length){
     for(var i=0;i<legal.length;i++) legalTo[legal[i].to]=legal[i];
   }
-  for(var i=0;i<el.children.length;i++){
+
+  // Atualiza célula a célula — sem innerHTML no tabuleiro
+  for(var i=0;i<64;i++){
     var cell=el.children[i];
-    var sq=cell.dataset.sq;
+    if(!cell) continue;
+    var sq=cell.getAttribute('data-sq');
     if(!sq) continue;
     var pos=parseSq(sq);
+    if(!pos) continue;
     var p=board[pos.r][pos.c];
-    cell.classList.remove('sel','last','cap-hint','must-capture');
-    // remove hints only
-    var dots=cell.querySelectorAll('.dot,.ring');
-    for(var d=0;d<dots.length;d++) dots[d].parentNode.removeChild(dots[d]);
-    if(sel===sq) cell.classList.add('sel');
-    if(last && (last.from===sq||last.to===sq)) cell.classList.add('last');
-    var lm=legalTo[sq];
-    if(lm){
-      if((lm.captures||0)>0){
-        cell.classList.add('cap-hint');
-        var ring=document.createElement('span'); ring.className='ring'; cell.appendChild(ring);
-      } else {
-        var dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot);
+
+    // classes de seleção (toggle, não wipe total)
+    var wantSel = (sel===sq);
+    var wantLast = !!(last && (last.from===sq || last.to===sq));
+    var lm = legalTo[sq];
+    var wantCap = !!(lm && (lm.captures||0)>0);
+    var wantMove = !!(lm && !wantCap);
+
+    if(cell.classList.contains('sel')!==wantSel) cell.classList.toggle('sel', wantSel);
+    if(cell.classList.contains('last')!==wantLast) cell.classList.toggle('last', wantLast);
+    if(cell.classList.contains('cap-hint')!==wantCap) cell.classList.toggle('cap-hint', wantCap);
+    cell.classList.remove('must-capture','cap-flash');
+
+    // dicas: recria só se necessário
+    var dot=cell.querySelector(':scope > .dot');
+    var ring=cell.querySelector(':scope > .ring');
+    // fallback sem :scope
+    if(!dot || !ring){
+      var kids=cell.children;
+      for(var k=0;k<kids.length;k++){
+        if(kids[k].classList.contains('dot')) dot=kids[k];
+        if(kids[k].classList.contains('ring')) ring=kids[k];
       }
     }
-    var pie=cell.querySelector('.piece');
+    if(wantCap){
+      if(dot && dot.parentNode) dot.parentNode.removeChild(dot);
+      if(!ring){ ring=document.createElement('span'); ring.className='ring'; cell.appendChild(ring); }
+    } else if(wantMove){
+      if(ring && ring.parentNode) ring.parentNode.removeChild(ring);
+      if(!dot){ dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot); }
+    } else {
+      if(dot && dot.parentNode) dot.parentNode.removeChild(dot);
+      if(ring && ring.parentNode) ring.parentNode.removeChild(ring);
+    }
+
+    // peça
+    var pie=null;
+    var ch=cell.children;
+    for(var j=0;j<ch.length;j++){
+      if(ch[j].classList && ch[j].classList.contains('piece')){ pie=ch[j]; break; }
+    }
     if(p){
       var pcls='piece '+(p>0?'w':'b')+(isKing(p)?' king':'');
       if(pie){
-        if(pie.className!==pcls) pie.className=pcls;
-        pie.classList.remove('hidden-src','ghost');
+        // só troca classe se mudou — evita flash
+        if(pie.className!==pcls){
+          // mantém hidden-src se estiver no meio da animação
+          var wasHidden=pie.classList.contains('hidden-src');
+          pie.className=pcls;
+          if(wasHidden && animatingMove) pie.classList.add('hidden-src');
+        } else {
+          if(!animatingMove) pie.classList.remove('hidden-src','ghost');
+        }
       } else {
         pie=document.createElement('div');
         pie.className=pcls;
         cell.insertBefore(pie, cell.firstChild);
       }
-    } else if(pie){
-      pie.parentNode.removeChild(pie);
+    } else {
+      if(pie && pie.parentNode) pie.parentNode.removeChild(pie);
     }
   }
 }
@@ -3067,18 +3112,25 @@ function doMove(move, remote){
   function afterFly(){
     animatingMove=false;
     if(window._animSafety){ clearTimeout(window._animSafety); window._animSafety=null; }
-    // Drena fila de lances (ex.: IA)
+    // Limpa hidden-src de qualquer peça residual
+    try{
+      var hid=document.querySelectorAll('#board .piece.hidden-src, #board .piece.ghost');
+      for(var hi=0;hi<hid.length;hi++){ hid[hi].classList.remove('hidden-src','ghost'); }
+    }catch(e){}
+    // Uma sincronização só, no próximo frame (sem flash)
+    requestAnimationFrame(function(){
+      try{ syncBoardDom({skipHints:false}); }catch(e){}
+      try{ status(); }catch(e){}
+      try{ movesUI(); }catch(e){}
+      try{ updateCaps(); }catch(e){}
+    });
+    // Drena fila de lances (ex.: IA) depois da pintura
     try{
       if(window._moveQueue && window._moveQueue.length){
         var q=window._moveQueue.shift();
-        setTimeout(function(){ doMove(q.move, q.remote); }, 30);
+        setTimeout(function(){ doMove(q.move, q.remote); }, 40);
       }
     }catch(e){}
-    // Só sincroniza peças — nunca recria o grid (sem piscar)
-    try{ syncBoardDom({skipHints:false}); }catch(e){ try{ render({}); }catch(e2){} }
-    try{ status(); }catch(e){}
-    try{ movesUI(); }catch(e){}
-    try{ updateCaps(); }catch(e){}
     if(wasPromo){
       var cellPromo=document.querySelector('#board [data-sq="'+toSq+'"] .piece');
       if(cellPromo) cellPromo.classList.add('promote-anim');
@@ -3223,7 +3275,8 @@ function status(){
   if(mode==='review'){ statusReview(); return; }
   var el=document.getElementById('status'); if(!el) return;
   var tb=document.getElementById('turn-banner');
-  var moves=legalMoves(board, turn);
+  var moves;
+  try{ moves=legalMoves(board, turn); }catch(e){ moves=[]; }
   var sideName = turn==='w' ? 'Brancas' : 'Pretas';
   var whoName = '';
   try{
