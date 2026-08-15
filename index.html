@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.16.8';
+const APP_VERSION='2026.08.16.9';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2052,59 +2052,71 @@ function searchBestMove(board, color, depth, timeMs){
 }
 
 /** Coach Supremo — busca elite: muito mais profunda e tática que o PC. */
+function oppMaxCapture(board, myColor){
+  var opp = myColor==='w'?'b':'w';
+  var ms;
+  try{ ms=legalMoves(board, opp); }catch(e){ return 0; }
+  var best=0;
+  for(var i=0;i<(ms||[]).length;i++){
+    var c=ms[i].captures||0;
+    if(c>best) best=c;
+  }
+  return best;
+}
+
 function searchCoachMove(board, color, opts){
   opts = opts || {};
-  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 4000;
-  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 28;
+  // Rapido e forte: acima do Difícil (simpleMinimax ~280ms)
+  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 1200;
+  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 18;
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
   if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
 
-  // Ordena: multi-captura > captura > promocao > centro
+  // Prioriza captura e promocao (tatíca imediata)
   moves.sort(function(a,b){
     var ca=a.captures||0, cb=b.captures||0;
     if(cb!==ca) return cb-ca;
     var sa=(a.steps&&a.steps.length)||0, sb=(b.steps&&b.steps.length)||0;
     if(sb!==sa) return sb-sa;
-    var ta=parseSq(a.to), tb=parseSq(b.to);
-    var pa=(Math.abs(board[parseSq(a.from).r][parseSq(a.from).c])===1 && (ta.r===0||ta.r===7))?1:0;
-    var pb=(Math.abs(board[parseSq(b.from).r][parseSq(b.from).c])===1 && (tb.r===0||tb.r===7))?1:0;
-    if(pb!==pa) return pb-pa;
     return 0;
   });
 
   _tt=new Map(); _nodes=0; _killers=[]; _history={};
-  _deadline=Date.now()+Math.max(400, budgetMs);
+  _deadline=Date.now()+Math.max(250, budgetMs);
   var best=moves[0], bestScore=-1e15, completedDepth=0;
   var rootPV=null;
 
-  // Se so ha capturas, analisa TODAS com profundidade (nao pega a primeira)
-  var allCaps = moves.every(function(m){ return (m.captures||0)>0; });
-
+  // Iterative deepening com corte de tempo
   for(var d=1; d<=maxDepth; d++){
     if(Date.now()>_deadline) break;
     orderMoves(moves, d, rootPV);
     var localBest=null, localScore=-1e15;
     var alpha=-1e15, beta=1e15;
-    if(d>=4 && bestScore>-1e14 && bestScore<1e14){
-      alpha=bestScore-28;
-      beta=bestScore+28;
+    if(d>=3 && bestScore>-1e14 && bestScore<1e14){
+      alpha=bestScore-30;
+      beta=bestScore+30;
     }
     for(var i=0;i<moves.length;i++){
       if(Date.now()>_deadline) break;
       var nb=applyMove(board, moves[i]);
       var sc=-negamax(nb, d-1, -beta, -alpha, color==='w'?'b':'w', 0);
-      if((sc<=alpha || sc>=beta) && d>=4){
+      if((sc<=alpha || sc>=beta) && d>=3){
         sc=-negamax(nb, d-1, -1e15, 1e15, color==='w'?'b':'w', 0);
       }
-      // Bonus leve por multi-captura e promocao
+      // Seguranca: penaliza deixar capturas para o adversario (sem brecha)
+      var threat=oppMaxCapture(nb, color);
+      if(threat>=3) sc -= 220;
+      else if(threat===2) sc -= 120;
+      else if(threat===1) sc -= 35;
+      // Bonus captura propria / promocao
       var cap=moves[i].captures||0;
-      if(cap>=3) sc += 1.2;
-      else if(cap===2) sc += 0.5;
-      var to=parseSq(moves[i].to);
-      var fr=parseSq(moves[i].from);
+      if(cap>=3) sc += 25;
+      else if(cap===2) sc += 12;
+      else if(cap===1) sc += 4;
+      var fr=parseSq(moves[i].from), to=parseSq(moves[i].to);
       var piece=board[fr.r][fr.c];
-      if(Math.abs(piece)===1 && (to.r===0||to.r===7)) sc += 0.8;
+      if(Math.abs(piece)===1 && (to.r===0||to.r===7)) sc += 18;
       if(sc>localScore){ localScore=sc; localBest=moves[i]; }
       if(sc>alpha) alpha=sc;
     }
@@ -2114,24 +2126,58 @@ function searchCoachMove(board, color, opts){
     }
   }
 
-  // Verificacao final: top candidatos com profundidade extra
+  // Verificacao rapida so se sobrar tempo: top 3 com filtro de seguranca
   var left=_deadline - Date.now();
-  if(left>300){
-    orderMoves(moves, completedDepth||10, best);
-    var topN = allCaps ? Math.min(moves.length, 8) : Math.min(moves.length, 5);
-    var top=moves.slice(0, topN);
-    var vd=Math.min((completedDepth||10)+3, maxDepth);
+  if(left>180){
+    orderMoves(moves, completedDepth||8, best);
+    var top=moves.slice(0, Math.min(4, moves.length));
     for(var t=0;t<top.length;t++){
       if(Date.now()>_deadline) break;
       var nb2=applyMove(board, top[t]);
-      var sc2=-negamax(nb2, vd, -1e15, 1e15, color==='w'?'b':'w', 0);
+      var sc2=-negamax(nb2, Math.min((completedDepth||8)+1, maxDepth), -1e15, 1e15, color==='w'?'b':'w', 0);
+      var th=oppMaxCapture(nb2, color);
+      if(th>=2) sc2 -= 100*th;
+      else if(th===1) sc2 -= 30;
       if(sc2>bestScore){ bestScore=sc2; best=top[t]; }
     }
   }
 
+  // Desempate final: entre lances parecidos, o que menos abre pro rival
+  try{
+    var margin=18;
+    var cands=[];
+    for(var j=0;j<moves.length;j++){
+      var nb3=applyMove(board, moves[j]);
+      // score raso + ameaca
+      var th3=oppMaxCapture(nb3, color);
+      var base=evaluateBoard(nb3, color);
+      cands.push({m:moves[j], th:th3, base:base});
+    }
+    cands.sort(function(a,b){
+      if(a.th!==b.th) return a.th-b.th;
+      return b.base-a.base;
+    });
+    // se o best deixa ameaca e existe alternativa sem ameaca com eval proxima, troca
+    var bestNb=applyMove(board, best);
+    var bestTh=oppMaxCapture(bestNb, color);
+    if(bestTh>0){
+      for(var k=0;k<cands.length;k++){
+        if(cands[k].th===0){
+          var alt=cands[k].m;
+          // so troca se nao for claramente pior material/posicao
+          if(cands[k].base >= evaluateBoard(bestNb, color)-40){
+            best=alt; bestScore=cands[k].base;
+          }
+          break;
+        }
+      }
+    }
+  }catch(e){}
+
   _deadline=0;
   return {move:best, score:bestScore, nodes:_nodes, depth:completedDepth, coach:true};
 }
+
 
 
 
@@ -4831,12 +4877,12 @@ function coachBest(auto){
     return;
   }
   document.getElementById('coach-move').textContent='…';
-  // auto = forte e razoavel; manual = maximo
-  var budget = auto ? 2200 : 6000;
-  var depthCap = auto ? 24 : 36;
+  // auto = rapido e forte; botao = um pouco mais fundo (ainda < 2s)
+  var budget = auto ? 850 : 1600;
+  var depthCap = auto ? 14 : 18;
   document.getElementById('coach-text').textContent=auto
-    ? '♛ Coach analisando…'
-    : '♛ Coach Supremo pensando (ate 4,5s)…';
+    ? 'Coach analisando…'
+    : 'Coach pensando…';
   setTimeout(function(){
     var res=searchCoachMove(board, turn, {budgetMs:budget, maxDepth:depthCap});
     if(!res||!res.move){
