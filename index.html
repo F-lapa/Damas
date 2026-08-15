@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.2';
+const APP_VERSION='2026.08.17.3';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2492,6 +2492,7 @@ function enter(user){
   try{ syncAvatarsFromDb().then(function(){ try{ renderOnline(); }catch(e){} }); }catch(e){}
   document.getElementById('nav-admin').classList.toggle('hidden', !me.isMaster);
   joinLobby();
+  setTimeout(function(){ try{ startOnlineHeartbeat(); dbOnlineBeat(); dbFetchOnline(); }catch(e){} }, 800);
   syncAvatarsFromDb().then(function(){
     paintAll();
     setTimeout(shareMyAvatar, 800);
@@ -2508,20 +2509,26 @@ function enter(user){
 
 /* ===== LOBBY / ONLINE ===== */
 
-/* Online list helpers (presence + broadcast fallback) */
+
+/* Online list — DB heartbeat + Realtime + broadcast */
 var _onlineMap={};
 var _helloTimer=null;
 var _presenceTimer=null;
+var _dbOnlineTimer=null;
+var _lastHelloReply=0;
+var LOBBY_ROOM='damas-lobby-v3';
 
 function upsertOnline(user, meta){
-  if(!user || (me && sameUser(user, me.name))) return;
-  user=String(user);
+  if(!user) return;
+  user=String(user).trim();
+  if(!user) return;
+  if(me && sameUser(user, me.name)) return;
   var prev=_onlineMap[user]||{};
   _onlineMap[user]={
-    user:user,
+    user: user,
     status: (meta && meta.status) || prev.status || 'available',
     gameId: (meta && meta.gameId!=null) ? meta.gameId : (prev.gameId||''),
-    avatar: (meta && meta.avatar) || prev.avatar || getAvatarData(user) || '',
+    avatar: (meta && meta.avatar) || prev.avatar || (typeof getAvatarData==='function'?getAvatarData(user):'') || '',
     opp: (meta && meta.opp!=null) ? meta.opp : (prev.opp||''),
     color: (meta && meta.color) || prev.color || '',
     at: Date.now()
@@ -2536,7 +2543,6 @@ function rebuildOnlineFromMap(){
   Object.keys(_onlineMap).forEach(function(k){
     var p=_onlineMap[k];
     if(!p) return;
-    // expira apos 90s sem sinal
     if(now - (p.at||0) > 90000){ delete _onlineMap[k]; return; }
     onlinePlayers.push(p);
   });
@@ -2556,34 +2562,91 @@ function sendLobbyHello(){
         status: presenceStatus||'available',
         gameId: (presenceStatus==='in_game'?(gameId||''):''),
         opp: (presenceStatus==='in_game'?(oppName||''):''),
-        avatar: getPublicAvatar(me.name)||'',
+        avatar: (typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
         at: Date.now()
       }
     });
   }catch(e){}
 }
+
+/** Heartbeat no banco — funciona mesmo se Realtime falhar */
+async function dbOnlineBeat(){
+  if(!sb||!me) return;
+  var row={
+    username: me.name,
+    status: presenceStatus||'available',
+    game_id: (presenceStatus==='in_game'?(gameId||null):null),
+    opp: (presenceStatus==='in_game'?(oppName||null):null),
+    updated_at: new Date().toISOString()
+  };
+  try{
+    var r=await sb.from('lobby_online').upsert(row, {onConflict:'username'});
+    if(r.error) throw r.error;
+  }catch(e){
+    // fallback: tenta last_seen em players (se a coluna existir)
+    try{
+      await sb.from('players').update({ last_seen: new Date().toISOString() }).eq('username', me.name);
+    }catch(e2){}
+  }
+}
+async function dbFetchOnline(){
+  if(!sb||!me) return;
+  try{
+    var since=new Date(Date.now()-70000).toISOString();
+    var r=await sb.from('lobby_online').select('username,status,game_id,opp,updated_at').gte('updated_at', since);
+    if(r.error) throw r.error;
+    (r.data||[]).forEach(function(row){
+      if(!row||!row.username) return;
+      upsertOnline(row.username, {
+        status: row.status||'available',
+        gameId: row.game_id||'',
+        opp: row.opp||''
+      });
+    });
+    rebuildOnlineFromMap();
+    return;
+  }catch(e){
+    // fallback players.last_seen
+    try{
+      var since2=new Date(Date.now()-70000).toISOString();
+      var r2=await sb.from('players').select('username,last_seen,avatar').gte('last_seen', since2);
+      if(!r2.error && r2.data){
+        r2.data.forEach(function(row){
+          if(!row||!row.username) return;
+          upsertOnline(row.username, { status:'available', avatar: row.avatar||'' });
+        });
+        rebuildOnlineFromMap();
+      }
+    }catch(e2){}
+  }
+}
 function startOnlineHeartbeat(){
   if(_helloTimer) clearInterval(_helloTimer);
   if(_presenceTimer) clearInterval(_presenceTimer);
+  if(_dbOnlineTimer) clearInterval(_dbOnlineTimer);
   _helloTimer=setInterval(function(){
     sendLobbyHello();
     rebuildOnlineFromMap();
-  }, 20000);
+  }, 12000);
   _presenceTimer=setInterval(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
-  }, 25000);
-  // imediato
-  setTimeout(sendLobbyHello, 300);
+  }, 15000);
+  _dbOnlineTimer=setInterval(function(){
+    dbOnlineBeat();
+    dbFetchOnline();
+  }, 10000);
+  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 200);
+  setTimeout(sendLobbyHello, 400);
   setTimeout(sendLobbyHello, 1500);
-  setTimeout(sendLobbyHello, 4000);
+  setTimeout(sendLobbyHello, 3500);
+  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 2500);
 }
-
 
 function joinLobby(){
   if(!sb||!me) return;
   try{
     if(lobbyCh){try{sb.removeChannel(lobbyCh)}catch(e){}}
-    lobbyCh=sb.channel('damas-lobby',{config:{presence:{key:me.name},broadcast:{self:false,ack:false}}});
+    lobbyCh=sb.channel(LOBBY_ROOM,{config:{presence:{key:String(me.name)},broadcast:{self:false,ack:false}}});
     lobbyCh.on('presence',{event:'sync'}, function(){
       var state=lobbyCh.presenceState()||{};
       Object.keys(state).forEach(function(k){
@@ -2627,8 +2690,10 @@ function joinLobby(){
         opp: d.opp||''
       });
       rebuildOnlineFromMap();
-      // responde para o outro tambem nos ver
-      try{ sendLobbyHello(); }catch(e){}
+      if(Date.now()-_lastHelloReply>4000){
+        _lastHelloReply=Date.now();
+        try{ sendLobbyHello(); }catch(e){}
+      }
     });
     lobbyCh.on('broadcast',{event:'lobby_chat'}, function(p){
       var d=p.payload||{}; if(!d.by||!d.text) return;
@@ -2705,10 +2770,11 @@ function joinLobby(){
     });
     lobbyCh.subscribe(function(status){
       console.log('lobby status', status);
-      if(status==='SUBSCRIBED'){
-        setPresence('available');
+      if(status==='SUBSCRIBED' || status==='joined'){
         setConn(true,'online');
+        try{ setPresence('available'); }catch(e){}
         startOnlineHeartbeat();
+        try{ dbOnlineBeat(); dbFetchOnline(); }catch(e){}
         try{ lobbyCh.send({type:'broadcast', event:'live_games_request', payload:{by:me.name}}); }catch(e){}
         setTimeout(shareMyAvatar, 400);
         setTimeout(shareMyAvatar, 2000);
@@ -2810,9 +2876,16 @@ function renderOnline(){
   var list=document.getElementById('online-list');
   var cnt=document.getElementById('online-count');
   if(!list) return;
-  var others=onlinePlayers.filter(function(p){return !sameUser(p.user, me&&me.name)});
+  var others=(onlinePlayers||[]).filter(function(p){return p && p.user && !(me && sameUser(p.user, me.name))});
   if(cnt) cnt.textContent=others.length;
-  if(!others.length){list.innerHTML='<div class="empty">Ninguém online agora</div>';return}
+  if(!others.length){
+    var conn=document.getElementById('conn-status');
+    var offline=conn && /off|erro|sem/i.test(conn.textContent||'');
+    list.innerHTML=offline
+      ? '<div class="empty">Sem conexão com o servidor</div>'
+      : '<div class="empty">Ninguém online agora — peça ao colega para abrir o jogo na aba Jogar</div>';
+    return;
+  }
   list.innerHTML=others.map(function(p){
     var busy=p.status==='in_game';
     var muted=isMuted(p.user);
