@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.16.5';
+const APP_VERSION='2026.08.16.6';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5339,7 +5339,7 @@ function storeAvatarEverywhere(user, dataUrl){
   if(!user || !dataUrl) return;
   var s=String(dataUrl);
   // aceita dataURL, http ou emoji/token
-  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0 && !isEmojiAvatar(s)) return;
+  if(s.indexOf('data:')!==0 && s.indexOf('http')!==0 && !isEmojiAvatar(s) && !isSvgAvatar(s)) return;
   avatarKeys(user).forEach(function(k){
     avatarMemCache[k]=s;
     try{ localStorage.setItem(PEER_AV_KEY+k, s); }catch(e){}
@@ -5505,50 +5505,189 @@ function fillMissingAvatars(){
   }, 200);
 }
 
-/* ===== AVATAR PICKER (sem galeria) ===== */
-var AVATAR_CATALOG=[
-  '😀','😎','🤩','😊','🤓','🧐','😇','🥳','🤠','😈',
-  '👻','🤖','👽','🎃','💀','🦊','🐱','🐶','🐼','🐨',
-  '🐯','🦁','🐸','🐵','🦄','🐲','🐦','🐧','🐢','🐙',
-  '🏀','⚽','🎮','🎯','🏆','♟️','🎲','🎸','🎧','🚀',
-  '⭐','🔥','💎','👑','🍀','🌈','⚡','🌙','☀️','🌸',
-  '🍕','🍩','☕','🎂','🍉','🥑','🍔','🍿','🧁','🍪',
-  '❤️','💙','💚','💜','🧡','🖤','🤍','🤎','💛','🩵',
-  '🐶','🐺','🐻','🐰','🐹','🐷','🐮','🐔','🦆','🦅'
-];
-// 70 avatares (com alguns repetidos de tema - unicos suficientes)
-var _pendingAvatar=null;
 
+/* ===== AVATARES SVG CRIADOS NO SISTEMA ===== */
+var AVATAR_COUNT = 72;
+
+// Paletas e pecas para montar avatares unicos
+var _AV_BG = ['#1d4ed8','#7c3aed','#be185d','#b45309','#047857','#0e7490','#4f46e5','#c2410c','#9333ea','#0369a1','#15803d','#9f1239','#a16207','#6d28d9','#0f766e','#b91c1c'];
+var _AV_SKIN = ['#fde7d1','#f8c8a0','#e0a070','#c68642','#8d5524','#ffe0bd','#f1c27d','#d4a574'];
+var _AV_HAIR = ['#1c1917','#292524','#44403c','#7c2d12','#b45309','#0ea5e9','#7c3aed','#e11d48','#16a34a','#eab308','#f97316','#64748b'];
+var _AV_ACC = ['#f5c542','#38bdf8','#f472b6','#a3e635','#fb7185','#c084fc','#2dd4bf','#ffffff'];
+
+function avEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/** Gera SVG unico para o id (0..AVATAR_COUNT-1) */
+function buildAvatarSvg(id){
+  id = Math.abs(parseInt(id,10)||0) % AVATAR_COUNT;
+  var bg = _AV_BG[id % _AV_BG.length];
+  var skin = _AV_SKIN[(id*3) % _AV_SKIN.length];
+  var hair = _AV_HAIR[(id*5) % _AV_HAIR.length];
+  var acc = _AV_ACC[(id*7) % _AV_ACC.length];
+  var style = id % 8; // 8 estilos de personagem
+  var eyes = id % 5;
+  var mouth = (id*2) % 4;
+  var accessory = id % 6;
+
+  // cabelo / cabeca
+  var hairSvg = '';
+  if(style===0){ // cabelo topete
+    hairSvg = '<ellipse cx="50" cy="34" rx="28" ry="18" fill="'+hair+'"/><path d="M28 40 Q50 8 72 40" fill="'+hair+'"/>';
+  } else if(style===1){ // cabelo longo
+    hairSvg = '<ellipse cx="50" cy="38" rx="30" ry="22" fill="'+hair+'"/><rect x="20" y="40" width="12" height="36" rx="6" fill="'+hair+'"/><rect x="68" y="40" width="12" height="36" rx="6" fill="'+hair+'"/>';
+  } else if(style===2){ // careca + barba
+    hairSvg = '<path d="M30 62 Q50 78 70 62 Q68 72 50 74 Q32 72 30 62" fill="'+hair+'"/>';
+  } else if(style===3){ // afro
+    hairSvg = '<circle cx="50" cy="36" r="30" fill="'+hair+'"/><circle cx="28" cy="40" r="12" fill="'+hair+'"/><circle cx="72" cy="40" r="12" fill="'+hair+'"/>';
+  } else if(style===4){ // side part
+    hairSvg = '<path d="M22 48 Q30 18 55 22 Q78 28 78 50 L74 50 Q72 32 50 30 Q32 32 28 50Z" fill="'+hair+'"/>';
+  } else if(style===5){ // coque
+    hairSvg = '<ellipse cx="50" cy="36" rx="26" ry="16" fill="'+hair+'"/><circle cx="50" cy="16" r="10" fill="'+hair+'"/>';
+  } else if(style===6){ // mohawk
+    hairSvg = '<rect x="44" y="10" width="12" height="28" rx="6" fill="'+hair+'"/><ellipse cx="50" cy="38" rx="24" ry="12" fill="'+hair+'"/>';
+  } else { // chapéu embutido no cabelo
+    hairSvg = '<ellipse cx="50" cy="36" rx="26" ry="14" fill="'+hair+'"/>';
+  }
+
+  // olhos
+  var eyeSvg = '';
+  if(eyes===0) eyeSvg = '<circle cx="38" cy="52" r="3.2" fill="#1c1917"/><circle cx="62" cy="52" r="3.2" fill="#1c1917"/>';
+  else if(eyes===1) eyeSvg = '<ellipse cx="38" cy="52" rx="4" ry="3" fill="#1c1917"/><ellipse cx="62" cy="52" rx="4" ry="3" fill="#1c1917"/><circle cx="39" cy="51" r="1.1" fill="#fff"/><circle cx="63" cy="51" r="1.1" fill="#fff"/>';
+  else if(eyes===2) eyeSvg = '<rect x="33" y="50" width="10" height="3" rx="1.5" fill="#1c1917"/><rect x="57" y="50" width="10" height="3" rx="1.5" fill="#1c1917"/>';
+  else if(eyes===3) eyeSvg = '<circle cx="38" cy="52" r="4" fill="#fff" stroke="#1c1917" stroke-width="1.5"/><circle cx="62" cy="52" r="4" fill="#fff" stroke="#1c1917" stroke-width="1.5"/><circle cx="39" cy="52" r="1.6" fill="#1c1917"/><circle cx="63" cy="52" r="1.6" fill="#1c1917"/>';
+  else eyeSvg = '<path d="M32 52 Q38 46 44 52" stroke="#1c1917" stroke-width="2" fill="none"/><path d="M56 52 Q62 46 68 52" stroke="#1c1917" stroke-width="2" fill="none"/>';
+
+  // boca
+  var mouthSvg = '';
+  if(mouth===0) mouthSvg = '<path d="M40 66 Q50 74 60 66" stroke="#1c1917" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
+  else if(mouth===1) mouthSvg = '<ellipse cx="50" cy="68" rx="7" ry="4" fill="#9f1239"/>';
+  else if(mouth===2) mouthSvg = '<line x1="42" y1="68" x2="58" y2="68" stroke="#1c1917" stroke-width="2.2" stroke-linecap="round"/>';
+  else mouthSvg = '<path d="M40 70 Q50 64 60 70" stroke="#1c1917" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
+
+  // acessorio
+  var accSvg = '';
+  if(accessory===1){ // oculos
+    accSvg = '<circle cx="38" cy="52" r="7" fill="none" stroke="'+acc+'" stroke-width="2"/><circle cx="62" cy="52" r="7" fill="none" stroke="'+acc+'" stroke-width="2"/><line x1="45" y1="52" x2="55" y2="52" stroke="'+acc+'" stroke-width="2"/>';
+  } else if(accessory===2){ // fone
+    accSvg = '<path d="M22 48 Q18 50 18 58 Q18 68 28 68" fill="none" stroke="'+acc+'" stroke-width="3"/><path d="M78 48 Q82 50 82 58 Q82 68 72 68" fill="none" stroke="'+acc+'" stroke-width="3"/><path d="M22 50 Q50 18 78 50" fill="none" stroke="'+acc+'" stroke-width="3"/>';
+  } else if(accessory===3){ // coroa
+    accSvg = '<path d="M30 28 L36 18 L44 28 L50 16 L56 28 L64 18 L70 28 L68 34 L32 34Z" fill="'+acc+'"/>';
+  } else if(accessory===4){ // bone
+    accSvg = '<path d="M26 40 Q50 22 74 40 L78 40 Q50 28 22 40Z" fill="'+acc+'"/><rect x="22" y="38" width="56" height="8" rx="3" fill="'+acc+'"/>';
+  } else if(accessory===5){ // brinco
+    accSvg = '<circle cx="24" cy="58" r="3" fill="'+acc+'"/><circle cx="76" cy="58" r="3" fill="'+acc+'"/>';
+  }
+
+  // tipo especial: robot / alien / animal-inspired geometric
+  var faceBody = '';
+  if(id % 11 === 0){
+    // robo
+    faceBody =
+      '<rect x="28" y="34" width="44" height="44" rx="10" fill="#94a3b8"/>'+
+      '<rect x="34" y="42" width="12" height="10" rx="2" fill="'+acc+'"/>'+
+      '<rect x="54" y="42" width="12" height="10" rx="2" fill="'+acc+'"/>'+
+      '<rect x="40" y="60" width="20" height="6" rx="2" fill="#1c1917"/>'+
+      '<rect x="46" y="22" width="8" height="12" fill="#64748b"/>'+
+      '<circle cx="50" cy="18" r="5" fill="'+acc+'"/>';
+  } else if(id % 11 === 1){
+    // alien
+    faceBody =
+      '<ellipse cx="50" cy="54" rx="26" ry="30" fill="#86efac"/>'+
+      '<ellipse cx="38" cy="50" rx="8" ry="12" fill="#14532d"/>'+
+      '<ellipse cx="62" cy="50" rx="8" ry="12" fill="#14532d"/>'+
+      '<circle cx="38" cy="50" r="3" fill="#fff"/><circle cx="62" cy="50" r="3" fill="#fff"/>'+
+      '<path d="M42 70 Q50 76 58 70" stroke="#14532d" stroke-width="2" fill="none"/>';
+  } else if(id % 11 === 2){
+    // gato geometrico
+    faceBody =
+      '<circle cx="50" cy="54" r="26" fill="'+skin+'"/>'+
+      '<path d="M28 40 L34 20 L44 38Z" fill="'+skin+'"/><path d="M72 40 L66 20 L56 38Z" fill="'+skin+'"/>'+
+      eyeSvg + mouthSvg +
+      '<ellipse cx="50" cy="62" rx="4" ry="3" fill="#f472b6"/>';
+  } else {
+    // humanoide padrao
+    faceBody =
+      hairSvg +
+      '<circle cx="50" cy="54" r="26" fill="'+skin+'"/>'+
+      eyeSvg + mouthSvg + accSvg;
+  }
+
+  var svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">'+
+    '<defs><clipPath id="c'+id+'"><circle cx="50" cy="50" r="50"/></clipPath></defs>'+
+    '<circle cx="50" cy="50" r="50" fill="'+bg+'"/>'+
+    '<g clip-path="url(#c'+id+')">'+ faceBody + '</g>'+
+    '<circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>'+
+    '</svg>';
+  return svg;
+}
+
+function avatarIdFromValue(v){
+  if(v==null || v==='') return -1;
+  v=String(v);
+  if(v.indexOf('av:')===0) return parseInt(v.slice(3),10)||0;
+  if(v.indexOf('svg:')===0) return parseInt(v.slice(4),10)||0;
+  return -1;
+}
+function avatarToken(id){ return 'av:'+(Math.abs(id)%AVATAR_COUNT); }
+
+function avatarDataUrl(id){
+  var svg = buildAvatarSvg(id);
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+
+function isSvgAvatar(v){
+  return avatarIdFromValue(v) >= 0;
+}
 function isEmojiAvatar(v){
+  // legado: ainda mostra se for emoji antigo
   if(!v) return false;
   v=String(v);
   if(v.indexOf('data:')===0 || v.indexOf('http')===0) return false;
-  // emoji / short token
+  if(isSvgAvatar(v)) return false;
   return v.length<=8;
 }
+
+function resolveAvatarSrc(v){
+  if(!v) return '';
+  v=String(v);
+  var id=avatarIdFromValue(v);
+  if(id>=0) return avatarDataUrl(id);
+  if(v.indexOf('data:')===0 || v.indexOf('http')===0) return v;
+  if(isEmojiAvatar(v)) return ''; // tratado como texto
+  return '';
+}
+
 function avatarDisplayHtml(user, data){
   data = data || getAvatarData(user);
+  if(data && isSvgAvatar(data)){
+    return '<img src="'+avatarDataUrl(avatarIdFromValue(data))+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block"/>';
+  }
   if(data && isEmojiAvatar(data)){
     return '<span class="av-emoji">'+data+'</span>';
   }
-  if(data && (data.indexOf('data:')===0 || data.indexOf('http')===0)){
+  if(data && (String(data).indexOf('data:')===0 || String(data).indexOf('http')===0)){
     return '<img src="'+data+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display=\'none\'"/>';
   }
   return escapeHtml(String(user||'?')[0].toUpperCase());
 }
+
+var _pendingAvatar=null;
+
 function openAvatarPicker(){
   if(!me){ toast('Faca login'); return; }
-  _pendingAvatar = getAvatarData(me.name) || null;
+  _pendingAvatar = getAvatarData(me.name) || avatarToken(0);
   var grid=document.getElementById('avatar-picker-grid');
   if(!grid) return;
-  var cur=isEmojiAvatar(_pendingAvatar)?_pendingAvatar:null;
-  // unique list
-  var seen={}, list=[];
-  AVATAR_CATALOG.forEach(function(e){ if(!seen[e]){ seen[e]=1; list.push(e);} });
-  grid.innerHTML=list.map(function(e){
-    var on = (cur===e) ? ' on' : '';
-    return '<button type="button" class="av-pick'+on+'" data-av="'+e+'" onclick="selectAvatarPick(this)">'+e+'</button>';
-  }).join('');
+  var curId = avatarIdFromValue(_pendingAvatar);
+  var html='';
+  for(var i=0;i<AVATAR_COUNT;i++){
+    var on = (curId===i) ? ' on' : '';
+    html += '<button type="button" class="av-pick'+on+'" data-av="'+avatarToken(i)+'" onclick="selectAvatarPick(this)" style="padding:0;overflow:hidden">'+
+      '<img src="'+avatarDataUrl(i)+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none"/>'+
+    '</button>';
+  }
+  grid.innerHTML=html;
   document.getElementById('ov-avatar').style.display='flex';
 }
 function selectAvatarPick(btn){
@@ -5583,14 +5722,10 @@ async function confirmAvatarPick(){
       toast('Avatar salvo neste aparelho');
       try{ shareMyAvatar(); }catch(e){}
     }
-  } else {
-    toast('Avatar salvo');
-  }
+  } else toast('Avatar salvo');
 }
-// remove galeria
 function pickAvatar(){ openAvatarPicker(); }
-function onAvatarFile(ev){ try{ if(ev&&ev.target) ev.target.value=''; }catch(e){} toast('Use a escolha de avatar'); }
-
+function onAvatarFile(ev){ toast('Escolha um avatar na lista'); }
 
 function paintHeaderAvatar(){
   // foto grande no topo removida — mantido só por compatibilidade
@@ -5600,13 +5735,11 @@ function setAvatarEl(el, data, letter){
   if(!el) return;
   letter = letter || '?';
   el.style.backgroundImage = '';
-  if(data && isEmojiAvatar(data)){
+  var src = resolveAvatarSrc(data);
+  if(src){
+    el.innerHTML = '<img src="'+src+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block"/><span class="av-edit">Avatar</span>';
+  } else if(data && isEmojiAvatar(data)){
     el.innerHTML = '<span class="av-emoji">'+data+'</span><span class="av-edit">Avatar</span>';
-  } else if(data && (String(data).indexOf('data:')===0 || String(data).indexOf('http')===0)){
-    el.style.backgroundImage = 'url('+JSON.stringify(data)+')';
-    el.style.backgroundSize = 'cover';
-    el.style.backgroundPosition = 'center';
-    el.innerHTML = '<span class="av-edit">Avatar</span>';
   } else {
     el.innerHTML = escapeHtml(letter) + '<span class="av-edit">Avatar</span>';
   }
@@ -6408,7 +6541,7 @@ document.addEventListener('keydown', function(e){
 
 <div class="overlay" id="ov-avatar" style="display:none"><div class="modal" style="max-width:440px">
   <h2>Escolha seu avatar</h2>
-  <p style="color:var(--muted);font-size:.85rem;margin:0 0 .75rem">Mais de 50 opcoes. Toque para selecionar.</p>
+  <p style="color:var(--muted);font-size:.85rem;margin:0 0 .75rem">72 avatares exclusivos. Toque para selecionar.</p>
   <div class="av-picker-grid" id="avatar-picker-grid"></div>
   <div class="modal-actions" style="margin-top:1rem">
     <button type="button" class="btn-soft" onclick="closeAvatarPicker()">Cancelar</button>
