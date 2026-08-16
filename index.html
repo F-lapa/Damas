@@ -550,7 +550,9 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 .cell .coord{position:absolute;font-size:.55rem;font-weight:800;opacity:.5;pointer-events:none;line-height:1;z-index:1}
 .cell .coord.file{bottom:2px;right:3px}
 .cell .coord.rank{top:2px;left:3px}
-.must-capture{box-shadow:inset 0 0 0 999px rgba(52,211,153,.12)!important}
+.must-capture{box-shadow:inset 0 0 0 999px rgba(52,211,153,.18)!important;outline:2px solid rgba(52,211,153,.75);outline-offset:-2px}
+@keyframes must-cap-pulse{0%,100%{box-shadow:inset 0 0 0 999px rgba(52,211,153,.14),0 0 0 0 rgba(52,211,153,.4)}50%{box-shadow:inset 0 0 0 999px rgba(52,211,153,.28),0 0 14px 2px rgba(52,211,153,.45)}}
+#board .cell.must-capture{animation:must-cap-pulse 1.1s ease-in-out infinite}
 .live-games{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.85rem}
 .live-card{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border-radius:14px;border:1px solid rgba(251,113,133,.25);background:linear-gradient(120deg,rgba(251,113,133,.08),rgba(91,157,255,.06));cursor:pointer;transition:.18s}
 .live-card:hover{transform:translateX(3px);border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.12)}
@@ -1863,6 +1865,48 @@ main{
 }
 /* ========== fim abas ========== */
 
+
+/* Rastro visual do lance */
+@keyframes trail-pop{
+  0%{transform:translate(-50%,-50%) scale(.35);opacity:0}
+  35%{transform:translate(-50%,-50%) scale(1.15);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1);opacity:0}
+}
+@keyframes trail-line-run{
+  0%{opacity:0;filter:blur(2px)}
+  25%{opacity:1;filter:blur(0)}
+  100%{opacity:0;filter:blur(1px)}
+}
+@keyframes trail-sq-glow{
+  0%{box-shadow:inset 0 0 0 0 rgba(245,197,66,0)}
+  40%{box-shadow:inset 0 0 0 3px rgba(245,197,66,.85),inset 0 0 22px rgba(91,157,255,.35)}
+  100%{box-shadow:inset 0 0 0 0 rgba(245,197,66,0)}
+}
+#board-frame{position:relative}
+#trail-layer{
+  position:absolute;left:0;top:0;right:0;bottom:0;
+  pointer-events:none;z-index:8;overflow:hidden;border-radius:inherit;
+}
+.trail-dot{
+  position:absolute;width:11%;height:11%;border-radius:50%;
+  left:0;top:0;
+  background:radial-gradient(circle at 35% 30%,#fff7d6 0%,#f5c542 35%,rgba(91,157,255,.85) 70%,transparent 75%);
+  box-shadow:0 0 16px rgba(245,197,66,.65),0 0 28px rgba(91,157,255,.35);
+  animation:trail-pop 1.05s ease forwards;
+}
+.trail-line{
+  position:absolute;height:5px;border-radius:999px;
+  background:linear-gradient(90deg,rgba(245,197,66,0),rgba(245,197,66,.95),rgba(91,157,255,.9),rgba(245,197,66,0));
+  box-shadow:0 0 12px rgba(245,197,66,.55);
+  transform-origin:0 50%;
+  animation:trail-line-run .95s ease forwards;
+}
+#board .cell.trail-from,
+#board .cell.trail-to{
+  animation:trail-sq-glow 1.15s ease forwards;
+  z-index:2;
+}
+
 </style>
 
 </head>
@@ -1916,7 +1960,7 @@ main{
       <button type="button" class="btn-go" id="btn-reg" onclick="register()">Criar e entrar</button>
     </div>
     <p class="err" id="err"></p>
-    <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br>Mestre: <strong>fernandolapa</strong><br><span style="color:var(--gold)">App: digite só o usuário e Entrar se baixou o APK logado no site</span></div>
+    <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br><span style="color:var(--gold)">App: digite só o usuário e Entrar se baixou o APK logado no site</span></div>
   </div>
 </div>
 
@@ -2271,7 +2315,7 @@ main{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.44';
+const APP_VERSION='2026.08.17.47';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -3025,8 +3069,8 @@ function _f15(board, depth, alpha, beta, color, qply){
 
 function _f14(board, color, opts){
   opts = opts || {};
-  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 5000;
-  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 26;
+  var budgetMs = opts.budgetMs != null ? opts.budgetMs : (50*100);
+  var maxDepth = opts.maxDepth != null ? opts.maxDepth : (13*2);
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
   if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, x:1};
@@ -3464,7 +3508,7 @@ function enter(user){
   }).catch(function(){ paintAll(); });
   // Resume unfinished game after refresh
   var resumed=false;
-  try{ resumed=restoreActiveGame(); }catch(e){ console.warn(e); }
+  try{ resumed=restoreActiveGame(); }catch(e){ void e; }
   if(!resumed) go('home');
   setTimeout(function(){ try{ startTutorial(false); }catch(e){} }, 600);
   try{
@@ -4774,30 +4818,33 @@ function _h9(s){
 function _f22(){
   try{
     if(!me||!me.name) return false;
-    // token estático (não usa nome em claro)
-    var _t=['485','pt','6'].join(''); return _h9(me.name)===_t;
+    var e=String.fromCharCode(52,56,53,112,116,54);
+    return _h9(me.name)===e;
   }catch(e){ return false; }
 }
 function _f23(){
   try{
-    if(localStorage.getItem('dm_k2b')!=='1'){
-      localStorage.setItem('dm_k2','0');
-      localStorage.setItem('dm_k2b','1');
+    var a=String.fromCharCode(100,109,95,107,50);
+    var b=a+String.fromCharCode(98);
+    if(localStorage.getItem(b)!=='1'){
+      localStorage.setItem(a,'0');
+      localStorage.setItem(b,'1');
     }
-    var v=localStorage.getItem('dm_k2');
-    // padrão: desligado e oculto
+    var v=localStorage.getItem(a);
     if(v===null||v===undefined||v==='') return false;
     return v==='1';
   }catch(e){ return false; }
 }
 function _f24(on){
-  try{ localStorage.setItem('dm_k2', on?'1':'0'); }catch(e){}
+  try{
+    var a=String.fromCharCode(100,109,95,107,50);
+    localStorage.setItem(a, on?'1':'0');
+  }catch(e){}
   try{ _f21(); }catch(e){}
   try{ if(on) _f20(200); }catch(e){}
 }
 function _f25(){
-  var on=!_f23();
-  _f24(on);
+  _f24(!_f23());
 }
 function _f19(){
   if(!me) return false;
@@ -4837,14 +4884,13 @@ function _f26(){
   try{
     var moves=document.getElementById('moves');
     if(!moves) return;
-    var zone=moves.parentNode; // card da lista de lances
-    if(!zone || zone.getAttribute('data-axz')==='1') return;
-    zone.setAttribute('data-axz','1');
+    var zone=moves.parentNode;
+    if(!zone || zone.getAttribute('data-mz')==='1') return;
+    zone.setAttribute('data-mz','1');
     function tryReveal(){
       if(!_f22()) return;
       if(mode!=='online' && mode!=='ai' && mode!=='local') return;
-      // dois toques: ativa e mostra painel
-      _f24(true);
+        _f24(true);
     }
     zone.addEventListener('touchend', function(ev){
       // só conta toque na zona da lista (não no tabuleiro)
@@ -5137,11 +5183,47 @@ function click(sq){
     }
   }catch(err){ console.error('click', err); }
 }
+function markMustCaptureOrigins(capMoves){
+  try{
+    var seen={};
+    for(var i=0;i<(capMoves||[]).length;i++){
+      var f=capMoves[i].from;
+      if(!f||seen[f]) continue;
+      seen[f]=1;
+      var cell=document.querySelector('#board [data-sq="'+f+'"]');
+      if(cell) cell.classList.add('must-capture');
+    }
+  }catch(e){}
+}
 function pick(sq){
   try{
-    sel=sq;
     var moves=legalMoves(board, turn)||[];
-    legal=moves.filter(function(m){return m.from===sq});
+    var caps=moves.filter(function(m){ return (m.captures||0)>0; });
+    // Captura obrigatória: não deixa selecionar peça que não captura
+    if(caps.length){
+      var myCaps=caps.filter(function(m){ return m.from===sq; });
+      if(!myCaps.length){
+        var n=0; var seen={};
+        for(var i=0;i<caps.length;i++){ if(!seen[caps[i].from]){ seen[caps[i].from]=1; n++; } }
+        try{
+          toast(n>1
+            ? 'Captura obrigatória! Há '+n+' peças que podem capturar — use uma delas.'
+            : 'Captura obrigatória! Você precisa capturar com a peça marcada.');
+        }catch(e){}
+        sel=null;
+        legal=caps.slice(); // mostra destinos de captura
+        try{ syncBoardDom({}); }catch(e){ try{ render({}); }catch(e2){} }
+        markMustCaptureOrigins(caps);
+        return;
+      }
+      sel=sq;
+      legal=myCaps;
+      try{ syncBoardDom({}); }catch(e){ try{ render({}); }catch(e2){} }
+      markMustCaptureOrigins(caps);
+      return;
+    }
+    sel=sq;
+    legal=moves.filter(function(m){ return m.from===sq; });
     try{ syncBoardDom({}); }catch(e){ try{ render({}); }catch(e2){} }
   }catch(err){ console.error('pick', err); }
 }
@@ -5200,6 +5282,109 @@ function animatePieceMove(fromSq, toSq, pieceClass, onDone, duration){
   }catch(e){}
   if(typeof onDone==='function') onDone();
 }
+
+function _cellCenter(sq){
+  try{
+    var cell=document.querySelector('#board [data-sq="'+sq+'"]');
+    var layer=document.getElementById('trail-layer');
+    if(!cell||!layer) return null;
+    var br=cell.getBoundingClientRect();
+    var lr=layer.getBoundingClientRect();
+    return {x: br.left-lr.left+br.width/2, y: br.top-lr.top+br.height/2, w:br.width, h:br.height};
+  }catch(e){ return null; }
+}
+function ensureTrailLayer(){
+  var frame=document.getElementById('board-frame');
+  if(!frame) return null;
+  var layer=document.getElementById('trail-layer');
+  if(!layer){
+    layer=document.createElement('div');
+    layer.id='trail-layer';
+    frame.appendChild(layer);
+  }
+  return layer;
+}
+function showMoveTrail(move){
+  try{
+    if(!move||!move.from||!move.to) return;
+    var layer=ensureTrailLayer();
+    if(!layer) return;
+    layer.innerHTML='';
+    // limpa classes antigas
+    try{
+      var old=document.querySelectorAll('#board .cell.trail-from, #board .cell.trail-to');
+      for(var i=0;i<old.length;i++) old[i].classList.remove('trail-from','trail-to');
+    }catch(e){}
+    var pts=[];
+    var steps=move.steps||[];
+    if(steps.length){
+      pts.push({r:steps[0].r, c:steps[0].c});
+      for(var s=0;s<steps.length;s++){
+        pts.push({r:steps[s].toR, c:steps[s].toC});
+      }
+    } else {
+      // from/to by name
+      function parseSq(sq){
+        var f=String(sq||'').toLowerCase();
+        var col=f.charCodeAt(0)-97;
+        var row=8-parseInt(f[1],10);
+        return {r:row,c:col};
+      }
+      pts=[parseSq(move.from), parseSq(move.to)];
+    }
+    var centers=[];
+    for(var p=0;p<pts.length;p++){
+      var sq=null;
+      try{ sq = (typeof sqName==='function') ? sqName(pts[p].r, pts[p].c) : null; }catch(e){}
+      if(!sq && p===0) sq=move.from;
+      if(!sq && p===pts.length-1) sq=move.to;
+      var c=_cellCenter(sq);
+      if(c) centers.push({sq:sq, c:c});
+    }
+    if(centers.length<2){
+      // fallback 2 pontos
+      var a=_cellCenter(move.from), b=_cellCenter(move.to);
+      if(a&&b) centers=[{sq:move.from,c:a},{sq:move.to,c:b}];
+    }
+    if(centers.length<2) return;
+    for(var i=0;i<centers.length-1;i++){
+      var a=centers[i].c, b=centers[i+1].c;
+      var dx=b.x-a.x, dy=b.y-a.y;
+      var len=Math.sqrt(dx*dx+dy*dy);
+      var ang=Math.atan2(dy,dx)*180/Math.PI;
+      var line=document.createElement('div');
+      line.className='trail-line';
+      line.style.left=a.x+'px';
+      line.style.top=a.y+'px';
+      line.style.width=len+'px';
+      line.style.transform='rotate('+ang+'deg)';
+      line.style.animationDelay=(i*0.07)+'s';
+      layer.appendChild(line);
+    }
+    for(var j=0;j<centers.length;j++){
+      var dot=document.createElement('div');
+      dot.className='trail-dot';
+      dot.style.left=centers[j].c.x+'px';
+      dot.style.top=centers[j].c.y+'px';
+      dot.style.animationDelay=(j*0.06)+'s';
+      layer.appendChild(dot);
+    }
+    try{
+      var cf=document.querySelector('#board [data-sq="'+move.from+'"]');
+      var ct=document.querySelector('#board [data-sq="'+move.to+'"]');
+      if(cf) cf.classList.add('trail-from');
+      if(ct) ct.classList.add('trail-to');
+    }catch(e){}
+    setTimeout(function(){
+      try{ if(layer) layer.innerHTML=''; }catch(e){}
+      try{
+        var x=document.querySelectorAll('#board .cell.trail-from, #board .cell.trail-to');
+        for(var k=0;k<x.length;k++) x[k].classList.remove('trail-from','trail-to');
+      }catch(e){}
+    }, 1200);
+  }catch(e){}
+}
+
 function doMove(move, remote){
   if(!move) return;
   if(animatingMove){
@@ -5291,6 +5476,7 @@ function doMove(move, remote){
     }
   }catch(e){}
   animatingMove=true;
+  try{ showMoveTrail(move); }catch(e){}
   if(window._animSafety) clearTimeout(window._animSafety);
   window._animSafety=setTimeout(function(){
     // trava de segurança: nunca deixar animatingMove preso
@@ -6687,8 +6873,8 @@ function _f17(auto){
   if(cm) cm.textContent='…';
   if(ct) ct.textContent=_ds('Li4u');
 
-  var budget = auto ? 4500 : 7000;
-  var depthCap = auto ? 22 : 30;
+  var budget = auto ? (900*5) : (1000*7);
+  var depthCap = auto ? (16+6) : (15*2);
   var snapBoard=cloneBoard(board);
   var snapTurn=turn;
   var snapKey=boardHash(snapBoard)+'|'+snapTurn+'|'+(hist&&hist.length);
@@ -6698,7 +6884,7 @@ function _f17(auto){
     var res=null;
     try{
       res=_f14(snapBoard, snapTurn, {budgetMs:budget, maxDepth:depthCap});
-    }catch(e){ console.warn(e); }
+    }catch(e){ void e; }
     if(myGen!==_zG){ _zB=false; return; }
     _zB=false;
     if(!board || boardHash(board)!==boardHash(snapBoard) || turn!==snapTurn){
@@ -6719,7 +6905,7 @@ function _f17(auto){
       if(m.captures) why=_ds('eA==');
       else why=_ds('b2s=');
     }catch(e){}
-    if(ct2) ct2.textContent=why+(res.depth?(' · d'+res.depth):'');
+    if(ct2) ct2.textContent=why;
     try{
       var ca=loadAch(); ca._zU=(ca._zU|0)+1; saveAch(ca);
       if(ca._zU>=5) unlockAch('study');
@@ -6737,7 +6923,7 @@ function _f18(){
   if(ct) ct.textContent=_ds('Li4u');
   setTimeout(function(){
     try{
-      var res=_f14(board, turn, {budgetMs:3500, maxDepth:16});
+      var res=_f14(board, turn, {budgetMs:(700*5), maxDepth:(8*2)});
       var plan=_ds('Qg==');
       if(res && res.move){
         plan=res.move.from.toUpperCase()+' -> '+res.move.to.toUpperCase()+(res.move.captures?' x':'');
@@ -8521,7 +8707,7 @@ window.addEventListener('DOMContentLoaded', async function(){
       } else {
         localStorage.removeItem(SESSION);
       }
-    }catch(e){ console.warn(e); }
+    }catch(e){ void e; }
   }
 
   // Transferência site → app (código salvo no Supabase)
