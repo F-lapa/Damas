@@ -1913,30 +1913,33 @@ main{
   animation:trail-in .35s ease both;
 }
 #board .cell.trail-from{
-  box-shadow:inset 0 0 0 2px rgba(148,163,184,.55)!important;
+  box-shadow:inset 0 0 0 2px rgba(148,163,184,.4)!important;
+  background-image:linear-gradient(0deg,rgba(148,163,184,.12),rgba(148,163,184,.12))!important;
 }
 #board .cell.trail-to{
-  box-shadow:inset 0 0 0 3px rgba(245,197,66,.9),inset 0 0 18px rgba(91,157,255,.25)!important;
+  box-shadow:inset 0 0 0 2px rgba(245,197,66,.7)!important;
+  background-image:linear-gradient(0deg,rgba(245,197,66,.16),rgba(245,197,66,.16))!important;
 }
+#trail-layer{display:none!important;pointer-events:none!important}
+.trail-dot,.trail-line,.trail-arrow{display:none!important}
+
 
 /* Tabuleiro em tela cheia (partida) */
 #game.game-on{
-  position:fixed!important;
-  inset:0!important;
-  z-index:80!important;
-  width:100vw!important;
-  height:100dvh!important;
-  max-width:100vw!important;
-  margin:0!important;
-  padding:.35rem .4rem .5rem!important;
+  position:relative!important;
+  inset:auto!important;
+  z-index:1!important;
+  width:100%!important;
+  height:auto!important;
+  max-width:100%!important;
+  margin:0 auto!important;
+  padding:.35rem .4rem .8rem!important;
   box-sizing:border-box!important;
-  overflow:hidden!important;
+  overflow:visible!important;
   display:flex!important;
-  align-items:center!important;
+  align-items:flex-start!important;
   justify-content:center!important;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(91,157,255,.1), transparent 50%),
-    radial-gradient(ellipse at 50% 100%, rgba(20,16,12,.9), #0a0c12 70%)!important;
+  background:transparent!important;
 }
 #game.game-on .game-shell{
   width:100%!important;
@@ -1962,8 +1965,15 @@ main{
   padding:0!important;
 }
 #game.game-on .game-side{
-  display:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  width:min(96.5vw, calc(100dvh - 148px))!important;
+  max-width:min(96.5vw, calc(100dvh - 148px))!important;
+  margin:0 auto!important;
+  max-height:28vh!important;
+  overflow:auto!important;
 }
+
 #game.game-on .board-hero{
   width:min(96.5vw, calc(100dvh - 148px))!important;
   max-width:min(96.5vw, calc(100dvh - 148px))!important;
@@ -2065,41 +2075,44 @@ main{
   }
 }
 
-/* Abas no topo, organizadas, sem atrapalhar */
+/* Abas: topo simples, centralizado, sem corte */
 header{
-  position:sticky!important;
-  top:0!important;
-  z-index:40!important;
-  background:linear-gradient(180deg,rgba(10,12,20,.96),rgba(10,12,20,.88))!important;
-  backdrop-filter:blur(12px)!important;
+  position:relative!important;
+  z-index:20!important;
 }
 #nav, nav#nav{
-  position:sticky!important;
-  top:52px!important;
-  z-index:39!important;
+  position:relative!important;
+  top:auto!important;
+  z-index:15!important;
   display:flex!important;
-  flex-wrap:wrap!important;
-  justify-content:center!important;
-  gap:.35rem!important;
-  padding:.45rem .75rem .55rem!important;
+  flex-wrap:nowrap!important;
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:.25rem!important;
+  padding:.5rem 1rem 0!important;
   margin:0 auto!important;
   max-width:1180px!important;
   width:100%!important;
-  background:rgba(10,12,20,.92)!important;
-  border-bottom:1px solid rgba(255,255,255,.08)!important;
-  backdrop-filter:blur(10px)!important;
+  overflow-x:auto!important;
+  -webkit-overflow-scrolling:touch;
+  background:transparent!important;
+  border-bottom:1px solid rgba(255,255,255,.06)!important;
+  box-sizing:border-box!important;
 }
 #nav button{
-  border-radius:999px!important;
-  border:1px solid rgba(255,255,255,.1)!important;
-  padding:.45rem .95rem!important;
-  font-size:.82rem!important;
-  background:rgba(255,255,255,.04)!important;
+  border-radius:12px 12px 0 0!important;
+  border:none!important;
+  border-bottom:2px solid transparent!important;
+  padding:.55rem 1rem!important;
+  font-size:.84rem!important;
+  background:transparent!important;
+  flex:0 0 auto!important;
+  white-space:nowrap!important;
 }
 #nav button.on{
-  background:linear-gradient(135deg,rgba(91,157,255,.28),rgba(167,139,250,.18))!important;
-  border-color:rgba(91,157,255,.45)!important;
-  color:#fff!important;
+  background:linear-gradient(180deg,rgba(91,157,255,.14),transparent)!important;
+  border-bottom-color:var(--blue)!important;
+  color:var(--text)!important;
 }
 #nav button.on::after{display:none!important}
 
@@ -2511,7 +2524,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.49';
+const APP_VERSION='2026.08.17.50';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5503,67 +5516,16 @@ function ensureTrailLayer(){
 function showMoveTrail(move){
   try{
     if(!move||!move.from||!move.to) return;
-    var layer=ensureTrailLayer();
-    if(!layer) return;
-    // limpa rastro anterior (só some quando houver novo lance)
-    layer.innerHTML='';
+    // remove overlay antigo (não cobre peças)
+    try{
+      var layer=document.getElementById('trail-layer');
+      if(layer) layer.innerHTML='';
+    }catch(e){}
     try{
       var old=document.querySelectorAll('#board .cell.trail-from, #board .cell.trail-to');
       for(var i=0;i<old.length;i++) old[i].classList.remove('trail-from','trail-to');
     }catch(e){}
-    var pts=[];
-    var steps=move.steps||[];
-    if(steps.length){
-      pts.push({r:steps[0].r, c:steps[0].c});
-      for(var s=0;s<steps.length;s++) pts.push({r:steps[s].toR, c:steps[s].toC});
-    } else {
-      function _ps(sq){
-        var f=String(sq||'').toLowerCase();
-        return {r:8-parseInt(f[1],10), c:f.charCodeAt(0)-97};
-      }
-      pts=[_ps(move.from), _ps(move.to)];
-    }
-    var centers=[];
-    for(var p=0;p<pts.length;p++){
-      var sq=null;
-      try{ sq=(typeof sqName==='function')?sqName(pts[p].r,pts[p].c):null; }catch(e){}
-      if(!sq && p===0) sq=move.from;
-      if(!sq && p===pts.length-1) sq=move.to;
-      var c=_cellCenter(sq);
-      if(c) centers.push({sq:sq, c:c});
-    }
-    if(centers.length<2){
-      var a=_cellCenter(move.from), b=_cellCenter(move.to);
-      if(a&&b) centers=[{sq:move.from,c:a},{sq:move.to,c:b}];
-    }
-    if(centers.length<2) return;
-    for(var i=0;i<centers.length-1;i++){
-      var a=centers[i].c, b=centers[i+1].c;
-      var dx=b.x-a.x, dy=b.y-a.y;
-      var len=Math.sqrt(dx*dx+dy*dy);
-      var ang=Math.atan2(dy,dx)*180/Math.PI;
-      var line=document.createElement('div');
-      line.className='trail-line';
-      line.style.left=a.x+'px';
-      line.style.top=(a.y-3)+'px';
-      line.style.width=Math.max(0,len)+'px';
-      line.style.transform='rotate('+ang+'deg)';
-      layer.appendChild(line);
-      // seta no meio do segmento
-      var mid=document.createElement('div');
-      mid.className='trail-arrow';
-      mid.style.left=((a.x+b.x)/2)+'px';
-      mid.style.top=((a.y+b.y)/2)+'px';
-      mid.style.transform='translate(-50%,-50%) rotate('+(ang+90)+'deg)';
-      layer.appendChild(mid);
-    }
-    for(var j=0;j<centers.length;j++){
-      var dot=document.createElement('div');
-      dot.className='trail-dot'+(j===centers.length-1?' end':'');
-      dot.style.left=centers[j].c.x+'px';
-      dot.style.top=centers[j].c.y+'px';
-      layer.appendChild(dot);
-    }
+    // marca só origem/destino — fica até o próximo lance
     try{
       var cf=document.querySelector('#board [data-sq="'+move.from+'"]');
       var ct=document.querySelector('#board [data-sq="'+move.to+'"]');
