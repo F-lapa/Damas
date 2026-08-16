@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.9';
+const APP_VERSION='2026.08.17.10';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2744,6 +2744,7 @@ async function pollIncomingChallenge(){
     var tok=String(res.data.transfer_token||'');
     if(!tok) return;
     if(res.data.transfer_pass) return; // login APK em andamento — não mexer
+    if(tok.indexOf('ONLINE|')===0) return; // presença online, não é desafio
 
     var exp=res.data.transfer_until ? Date.parse(res.data.transfer_until) : 0;
     if(exp && Date.now()>exp){
@@ -2793,16 +2794,64 @@ async function pollIncomingChallenge(){
   }catch(e){ console.warn('pollIncomingChallenge', e); }
 }
 
-/** Heartbeat leve — presença continua via Realtime; desafios via players */
+/**
+ * Presença ONLINE via tabela players (Realtime sozinho não basta no APK).
+ * transfer_token = "ONLINE|available" ou "ONLINE|in_game|gameId|opp"
+ * Não sobrescreve CHAL| / CHALOK| / CHALNO| / login com transfer_pass.
+ */
 async function dbOnlineBeat(){
-  // Mantido por compatibilidade; lobby_online não existe neste projeto
   if(!sb||!me) return;
+  try{
+    var cur=await sb.from('players').select('transfer_token,transfer_pass,transfer_until').eq('username', me.name).maybeSingle();
+    if(cur && cur.data && cur.data.transfer_pass){
+      await pollIncomingChallenge();
+      return;
+    }
+    var tok=String(cur&&cur.data&&cur.data.transfer_token||'');
+    if(tok.indexOf('CHAL|')===0 || tok.indexOf('CHALOK|')===0 || tok.indexOf('CHALNO|')===0){
+      await pollIncomingChallenge();
+      return;
+    }
+    var st=presenceStatus||'available';
+    var token='ONLINE|'+st;
+    if(st==='in_game'){
+      token+='|'+(gameId||'')+'|'+(oppName||'');
+    }
+    await sb.from('players').update({
+      transfer_token: token,
+      transfer_until: new Date(Date.now()+20000).toISOString()
+    }).eq('username', me.name);
+  }catch(e){ console.warn('dbOnlineBeat', e); }
   try{ await pollIncomingChallenge(); }catch(e){}
 }
 
+/** Lista quem está online pelo banco */
 async function dbFetchOnline(){
-  // Online list vem do Realtime; aqui só reforça poll de desafio
   if(!sb||!me) return;
+  try{
+    var since=new Date(Date.now()-25000).toISOString();
+    var r=await sb.from('players').select('username,transfer_token,transfer_until,avatar').gte('transfer_until', since);
+    if(r.error) throw r.error;
+    (r.data||[]).forEach(function(row){
+      if(!row||!row.username) return;
+      if(sameUser(row.username, me.name)) return;
+      var tok=String(row.transfer_token||'');
+      if(tok.indexOf('ONLINE|')===0){
+        var parts=tok.split('|');
+        var st=parts[1]||'available';
+        if(st==='challenging') st='available';
+        upsertOnline(row.username, {
+          status: (st==='in_game')?'in_game':'available',
+          gameId: (st==='in_game'?(parts[2]||''):''),
+          opp: parts[3]||'',
+          avatar: row.avatar||''
+        });
+      } else if(tok.indexOf('CHAL|')===0 || tok.indexOf('CHALOK|')===0 || tok.indexOf('CHALNO|')===0){
+        upsertOnline(row.username, { status:'available', avatar: row.avatar||'' });
+      }
+    });
+    rebuildOnlineFromMap();
+  }catch(e){ console.warn('dbFetchOnline', e); }
   try{ await pollIncomingChallenge(); }catch(e){}
 }
 
@@ -2810,33 +2859,27 @@ function startOnlineHeartbeat(){
   if(_helloTimer) clearInterval(_helloTimer);
   if(_presenceTimer) clearInterval(_presenceTimer);
   if(_dbOnlineTimer) clearInterval(_dbOnlineTimer);
-  // Hello bem frequente → lista online quase em tempo real
   _helloTimer=setInterval(function(){
     sendLobbyHello();
     rebuildOnlineFromMap();
   }, 2000);
-  // Presence track frequente
   _presenceTimer=setInterval(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
   }, 4000);
-  // Poll de desafio no banco (fallback) — 1s
   _dbOnlineTimer=setInterval(function(){
-    pollIncomingChallenge();
-  }, 1000);
-  setTimeout(pollIncomingChallenge, 200);
-  setTimeout(pollIncomingChallenge, 600);
-  setTimeout(pollIncomingChallenge, 1200);
-  // Rajada inicial para aparecer rápido na lista dos outros
+    dbOnlineBeat();
+    dbFetchOnline();
+  }, 2000);
+  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 150);
+  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 700);
+  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 1500);
+  setTimeout(pollIncomingChallenge, 300);
   setTimeout(sendLobbyHello, 100);
   setTimeout(sendLobbyHello, 400);
   setTimeout(sendLobbyHello, 900);
-  setTimeout(sendLobbyHello, 1800);
   setTimeout(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
   }, 200);
-  setTimeout(function(){
-    try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
-  }, 800);
 }
 
 function joinLobby(){
@@ -4335,6 +4378,8 @@ function softStatus(){
   var bw=document.getElementById('bar-w'), bb=document.getElementById('bar-b');
   if(bw) bw.classList.toggle('active', turn==='w');
   if(bb) bb.classList.toggle('active', turn==='b');
+  // Coach automático na sua vez
+  if(isMine){ try{ scheduleAutoCoach(400); }catch(e){} }
 }
 
 function status(){
@@ -5473,14 +5518,12 @@ function coachBest(auto){
       var ca=loadAch(); ca._coachUses=(ca._coachUses|0)+1; saveAch(ca);
       if(ca._coachUses>=5) unlockAch('coach');
     }catch(e){}
-    if(!auto){
-      sel=m.from;
-      legal=[m];
-      last={from:m.from, to:m.to};
-      try{ patchSquares([m.from, m.to], {clearHints:true}); }catch(e){}
-    } else {
-      last={from:m.from, to:m.to};
-    }
+    // Sempre destaca a dica no tabuleiro (automático ou botão)
+    sel=m.from;
+    legal=[m];
+    last={from:m.from, to:m.to};
+    try{ patchSquares([m.from, m.to], {clearHints:true}); }catch(e){}
+    try{ syncBoardDom({}); }catch(e){}
   }, auto ? 10 : 20);
 }
 function coachPlan(){
