@@ -1648,7 +1648,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.30';
+const APP_VERSION='2026.08.17.32';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -1656,7 +1656,7 @@ const AVATAR_KEY='dm_avatar_', PEER_AV_KEY='dm_peer_av_', MUTE_KEY='dm_muted_v1'
 const FRIENDS_KEY='dm_friends_v1', FRIEND_REQ_KEY='dm_friend_req_v1', TUTORIAL_KEY='dm_tut_v1';
 const DAILY_KEY='dm_daily_v1', ACH_KEY='dm_ach_v1', WEEK_KEY='dm_week_v1', LOBBY_CHAT_KEY='dm_lobby_chat_v1';
 let timeIncrement=0, lobbyChatMsgs=[], _tutStep=0;
-const PTS={win:25,draw:0,loss:-8};
+const PTS={win:15,draw:0,loss:-15};
 const AI_POINTS={easy:{win:5,loss:15},medium:{win:10,loss:10},hard:{win:15,loss:5}};
 
 /* ===== PASSWORD ===== */
@@ -5074,8 +5074,8 @@ async function applyRank(result){
     var games=(row.games||0)+1, wins=row.wins||0, losses=row.losses||0, draws=row.draws||0;
     var streak=row.streak||0, best=row.best_streak||0;
     var delta=0;
-    if(result==='win'){delta=25;wins++;streak++;if(streak>best)best=streak}
-    else if(result==='loss'){delta=-8;losses++;streak=0}
+    if(result==='win'){delta=(PTS&&PTS.win!=null)?PTS.win:15;wins++;streak++;if(streak>best)best=streak}
+    else if(result==='loss'){delta=(PTS&&PTS.loss!=null)?PTS.loss:-15;losses++;streak=0}
     else {draws++;streak=0}
     var fromPts=row.points|0;
     var newPts=Math.max(0, fromPts+delta);
@@ -5094,7 +5094,7 @@ async function applyRank(result){
       fromPts:fromPts,
       toPts:newPts,
       title:result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate'),
-      sub:result==='win'?'+25 pontos':(result==='loss'?'−8 pontos':'Empate: 0 pts'),
+      sub:result==='win'?('+'+((PTS&&PTS.win!=null)?PTS.win:15)+' pontos'):(result==='loss'?((PTS&&PTS.loss!=null)?PTS.loss:-15)+' pontos':'Empate: 0 pts'),
       applied:true
     };
     try{ document.getElementById('h-pts').textContent=fromPts+' pts'; }catch(e){}
@@ -5162,7 +5162,7 @@ function confirmResultPoints(){
   var pr=pendingResult;
   pendingResult=null;
   if(!pr) return;
-  if(pr.result==='win'&&me) try{ addWeekPoints(me.name, Math.abs(pr.delta||25)); }catch(e){}
+  if(pr.result==='win'&&me) try{ addWeekPoints(me.name, Math.abs(pr.delta||((PTS&&PTS.win!=null)?PTS.win:15))); }catch(e){}
   try{ checkAchFromStats(); }catch(e){}
   // Animate points on home
   var from=pr.fromPts|0, to=pr.toPts|0;
