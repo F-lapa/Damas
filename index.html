@@ -757,41 +757,64 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 
 
 /* Modern profile modal */
-.profile-modal-modern{max-width:420px;padding:0!important;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.profile-modal-modern{max-width:min(96vw,440px)!important;padding:0!important;overflow:hidden;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 28px 80px rgba(0,0,0,.55)!important}
 .profile-modal-modern .prof-top{
-  padding:1.35rem 1.25rem 1.1rem;
-  background:radial-gradient(ellipse at 20% 0%,rgba(91,157,255,.28),transparent 55%),
-             linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
-  border-bottom:1px solid var(--line);
-  text-align:center;
+  padding:1.5rem 1.2rem 1.15rem;
+  background:
+    radial-gradient(ellipse at 50% -10%,rgba(245,197,66,.22),transparent 50%),
+    radial-gradient(ellipse at 0% 100%,rgba(91,157,255,.22),transparent 45%),
+    radial-gradient(ellipse at 100% 80%,rgba(167,139,250,.18),transparent 40%),
+    linear-gradient(165deg,rgba(28,32,48,.98),rgba(12,14,22,.98));
+  border-bottom:1px solid rgba(255,255,255,.08);
+  text-align:center;position:relative;
 }
 .profile-modal-modern .prof-av-lg{
-  width:48px;height:48px;border-radius:14px;margin:0 auto .55rem;
+  width:88px;height:88px;border-radius:50%;margin:0 auto .7rem;
   display:flex;align-items:center;justify-content:center;
-  font-size:1.1rem;font-weight:900;color:#fff;
+  font-size:2rem;font-weight:900;color:#fff;
   background:linear-gradient(135deg,var(--blue),var(--violet));
-  border:2px solid rgba(255,255,255,.18);
-  box-shadow:0 6px 16px rgba(0,0,0,.28);overflow:hidden;
+  border:3px solid rgba(255,255,255,.22);
+  box-shadow:0 12px 32px rgba(91,157,255,.35),0 0 0 6px rgba(245,197,66,.12);overflow:hidden;
 }
-.profile-modal-modern .prof-av-lg img{width:100%;height:100%;object-fit:cover}
-.profile-modal-modern .prof-name{font-size:1.35rem;font-weight:900;margin:0}
-.profile-modal-modern .prof-pts{color:var(--gold);font-weight:900;font-size:1.05rem;margin-top:.25rem}
-.profile-modal-modern .prof-badges{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;margin-top:.55rem}
+.profile-modal-modern .prof-av-lg img{width:100%;height:100%;object-fit:cover;display:block}
+.profile-modal-modern .prof-name{font-size:1.4rem;font-weight:900;margin:0;letter-spacing:.01em}
+.profile-modal-modern .prof-pts{color:var(--gold);font-weight:900;font-size:1.12rem;margin-top:.3rem;text-shadow:0 0 20px rgba(245,197,66,.25)}
+.profile-modal-modern .prof-rank-line{font-size:.78rem;color:var(--muted);margin-top:.2rem;font-weight:700}
+.profile-modal-modern .prof-badges{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;margin-top:.65rem}
 .profile-modal-modern .prof-badges span{
-  font-size:.7rem;font-weight:800;padding:.2rem .5rem;border-radius:999px;
-  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--muted);
+  font-size:.68rem;font-weight:800;padding:.28rem .55rem;border-radius:999px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--muted);
 }
-.profile-modal-modern .prof-body{padding:1rem 1.15rem 1.2rem}
+.profile-modal-modern .prof-body{padding:1rem 1.1rem 1.15rem}
+.profile-modal-modern .prof-wr{
+  margin:0 0 .85rem;padding:.65rem .75rem;border-radius:14px;
+  background:rgba(0,0,0,.28);border:1px solid var(--line);
+}
+.profile-modal-modern .prof-wr-top{display:flex;justify-content:space-between;font-size:.78rem;font-weight:800;margin-bottom:.35rem}
+.profile-modal-modern .prof-wr-bar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.profile-modal-modern .prof-wr-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#34d399,#f5c542);transition:width .4s ease}
 .profile-modal-modern .prof-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);gap:.55rem;margin-bottom:.9rem;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:.85rem;
 }
 .profile-modal-modern .prof-stat-card{
-  padding:.7rem .75rem;border-radius:14px;border:1px solid var(--line);
-  background:rgba(0,0,0,.22);text-align:center;
+  padding:.75rem .7rem;border-radius:16px;border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(0,0,0,.25));text-align:center;
 }
-.profile-modal-modern .prof-stat-card b{display:block;font-size:1.2rem;font-weight:900}
-.profile-modal-modern .prof-stat-card span{font-size:.72rem;color:var(--muted);font-weight:700}
+.profile-modal-modern .prof-stat-card b{display:block;font-size:1.25rem;font-weight:900;line-height:1.15}
+.profile-modal-modern .prof-stat-card span{font-size:.7rem;color:var(--muted);font-weight:700}
 .profile-modal-modern .prof-actions{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center}
+.profile-modal-modern .prof-note{font-size:.75rem;color:var(--muted);text-align:center;margin:.35rem 0 .15rem;line-height:1.4}
+.conn-badge{font-size:.72rem;font-weight:800;text-align:center;margin:.25rem 0 .15rem;color:var(--muted);letter-spacing:.02em}
+.conn-badge.ok{color:#6ee7b7}
+.conn-badge.warn{color:#fbbf24}
+.conn-badge.bad{color:#fb7185}
+.home-week-mini{margin-top:.75rem;padding:.75rem .85rem;border-radius:16px;border:1px solid rgba(245,197,66,.25);background:linear-gradient(145deg,rgba(245,197,66,.1),rgba(0,0,0,.2))}
+.home-week-mini h3{margin:0 0 .45rem;font-size:.88rem;color:var(--gold)}
+#btn-rematch.rematch-hot{background:linear-gradient(135deg,#f5c542,#f59e0b)!important;color:#1a1200!important;border:none!important;font-weight:900!important}
+.prof-h2h{margin:0 0 .85rem;padding:.7rem .75rem;border-radius:14px;border:1px solid rgba(91,157,255,.25);background:rgba(91,157,255,.08)}
+.prof-h2h b{color:var(--gold)}
+.prof-ai-box{margin-top:.35rem;padding:.65rem .75rem;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.2)}
+
 
 /* FEATURE PACK */
 .tut-overlay{position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:1rem}
@@ -1422,6 +1445,7 @@ main{overflow-anchor:none!important}
             </div>
           </div>
           <div class="turn-under w" id="turn-under">▶ Vez das Brancas</div>
+          <div class="conn-badge" id="conn-badge" style="display:none">● Conectando…</div>
           <div class="review-panel" id="review-panel">
             <div class="rp-title" id="review-title">Revisão da partida</div>
             <div class="rp-btns">
@@ -1528,7 +1552,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.20';
+const APP_VERSION='2026.08.17.22';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2400,6 +2424,9 @@ let timeControl=0, clockW=0, clockB=0, clockTimer=null, clockRunning=false, last
 let boardFlipped=false, lastEndResult=null, lastEndMode=null;
 let pendingResult=null; // {result, delta, fromPts, toPts, title, sub}
 let gameFinished=false; // true após fim — não restaurar/salvar
+let posRepMap={};
+let _lastNetOk=0;
+let _myTurnBuzzed=false;
 let prefs={ui:'dark', board:'classic', pieces:'classic', sound:true, coords:true};
 let rankKing='';
 
@@ -2720,6 +2747,12 @@ function enter(user){
   try{ resumed=restoreActiveGame(); }catch(e){ console.warn(e); }
   if(!resumed) go('home');
   setTimeout(function(){ try{ startTutorial(false); }catch(e){} }, 600);
+  try{
+    if(typeof Notification!=='undefined' && Notification.permission==='default' && !localStorage.getItem('dm_notif_asked')){
+      localStorage.setItem('dm_notif_asked','1');
+      setTimeout(function(){ try{ Notification.requestPermission(); }catch(e){} }, 2500);
+    }
+  }catch(e){}
   setTimeout(function(){ try{ handleInviteParam(); if(window.__pendingInvite){ var u=window.__pendingInvite; window.__pendingInvite=null; viewPlayerProfile(u); } }catch(e){} }, 1200);
 }
 
@@ -2753,13 +2786,27 @@ function upsertOnline(user, meta){
     try{ cachePeerAvatar(user, _onlineMap[user].avatar); }catch(e){}
   }
 }
+function updateConnBadge(ok){
+  var el=document.getElementById('conn-badge');
+  if(!el) return;
+  if(mode!=='online' && mode!=='ai'){ el.style.display='none'; return; }
+  el.style.display='block';
+  if(ok){
+    _lastNetOk=Date.now();
+    el.className='conn-badge ok';
+    el.textContent='● Conexão ok';
+  } else {
+    var age=Date.now()-(_lastNetOk||0);
+    if(!_lastNetOk || age>15000){ el.className='conn-badge bad'; el.textContent='● Sem sinal'; }
+    else if(age>6000){ el.className='conn-badge warn'; el.textContent='● Conexão instável'; }
+  }
+}
 function rebuildOnlineFromMap(){
   var now=Date.now();
   onlinePlayers=[];
   Object.keys(_onlineMap).forEach(function(k){
     var p=_onlineMap[k];
     if(!p) return;
-    // Some mais rápido: some após 35s sem sinal (hello a cada ~3s mantém vivo)
     if(now - (p.at||0) > 35000){ delete _onlineMap[k]; return; }
     onlinePlayers.push(p);
   });
@@ -2767,6 +2814,39 @@ function rebuildOnlineFromMap(){
   try{ renderOnline(); }catch(e){}
   try{ renderLiveGames(); }catch(e){}
   try{ renderFriends(); }catch(e){}
+  // Prefetch avatares em background (rápido na lista/perfil)
+  try{ prefetchOnlineAvatars(); }catch(e){}
+}
+var _prefetchAvTimer=null;
+function prefetchOnlineAvatars(){
+  if(!sb||!me) return;
+  if(_prefetchAvTimer) return;
+  _prefetchAvTimer=setTimeout(async function(){
+    _prefetchAvTimer=null;
+    try{
+      var need=[];
+      (onlinePlayers||[]).forEach(function(p){
+        if(!p||!p.user||sameUser(p.user, me.name)) return;
+        if(getAvatarData(p.user)) return;
+        need.push(p.user);
+      });
+      if(!need.length) return;
+      var res=await sb.from('players').select('username,avatar').in('username', need.slice(0,40));
+      if(res.data){
+        res.data.forEach(function(row){
+          if(row&&row.avatar){
+            ingestPlayerAvatar(row);
+            (onlinePlayers||[]).forEach(function(op){
+              if(sameUser(op.user, row.username)) op.avatar=row.avatar;
+            });
+          }
+        });
+        try{ renderOnline(); }catch(e){}
+        try{ renderFriends(); }catch(e){}
+        try{ refreshGameAvatars(); }catch(e){}
+      }
+    }catch(e){}
+  }, 120);
 }
 function sendLobbyHello(){
   if(!lobbyCh||!me) return;
@@ -2786,7 +2866,8 @@ function sendLobbyHello(){
       payload.status='challenging';
     }
     lobbyCh.send({ type:'broadcast', event:'lobby_hello', payload:payload });
-  }catch(e){}
+    try{ updateConnBadge(true); }catch(e){}
+  }catch(e){ try{ updateConnBadge(false); }catch(e2){} }
 }
 
 /** Resolve username real no banco (norm / exact) */
@@ -3464,7 +3545,7 @@ function tryShowIncomingChallenge(d){
   if(d.avatar) try{ cachePeerAvatar(d.from, d.avatar); }catch(e){}
   var tx=document.getElementById('challenge-text');
   if(tx) tx.textContent=d.from+' desafiou você para uma partida de damas!';
-  try{ sfxChallenge(); toast('⚔️ '+d.from+' desafiou você!'); }catch(e){}
+  try{ sfxChallenge(); notifyChallengeIncoming(d.from); toast('⚔️ '+d.from+' desafiou você!'); }catch(e){}
   if(ov){
     ov.style.display='flex';
     ov.style.zIndex='99998';
@@ -3608,7 +3689,7 @@ function startOnlineGame(gid, opponent, color){
   outgoingChallenge=null;
   pendingChallenge=null;
   mode='online'; gameId=gid; oppName=opponent; myColor=color;
-  board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[];
+  board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[]; posRepMap={}; _myTurnBuzzed=false;
   boardFlipped=(myColor==='b');
   lastEndMode='online'; lastEndResult=null;
   openGameUI();
@@ -3623,6 +3704,16 @@ function startOnlineGame(gid, opponent, color){
   saveActiveGame();
   startLiveAnnounce();
   renderLiveGames();
+  try{ updateConnBadge(true); }catch(e){}
+  // Tutorial curto só na 1ª partida online
+  try{
+    if(localStorage.getItem('dm_online_tip_v1')!=='1'){
+      localStorage.setItem('dm_online_tip_v1','1');
+      setTimeout(function(){
+        toast('Online: capture é obrigatória · Desistir perde pontos · Revanche no fim');
+      }, 600);
+    }
+  }catch(e){}
 }
 function serializeBoard(b){
   var out=[];
@@ -3908,7 +3999,7 @@ function applyRemoteMove(d){
 function startLocal(m){
   animatingMove=false; window._moveQueue=[]; gameFinished=false; clearActiveGame();
   mode=m; board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[];
-  capW=[]; capB=[]; chatMsgs=[]; myColor='w'; oppName=''; gameId=''; boardFlipped=false;
+  capW=[]; capB=[]; chatMsgs=[]; myColor='w'; oppName=''; gameId=''; boardFlipped=false; posRepMap={}; _myTurnBuzzed=false;
   lastEndMode=m; lastEndResult=null;
   openGameUI();
   document.getElementById('btn-undo').style.display='inline-block';
@@ -4358,6 +4449,22 @@ function doMove(move, remote){
   hist.push({from:move.from, to:move.to, captures:caps, san:move.from+'-'+move.to+(caps?'x'+caps:'')});
   sel=null; legal=[];
   turn = turn==='w'?'b':'w';
+  // Empate por repetição de posição (3x mesma posição + vez)
+  try{
+    var pk=String(boardHash(board))+'|'+turn;
+    posRepMap[pk]=(posRepMap[pk]|0)+1;
+    if(posRepMap[pk]>=3 && !gameFinished){
+      setTimeout(function(){
+        if(gameFinished) return;
+        if(mode==='online') finishOnline('draw','Empate por repetição de posição (3x)');
+        else {
+          lastEndResult='draw'; lastEndMode=mode;
+          pendingResult={result:'draw',delta:0,fromPts:(me&&me.points)||0,toPts:(me&&me.points)||0,title:'Empate',sub:'Repetição de posição.',applied:false};
+          showEnd('Empate','A mesma posição se repetiu 3 vezes.');
+        }
+      }, 500);
+    }
+  }catch(e){}
 
   // Rede online leve (não re-renderiza ainda)
   if(mode==='online' && gameCh && !remote){
@@ -4609,7 +4716,15 @@ function softStatus(){
   if(bw) bw.classList.toggle('active', turn==='w');
   if(bb) bb.classList.toggle('active', turn==='b');
   // Coach automático na sua vez
-  if(isMine){ try{ scheduleAutoCoach(400); }catch(e){} }
+  if(isMine){
+    if(!_myTurnBuzzed){
+      _myTurnBuzzed=true;
+      try{ sfxMyTurn(); }catch(e){}
+    }
+    try{ scheduleAutoCoach(400); }catch(e){}
+  } else {
+    _myTurnBuzzed=false;
+  }
 }
 
 function status(){
@@ -4984,7 +5099,12 @@ function showEnd(t,m){
   document.getElementById('end-t').textContent=t;
   document.getElementById('end-m').innerHTML='<div>'+escapeHtml(m||'')+'</div>';
   var br=document.getElementById('btn-rematch');
-  if(br) br.style.display=(lastEndMode==='ai'||lastEndMode==='local'||(lastEndMode==='online'&&oppName))?'':'none';
+  if(br){
+    var showRm=(lastEndMode==='ai'||lastEndMode==='local'||(lastEndMode==='online'&&oppName));
+    br.style.display=showRm?'':'none';
+    br.classList.toggle('rematch-hot', lastEndMode==='online' && !!oppName);
+    br.textContent = lastEndMode==='online' ? '🔁 Revanche (1 toque)' : '🔁 Revanche';
+  }
   if(lastEndMode==='spectate' && br) br.style.display='none';
   clearActiveGame();
   // Save full game record (all moves) for later analysis
@@ -5719,7 +5839,33 @@ function startGuestAi(){
 }
 
 function sfxChallenge(){
-  try{ playTone(880,0.08,'sine',0.09); setTimeout(function(){playTone(1175,0.12,'sine',0.08)},90); }catch(e){}
+  try{
+    playTone(880,0.1,'sine',0.12);
+    setTimeout(function(){playTone(1175,0.12,'sine',0.11)},100);
+    setTimeout(function(){playTone(1390,0.14,'triangle',0.1)},220);
+  }catch(e){}
+  try{ if(typeof navigator.vibrate==='function') navigator.vibrate([80,40,80,40,120]); }catch(e){}
+}
+function sfxMyTurn(){
+  try{ playTone(660,0.07,'sine',0.08); setTimeout(function(){playTone(880,0.09,'sine',0.09)},90); }catch(e){}
+  try{ if(typeof navigator.vibrate==='function') navigator.vibrate([50,30,50]); }catch(e){}
+}
+function notifyChallengeIncoming(from){
+  try{
+    if(typeof Notification==='undefined') return;
+    if(Notification.permission==='granted'){
+      var n=new Notification('Damas Mestre — Desafio', {
+        body: (from||'Alguém')+' desafiou você!',
+        tag: 'damas-challenge',
+        silent: false
+      });
+      setTimeout(function(){ try{ n.close(); }catch(e){} }, 8000);
+    } else if(Notification.permission!=='denied'){
+      Notification.requestPermission().then(function(p){
+        if(p==='granted') notifyChallengeIncoming(from);
+      }).catch(function(){});
+    }
+  }catch(e){}
 }
 
 
@@ -6020,6 +6166,32 @@ function paintHome(){
     '<div class="stat blue"><b>'+s.games+'</b><span>Online</span></div>'+
     '<div class="stat green"><b>'+s.wins+'</b><span>Vitórias</span></div>'+
     '<div class="stat red"><b>'+s.losses+'</b><span>Derrotas</span></div>';
+  // Ranking semanal visível na home
+  try{
+    var host=el.parentNode;
+    if(host){
+      var mini=document.getElementById('home-week-mini');
+      if(!mini){
+        mini=document.createElement('div');
+        mini.id='home-week-mini';
+        mini.className='home-week-mini';
+        host.appendChild(mini);
+      }
+      var o=loadWeekScores();
+      var arr=Object.keys(o.scores||{}).map(function(u){return {u:u,pts:o.scores[u]|0};});
+      arr.sort(function(a,b){return b.pts-a.pts});
+      arr=arr.slice(0,5);
+      if(!arr.length){
+        mini.innerHTML='<h3>📅 Ranking da semana</h3><div style="font-size:.82rem;color:var(--muted)">Jogue online esta semana para aparecer aqui.</div>';
+      } else {
+        mini.innerHTML='<h3>📅 Ranking da semana</h3>'+arr.map(function(x,i){
+          var you=me&&sameUser(x.u,me.name);
+          return '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0;'+(you?'color:var(--gold);font-weight:900':'')+'"><span>'+(i+1)+'. '+escapeHtml(x.u)+(you?' (você)':'')+'</span><span>'+x.pts+' pts</span></div>';
+        }).join('');
+      }
+    }
+  }catch(e){}
+  try{ paintWeekRank(); }catch(e){}
 }
 function getAiStatsMerged(){
   var ai=loadAiStats();
@@ -6748,57 +6920,134 @@ function searchCard(p){
     '<button type="button" class="btn-soft" style="padding:.45rem .7rem;font-size:.78rem" onclick="viewPlayerProfile(\''+name+'\')">Perfil</button>'+
     '<button type="button" class="btn-soft" style="padding:.45rem .7rem;font-size:.78rem;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;border:none" onclick="challengePlayer(\''+name+'\')">Desafiar</button></div>';
 }
+function getHeadToHead(a, b){
+  var out={games:0,wins:0,losses:0,draws:0};
+  if(!a||!b) return out;
+  try{
+    var list=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')||[];
+    list.forEach(function(g){
+      if(!g || g.mode!=='online') return;
+      var opp=g.opp||'';
+      // also check white/black
+      var isMatch=sameUser(opp,b) || (sameUser(g.white,a)&&sameUser(g.black,b)) || (sameUser(g.white,b)&&sameUser(g.black,a));
+      if(!isMatch) return;
+      // only count if current user was player
+      if(g.player && !sameUser(g.player,a)) return;
+      out.games++;
+      if(g.result==='win') out.wins++;
+      else if(g.result==='loss') out.losses++;
+      else out.draws++;
+    });
+  }catch(e){}
+  return out;
+}
 async function viewPlayerProfile(username){
   var ov=document.getElementById('ov-profile'), body=document.getElementById('prof-body');
   if(!ov||!body) return;
-  body.innerHTML='<div class="prof-body" style="text-align:center;padding:2rem;color:var(--muted)">Carregando…</div>';
+  var uname=String(username||'').trim();
+  // Avatar imediato do cache (rápido)
+  var avFast=getAvatarData(uname)||'';
+  var letter=escapeHtml((uname||'?')[0].toUpperCase());
+  body.innerHTML=
+    '<div class="prof-top">'+
+      '<div class="prof-av-lg" id="prof-av-live">'+(avFast?'<img src="'+avFast+'" alt="" loading="eager" decoding="async"/>':letter)+'</div>'+
+      '<div class="prof-name">'+escapeHtml(uname)+'</div>'+
+      '<div class="prof-pts">…</div>'+
+      '<div class="prof-rank-line">Carregando estatísticas…</div>'+
+    '</div>'+
+    '<div class="prof-body" style="text-align:center;color:var(--muted);padding:1.2rem">Buscando perfil…</div>';
   ov.style.display='flex';
   try{
-    var row=await dbGetPlayer(username);
+    // busca paralela: player + ranking aproximado
+    var rowPromise=dbGetPlayer(uname);
+    var rankPromise=sb?sb.from('players').select('username,points').order('points',{ascending:false}).limit(80):Promise.resolve({data:null});
+    var row=await rowPromise;
     if(!row){ body.innerHTML='<div style="padding:1.5rem;text-align:center">Jogador não encontrado</div>'; return; }
     ingestPlayerAvatar(row);
     var games=row.games||0, wins=row.wins||0, losses=row.losses||0, draws=row.draws||0;
     var wr=games?Math.round(wins/games*100):0;
     var streak=row.streak||0, best=row.best_streak||0;
     var pts=row.points||0;
-    var online=(onlinePlayers||[]).some(function(p){return sameUser(p.user, username)});
-    var isM=MASTER.indexOf(String(username).toLowerCase())>=0;
-    var av=getAvatarData(username);
-    var letter=escapeHtml((username||'?')[0].toUpperCase());
+    var train=row.train_games||0;
+    var online=(onlinePlayers||[]).some(function(p){return sameUser(p.user, uname)});
+    var isM=MASTER.indexOf(String(uname).toLowerCase().replace(/\s+/g,'_'))>=0 || MASTER.indexOf(String(uname).toLowerCase())>=0;
+    var av=getAvatarData(uname)||row.avatar||avFast||'';
+    var kd = losses>0 ? (wins/losses).toFixed(2) : (wins>0 ? '∞' : '0');
+    var form = games>=10 ? (wr>=65?'Elite':wr>=55?'Forte':wr>=45?'Equilibrado':'Em evolução') : (games>0?'Em aquecimento':'Novato');
+    var rankPos='—';
+    try{
+      var rr=await rankPromise;
+      if(rr && rr.data){
+        for(var i=0;i<rr.data.length;i++){
+          if(sameUser(rr.data[i].username, uname)){ rankPos='#'+(i+1); break; }
+        }
+        if(rankPos==='—' && pts>0) rankPos='Fora do top 80';
+      }
+    }catch(e){}
+    var level = pts>=500?'Lenda':pts>=300?'Mestre':pts>=150?'Veterano':pts>=50?'Competidor':'Iniciante';
     body.innerHTML=
       '<div class="prof-top">'+
-        '<div class="prof-av-lg">'+(av?'<img src="'+av+'" alt=""/>':letter)+'</div>'+
-        '<div class="prof-name">'+escapeHtml(username)+'</div>'+
+        '<div class="prof-av-lg">'+(av?'<img src="'+av+'" alt="" loading="eager" decoding="async"/>':letter)+'</div>'+
+        '<div class="prof-name">'+escapeHtml(row.username||uname)+'</div>'+
         '<div class="prof-pts">'+pts+' pontos</div>'+
+        '<div class="prof-rank-line">'+level+(rankPos!=='—'?' · Ranking '+rankPos:'')+' · '+form+'</div>'+
         '<div class="prof-badges">'+
-          (isM?'<span>🛡️ Mestre</span>':'')+
-          (online?'<span style="color:#6ee7b7;border-color:rgba(52,211,153,.35)">● Online</span>':'<span>Offline</span>')+
-          (wr>=60&&games>=5?'<span>🔥 Forte</span>':'')+
-          (streak>=3?'<span>⚡ Seq. '+streak+'</span>':'')+
+          (isM?'<span style="color:#fde68a;border-color:rgba(245,197,66,.35)">🛡️ Mestre</span>':'')+
+          (online?'<span style="color:#6ee7b7;border-color:rgba(52,211,153,.35)">● Online agora</span>':'<span>Offline</span>')+
+          (wr>=60&&games>=5?'<span>🔥 Winrate alto</span>':'')+
+          (streak>=3?'<span>⚡ Sequência '+streak+'</span>':'')+
+          (best>=5?'<span>🏆 Recorde '+best+'</span>':'')+
         '</div>'+
       '</div>'+
       '<div class="prof-body">'+
+        '<div class="prof-wr">'+
+          '<div class="prof-wr-top"><span>Taxa de vitória</span><span style="color:var(--gold)">'+wr+'%</span></div>'+
+          '<div class="prof-wr-bar"><div class="prof-wr-fill" style="width:'+Math.min(100,wr)+'%"></div></div>'+
+        '</div>'+
         '<div class="prof-grid">'+
-          '<div class="prof-stat-card"><b>'+games+'</b><span>Partidas online</span></div>'+
+          '<div class="prof-stat-card"><b>'+games+'</b><span>Partidas</span></div>'+
           '<div class="prof-stat-card"><b style="color:#6ee7b7">'+wins+'</b><span>Vitórias</span></div>'+
           '<div class="prof-stat-card"><b style="color:#fda4af">'+losses+'</b><span>Derrotas</span></div>'+
           '<div class="prof-stat-card"><b style="color:#fde68a">'+draws+'</b><span>Empates</span></div>'+
-          '<div class="prof-stat-card"><b>'+wr+'%</b><span>Taxa de vitória</span></div>'+
-          '<div class="prof-stat-card"><b>'+streak+'</b><span>Sequência atual</span></div>'+
-          '<div class="prof-stat-card"><b>'+best+'</b><span>Melhor sequência</span></div>'+
-          '<div class="prof-stat-card"><b>'+pts+'</b><span>Pontuação</span></div>'+
+          '<div class="prof-stat-card"><b>'+kd+'</b><span>K/D (V/D)</span></div>'+
+          '<div class="prof-stat-card"><b>'+streak+'</b><span>Seq. atual</span></div>'+
+          '<div class="prof-stat-card"><b>'+best+'</b><span>Melhor seq.</span></div>'+
+          '<div class="prof-stat-card"><b>'+train+'</b><span>Treinos</span></div>'+
         '</div>'+
-        (me&&!sameUser(username,me.name)?
-          '<div class="prof-actions">'+
-            '<button type="button" class="btn-main" onclick="closePlayerProfile();challengePlayer(\''+username+'\')">⚔️ Desafiar</button>'+
-            (isFriend(username)?'':'<button type="button" class="btn-soft" onclick="sendFriendRequest(\''+username+'\')">👥 Amigo</button>')+
+        (function(){
+          var h2hHtml='';
+          try{
+            if(me && !sameUser(uname, me.name)){
+              var hh=getHeadToHead(me.name, uname);
+              if(hh.games>0){
+                h2hHtml='<div class="prof-h2h"><div style="font-size:.78rem;font-weight:800;margin-bottom:.25rem">Confrontos (neste aparelho)</div><div style="font-size:.9rem">Você <b>'+hh.wins+'</b> × <b>'+hh.losses+'</b> '+escapeHtml(uname)+' <span style="color:var(--muted);font-size:.8rem">('+hh.games+' jogos'+(hh.draws?', '+hh.draws+' emp.':'')+')</span></div></div>';
+              } else {
+                h2hHtml='<div class="prof-h2h"><div style="font-size:.82rem;color:var(--muted)">Ainda sem confrontos gravados neste aparelho.</div></div>';
+              }
+            }
+          }catch(e){}
+          var aiHtml='';
+          try{
+            if(me && sameUser(uname, me.name)){
+              var ai=typeof getAiStatsMerged==='function'?getAiStatsMerged():{games:0,wins:0,losses:0,draws:0};
+              aiHtml='<div class="prof-ai-box"><div style="font-weight:800;font-size:.8rem;margin-bottom:.3rem">🤖 Vs computador (separado do online)</div><div style="font-size:.84rem">'+ai.games+' jogos · <span style="color:#6ee7b7">'+ai.wins+' V</span> · <span style="color:#fda4af">'+ai.losses+' D</span> · '+ai.draws+' E</div></div>';
+            }
+          }catch(e){}
+          return h2hHtml+aiHtml;
+        })()+
+        '<div class="prof-note">'+(online?'Disponível para desafio no lobby.':'Entre quando estiver online para desafiar.')+'</div>'+
+        (me&&!sameUser(uname,me.name)?
+          '<div class="prof-actions" style="margin-top:.75rem">'+
+            '<button type="button" class="btn-gold" onclick="closePlayerProfile();challengePlayer(\''+String(row.username||uname).replace(/'/g,"\\'")+'\')">⚔ Desafiar</button>'+
+            (typeof toggleMute==='function'?('<button type="button" class="btn-soft" onclick="toggleMute(\''+String(row.username||uname).replace(/'/g,"\\'")+'\');closePlayerProfile()">Silenciar</button>'):'')+
           '</div>':'')+
       '</div>';
   }catch(e){
-    body.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--red)">Erro ao carregar perfil</div>';
     console.error(e);
+    body.innerHTML='<div style="padding:1.5rem;text-align:center">Erro ao carregar perfil</div>';
   }
 }
+
 function closePlayerProfile(){document.getElementById('ov-profile').style.display='none'}
 function renderChat(){
   var log=document.getElementById('chat-log'); if(!log) return;
