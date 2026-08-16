@@ -1480,6 +1480,287 @@ body.has-install-banner,body{padding-top:0!important}
   }
 }
 /* ========== fim repage visual ========== */
+
+/* ========== REPAGE VISUAL DAS ABAS (Home / Dash / Rank / Temas) ========== */
+@keyframes tab-rise{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:none}
+}
+@keyframes tab-soft-pulse{
+  0%,100%{box-shadow:0 12px 32px rgba(0,0,0,.22)}
+  50%{box-shadow:0 14px 36px rgba(91,157,255,.12)}
+}
+@keyframes nav-underline{
+  from{transform:scaleX(.4);opacity:.4}
+  to{transform:scaleX(1);opacity:1}
+}
+
+header{
+  backdrop-filter:blur(14px)!important;
+  background:linear-gradient(180deg,rgba(12,16,28,.92),rgba(12,16,28,.72))!important;
+  border-bottom:1px solid rgba(255,255,255,.08)!important;
+}
+header .logo img{
+  box-shadow:0 4px 12px rgba(91,157,255,.25);
+  transition:transform .2s ease;
+}
+header .logo:hover img{transform:scale(1.06) rotate(-3deg)}
+.hdr-right .chip,.hdr-right .pts{
+  transition:transform .15s ease, border-color .15s ease;
+}
+.hdr-right .chip:hover,.hdr-right .pts:hover{
+  transform:translateY(-1px);
+  border-color:rgba(91,157,255,.35)!important;
+}
+.btn-out{
+  transition:transform .15s ease, background .15s ease!important;
+}
+.btn-out:hover{
+  transform:translateY(-1px);
+  background:rgba(251,113,133,.12)!important;
+  border-color:rgba(251,113,133,.35)!important;
+  color:#fecaca!important;
+}
+
+nav#nav, #nav{
+  gap:.3rem!important;
+  padding:.5rem 1rem 0!important;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+#nav button{
+  position:relative;
+  border-radius:12px 12px 0 0!important;
+  transition:color .15s ease, background .15s ease, transform .15s ease!important;
+  padding:.6rem 1.05rem!important;
+}
+#nav button:hover{
+  color:var(--text)!important;
+  background:rgba(255,255,255,.04)!important;
+  transform:translateY(-1px);
+}
+#nav button.on{
+  color:#fff!important;
+  background:linear-gradient(180deg,rgba(91,157,255,.18),rgba(91,157,255,.04))!important;
+  border-bottom-color:transparent!important;
+}
+#nav button.on::after{
+  content:'';
+  position:absolute;left:18%;right:18%;bottom:0;height:2px;
+  border-radius:2px;
+  background:linear-gradient(90deg,var(--blue),var(--violet),var(--gold));
+  animation:nav-underline .25s ease both;
+}
+
+main{
+  animation:tab-rise .35s ease both;
+}
+
+#v-home, #v-dash, #v-rank, #v-settings, #v-admin{
+  animation:tab-rise .4s ease both;
+}
+
+#v-home .home-banner,
+#v-home .card,
+#v-dash .card,
+#v-dash .dash-hero,
+#v-rank .card,
+#v-rank .rank-hero,
+#v-settings .card{
+  border-radius:22px!important;
+  border:1px solid rgba(255,255,255,.1)!important;
+  background:linear-gradient(165deg,rgba(255,255,255,.08),rgba(255,255,255,.02))!important;
+  box-shadow:0 16px 40px rgba(0,0,0,.28)!important;
+  transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease!important;
+}
+#v-home .card:hover,
+#v-dash .card:hover,
+#v-rank .card:hover,
+#v-settings .card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(91,157,255,.28)!important;
+  box-shadow:0 18px 48px rgba(0,0,0,.32),0 0 0 1px rgba(91,157,255,.08)!important;
+}
+
+#v-home .home-banner{
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(91,157,255,.2), transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(167,139,250,.12), transparent 45%),
+    linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.02))!important;
+  animation:tab-rise .35s ease both, tab-soft-pulse 4s ease-in-out infinite;
+}
+#v-home .home-banner .hb-title{
+  font-size:1.15rem!important;
+  letter-spacing:.01em;
+}
+#v-home .stats .stat,
+#v-home #home-stats .stat{
+  border-radius:14px!important;
+  padding:.55rem .45rem!important;
+  background:rgba(0,0,0,.22)!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  transition:transform .15s ease, border-color .15s ease;
+}
+#v-home #home-stats .stat:hover{
+  transform:translateY(-2px);
+  border-color:rgba(245,197,66,.3)!important;
+}
+
+#v-home .mode{
+  border-radius:18px!important;
+  padding:1.05rem 1.1rem!important;
+  background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(0,0,0,.2))!important;
+  border:1px solid rgba(255,255,255,.09)!important;
+  transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease!important;
+}
+#v-home .mode:hover{
+  transform:translateY(-3px) scale(1.01)!important;
+  border-color:rgba(91,157,255,.5)!important;
+  background:linear-gradient(145deg,rgba(91,157,255,.12),rgba(0,0,0,.18))!important;
+  box-shadow:0 12px 28px rgba(91,157,255,.12)!important;
+}
+#v-home .mode .i{
+  width:44px;height:44px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.35rem;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.08);
+  transition:transform .18s ease;
+}
+#v-home .mode:hover .i{transform:scale(1.08) rotate(-4deg)}
+#v-home .mode .t{font-weight:900;font-size:.98rem}
+#v-home .mode .d{color:var(--muted);font-size:.8rem;margin-top:.15rem}
+
+#v-home .online-list{
+  gap:.45rem!important;
+  max-height:360px!important;
+  padding-right:.15rem;
+}
+#v-home .online-list .p-row,
+#v-home .online-list .player-row,
+#v-home .p-row{
+  border-radius:14px!important;
+  transition:transform .15s ease, background .15s ease, border-color .15s ease!important;
+}
+#v-home .online-list > div{
+  transition:transform .15s ease, border-color .15s ease, background .15s ease;
+}
+#v-home .friend-row,
+#v-home .live-card{
+  border-radius:14px!important;
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease!important;
+}
+#v-home .friend-row:hover,
+#v-home .live-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(91,157,255,.35)!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.25)!important;
+}
+#v-home .live-card .live-dot{
+  animation:pulse 1.4s infinite;
+}
+
+#v-dash .dash-hero{
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(91,157,255,.22), transparent 55%),
+    linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02))!important;
+  animation:tab-rise .35s ease both;
+}
+#v-dash .dash-avatar{
+  transition:transform .2s ease, box-shadow .2s ease;
+  box-shadow:0 10px 24px rgba(91,157,255,.25)!important;
+}
+#v-dash .dash-avatar:hover{transform:scale(1.05)}
+#v-dash .dash-elo-pill{
+  border-radius:16px!important;
+  background:linear-gradient(145deg,rgba(245,197,66,.18),rgba(245,197,66,.06))!important;
+  border:1px solid rgba(245,197,66,.3)!important;
+  transition:transform .15s ease;
+}
+#v-dash .dash-elo-pill:hover{transform:scale(1.03)}
+#v-dash .kpi .stat,
+#v-dash .stat{
+  transition:transform .15s ease;
+}
+#v-dash .stat:hover{transform:translateY(-2px)}
+#v-dash .hist-card,
+#v-dash .ach-item{
+  border-radius:14px!important;
+  transition:transform .15s ease, border-color .15s ease!important;
+}
+#v-dash .hist-card:hover,
+#v-dash .ach-item:hover{
+  transform:translateY(-2px);
+  border-color:rgba(91,157,255,.3)!important;
+}
+
+#v-rank .rank-hero{
+  background:
+    radial-gradient(ellipse at 10% 0%,rgba(245,197,66,.2),transparent 50%),
+    linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02))!important;
+  animation:tab-rise .35s ease both;
+}
+#v-rank .podium-card{
+  border-radius:18px!important;
+  transition:transform .2s ease, box-shadow .2s ease!important;
+  animation:tab-rise .45s ease both;
+}
+#v-rank .podium-card:hover{
+  transform:translateY(-4px) scale(1.02);
+  box-shadow:0 16px 36px rgba(245,197,66,.12)!important;
+}
+#v-rank .rank-list-modern li,
+#v-rank .rank-row{
+  border-radius:14px!important;
+  transition:transform .15s ease, border-color .15s ease, background .15s ease!important;
+}
+#v-rank .rank-list-modern li:hover,
+#v-rank .rank-row:hover{
+  transform:translateX(4px);
+  border-color:rgba(245,197,66,.3)!important;
+  background:rgba(245,197,66,.06)!important;
+}
+
+#v-settings .theme-swatches button,
+#v-settings .board-swatches button{
+  transition:transform .15s ease, box-shadow .15s ease, outline .15s ease!important;
+  border-radius:12px!important;
+}
+#v-settings .theme-swatches button:hover,
+#v-settings .board-swatches button:hover{
+  transform:scale(1.08);
+  box-shadow:0 6px 16px rgba(0,0,0,.35);
+}
+#v-settings .btn-soft{
+  transition:transform .15s ease, background .15s ease!important;
+}
+#v-settings .btn-soft:hover{
+  transform:translateY(-2px);
+}
+
+#v-admin .admin-card,
+#v-admin .rank-hero{
+  animation:tab-rise .35s ease both;
+}
+
+.overlay .modal{
+  animation:tab-rise .3s ease both!important;
+}
+.overlay .modal h2{
+  letter-spacing:.01em;
+}
+
+/* botões gerais das abas */
+#v-home .btn-soft, #v-home .btn-main, #v-home .btn-gold,
+#v-dash .btn-soft, #v-rank .btn-soft, #v-settings .btn-soft{
+  transition:transform .15s ease, filter .15s ease, box-shadow .15s ease!important;
+}
+#v-home .btn-soft:hover, #v-home .btn-main:hover, #v-home .btn-gold:hover,
+#v-dash .btn-soft:hover, #v-rank .btn-soft:hover, #v-settings .btn-soft:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.06);
+}
+/* ========== fim abas ========== */
+
 </style>
 
 </head>
@@ -1897,7 +2178,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.36';
+const APP_VERSION='2026.08.17.37';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
