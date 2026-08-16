@@ -1310,7 +1310,7 @@ body.has-install-banner,body{padding-top:0!important}
           <div class="hb-title">Pronto para jogar damas</div>
           <div class="hb-sub">Desafie online ou treine com a IA</div>
         </div>
-        <div class="stats" id="home-stats" style="min-width:min(100%,280px);grid-template-columns:repeat(4,1fr)"></div>
+        <div class="stats" id="home-stats" style="min-width:min(100%,340px);grid-template-columns:repeat(4,1fr)"></div>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -1350,7 +1350,7 @@ body.has-install-banner,body{padding-top:0!important}
           </div>
           <h2>🎯 Treino local</h2>
           <div class="modes">
-            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · offline ok · não altera ranking online</div></div></div>
+            <div class="mode" onclick="startLocal('ai')"><div class="i">🤖</div><div><div class="t">vs Computador</div><div class="d">IA · conta nas estatísticas vs PC · offline ok</div></div></div>
             <div class="mode" onclick="startLocal('local')"><div class="i">👥</div><div><div class="t">Dois jogadores</div><div class="d">Mesmo dispositivo</div></div></div>
             <div class="mode" onclick="startGuestAi()"><div class="i">📶</div><div><div class="t">Offline rápido</div><div class="d">Jogar vs IA sem precisar de conta</div></div></div>
           </div>
@@ -1387,11 +1387,11 @@ body.has-install-banner,body{padding-top:0!important}
 
         <section class="dash-grid-2">
           <div class="card">
-            <div class="panel-title"><h2>Online</h2></div>
+            <div class="panel-title"><h2>🌐 Online (jogadores)</h2></div>
             <div id="dash-bars-online"></div>
           </div>
           <div class="card">
-            <div class="panel-title"><h2>vs Computador</h2></div>
+            <div class="panel-title"><h2>🤖 Vs Computador</h2></div>
             <div id="dash-bars-ai"></div>
             <div class="stats" id="ai-stats" style="margin-top:.75rem"></div>
           </div>
@@ -1645,7 +1645,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.33';
+const APP_VERSION='2026.08.17.34';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -6168,7 +6168,15 @@ async function adjustPoints(delta, reason){
     toast((delta>0?'+':'')+delta+' pts'+(reason?' · '+reason:''));
   }catch(e){console.error(e)}
 }
-function loadAiStats(){try{return Object.assign({games:0,wins:0,losses:0,draws:0},JSON.parse(localStorage.getItem(AI_STATS_KEY)||'{}'))}catch(e){return{games:0,wins:0,losses:0,draws:0}}}
+function loadAiStats(){
+  try{
+    if(localStorage.getItem('dm_ai_stats_reset_v34')!=='1'){
+      localStorage.setItem(AI_STATS_KEY, JSON.stringify({games:0,wins:0,losses:0,draws:0}));
+      localStorage.setItem('dm_ai_stats_reset_v34','1');
+    }
+  }catch(e){}
+  try{return Object.assign({games:0,wins:0,losses:0,draws:0},JSON.parse(localStorage.getItem(AI_STATS_KEY)||'{}'))}catch(e){return{games:0,wins:0,losses:0,draws:0}}
+}
 function saveAiStats(s){try{localStorage.setItem(AI_STATS_KEY,JSON.stringify(s))}catch(e){}}
 function recordAiResult(result){
   var s=loadAiStats(); s.games=(s.games||0)+1;
@@ -6265,10 +6273,14 @@ async function paintAll(){
 function paintHome(){
   var s=me.stats, el=document.getElementById('home-stats');
   if(!el) return;
+  var ai=typeof getAiStatsMerged==='function'?getAiStatsMerged():{games:0,wins:0,losses:0};
   el.innerHTML='<div class="stat gold"><b>'+me.points+'</b><span>Pontos</span></div>'+
     '<div class="stat blue"><b>'+s.games+'</b><span>Online</span></div>'+
-    '<div class="stat green"><b>'+s.wins+'</b><span>Vitórias</span></div>'+
-    '<div class="stat red"><b>'+s.losses+'</b><span>Derrotas</span></div>';
+    '<div class="stat green"><b>'+s.wins+'</b><span>V online</span></div>'+
+    '<div class="stat red"><b>'+s.losses+'</b><span>D online</span></div>'+
+    '<div class="stat blue"><b>'+(ai.games||0)+'</b><span>Vs PC</span></div>'+
+    '<div class="stat green"><b>'+(ai.wins||0)+'</b><span>V vs PC</span></div>'+
+    '<div class="stat red"><b>'+(ai.losses||0)+'</b><span>D vs PC</span></div>';
 }
 function getAiStatsMerged(){
   var ai=loadAiStats();
@@ -6888,6 +6900,15 @@ function saveAvatarLocal(full, pub){
   storeAvatarEverywhere(me.name, pub||full||'');
 }
 
+function robotEmojiForDiff(){
+  // Robôzinho diferente por dificuldade
+  if(diff==='easy') return '🤖';
+  if(diff==='hard') return '🦾';
+  return '👾'; // medium
+}
+function computerAvatarHtml(){
+  return '<span class="av-emoji" title="Computador">'+robotEmojiForDiff()+'</span>';
+}
 function refreshGameAvatars(){
   var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
   var nameW='', nameB='';
@@ -6909,8 +6930,8 @@ function refreshGameAvatars(){
     nameW=playerKey(nw2?nw2.textContent:'');
     nameB=playerKey(nb2?nb2.textContent:'');
   }
-  if(aw) aw.innerHTML=avatarHtml(nameW);
-  if(ab) ab.innerHTML=avatarHtml(nameB);
+  if(aw) aw.innerHTML=(nameW==='Computador'?computerAvatarHtml():avatarHtml(nameW));
+  if(ab) ab.innerHTML=(nameB==='Computador'?computerAvatarHtml():avatarHtml(nameB));
   // Busca na nuvem se ainda faltar foto
   [nameW, nameB].forEach(function(nm){
     if(!nm || nm==='Computador') return;
@@ -6927,8 +6948,8 @@ function refreshGameAvatars(){
 }
 function refreshGameAvatarsSimple(nameW, nameB){
   var aw=document.getElementById('av-w'), ab=document.getElementById('av-b');
-  if(aw) aw.innerHTML=avatarHtml(nameW);
-  if(ab) ab.innerHTML=avatarHtml(nameB);
+  if(aw) aw.innerHTML=(nameW==='Computador'?computerAvatarHtml():avatarHtml(nameW));
+  if(ab) ab.innerHTML=(nameB==='Computador'?computerAvatarHtml():avatarHtml(nameB));
 }
 function playerKey(label){return String(label||'').replace(/\s*\(você\)\s*/i,'').trim()}
 
