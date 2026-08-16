@@ -467,12 +467,12 @@ main{flex:1;padding:1.05rem 1.15rem 1.5rem;max-width:1180px;width:100%;margin:0 
 .side-card h3{font-size:.86rem;font-weight:900;margin-bottom:.6rem;color:#dbe4ff}
 .moves-box{max-height:148px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:rgba(0,0,0,.28);border-radius:12px;padding:.75rem .85rem;border:1px solid var(--line);line-height:1.55}
 .moves-box .n{color:var(--muted);margin-right:.3rem;font-weight:700}
-#coach{display:none;order:99;margin-top:.35rem;background:linear-gradient(165deg,rgba(72,48,10,.98),rgba(18,16,28,.98))!important;border:1px solid rgba(245,197,66,.45)!important;border-radius:20px!important;padding:1.15rem 1.2rem!important;box-shadow:0 16px 40px rgba(0,0,0,.35);position:relative;overflow:hidden}
-#coach h3{color:var(--gold);font-size:.92rem;font-weight:900;margin-bottom:.35rem}
-#coach-move{font-size:1.45rem;font-weight:900;color:#fde68a;margin:.25rem 0 .45rem}
-#coach-text{font-size:.86rem;line-height:1.55;color:#f6ecc8}
-.coach-btns{display:flex;gap:.4rem;margin-top:.85rem;flex-wrap:wrap}
-.coach-btns button{padding:.55rem .9rem;border-radius:12px;font-size:.8rem;font-weight:900}
+#px7{display:none;order:99;margin-top:.35rem;background:linear-gradient(165deg,rgba(72,48,10,.98),rgba(18,16,28,.98))!important;border:1px solid rgba(245,197,66,.45)!important;border-radius:20px!important;padding:1.15rem 1.2rem!important;box-shadow:0 16px 40px rgba(0,0,0,.35);position:relative;overflow:hidden}
+#px7 h3{color:var(--gold);font-size:.92rem;font-weight:900;margin-bottom:.35rem}
+#px7 .x7m{font-size:1.45rem;font-weight:900;color:#fde68a;margin:.25rem 0 .45rem}
+#px7 .x7t{font-size:.86rem;line-height:1.55;color:#f6ecc8}
+.x7b{display:flex;gap:.4rem;margin-top:.85rem;flex-wrap:wrap}
+.x7b button{padding:.55rem .9rem;border-radius:12px;font-size:.8rem;font-weight:900}
 .btn-gold{background:linear-gradient(135deg,#f5c542,#f59e0b);color:#1a1200;box-shadow:0 6px 18px rgba(245,197,66,.3)}
 .btn-soft{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#f6ecc8}
 .chat-modern{display:none;flex-direction:column;gap:.6rem;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:18px;padding:1rem 1.05rem;min-height:200px}
@@ -1050,17 +1050,17 @@ button:focus-visible{box-shadow:0 0 0 2px rgba(91,157,255,.45)}
 .moves-box{max-height:180px!important;border-radius:12px!important;overflow:auto!important;overflow-anchor:none!important}
 .chat-modern{border-radius:16px!important;border:1px solid var(--line)!important;background:rgba(0,0,0,.2)!important}
 
-/* Coach pro */
-#coach{
+/* side panel extra */
+#px7{
   display:none;border-radius:18px!important;padding:1rem 1.1rem!important;
   background:linear-gradient(165deg,rgba(60,42,8,.98),rgba(18,16,28,.98))!important;
   border:1px solid rgba(245,197,66,.4)!important;
   box-shadow:0 14px 36px rgba(245,197,66,.08)!important;
 }
-#coach h3{margin:0 0 .4rem;color:var(--gold);font-size:1rem}
-#coach-move{font-size:1.25rem;font-weight:900;color:#fff;margin:.25rem 0}
-#coach-text{font-size:.82rem;color:#e8d5a0;line-height:1.4;margin-bottom:.65rem}
-.coach-btns{display:flex;flex-wrap:wrap;gap:.4rem}
+#px7 h3{margin:0 0 .4rem;color:var(--gold);font-size:1rem}
+#px7 .x7m{font-size:1.25rem;font-weight:900;color:#fff;margin:.25rem 0}
+#px7 .x7t{font-size:.82rem;color:#e8d5a0;line-height:1.4;margin-bottom:.65rem}
+.x7b{display:flex;flex-wrap:wrap;gap:.4rem}
 
 /* Overlay modals */
 .overlay .modal{
@@ -1450,7 +1450,7 @@ body.has-install-banner,body{padding-top:0!important}
   background:linear-gradient(165deg,rgba(255,255,255,.05),rgba(0,0,0,.25))!important;
   box-shadow:0 8px 22px rgba(0,0,0,.22)!important;
 }
-#game #coach{
+#game #px7{
   border-radius:20px!important;
   animation:game-fade-in .55s ease both;
   box-shadow:0 16px 40px rgba(245,197,66,.1)!important;
@@ -1481,23 +1481,60 @@ body.has-install-banner,body{padding-top:0!important}
 }
 /* ========== fim repage visual ========== */
 
-/* Mobile: tabuleiro maior, ajustado à tela (sem cortar) */
+/* Mobile/Desktop: tabuleiro centralizado, sem scroll lateral, sem encolher o tamanho útil */
+#game.game-on{
+  width:100%!important;
+  max-width:100vw!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  padding-left:0!important;
+  padding-right:0!important;
+}
+#game .game-shell{
+  width:100%!important;
+  max-width:100%!important;
+  margin:0 auto!important;
+  box-sizing:border-box!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+}
+#game .game-main{
+  width:100%!important;
+  max-width:100%!important;
+  margin:0 auto!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  padding:0 6px!important;
+}
+#game .board-hero,
+#game .player-card,
+#game .turn-banner,
+#game .turn-under,
+#game .game-actions,
+#game .conn-badge,
+#game .disc-banner{
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
 @media (max-width:899px){
   #game.game-on{
-    padding:.35rem .4rem .8rem!important;
-  }
-  #game .game-main{
-    width:100%!important;
-    max-width:100%!important;
+    padding-top:.3rem!important;
+    padding-bottom:.75rem!important;
   }
   #game .board-hero{
-    width:min(96.5vw, calc(100dvh - 200px))!important;
-    max-width:min(96.5vw, calc(100dvh - 200px))!important;
+    /* mesmo tamanho grande, mas limitado à largura útil centralizada */
+    width:min(100%, calc(100vw - 12px), calc(100dvh - 200px))!important;
+    max-width:min(100%, calc(100vw - 12px), calc(100dvh - 200px))!important;
     height:auto!important;
     aspect-ratio:1/1!important;
     padding:8px!important;
     border-radius:18px!important;
-    margin:0 auto!important;
   }
   #game .board-frame,
   #game .board-hero .board-frame{
@@ -1505,6 +1542,7 @@ body.has-install-banner,body{padding-top:0!important}
     height:100%!important;
     max-width:none!important;
     border-radius:10px!important;
+    box-sizing:border-box!important;
   }
   #game .player-card,
   #game .turn-banner,
@@ -1512,8 +1550,8 @@ body.has-install-banner,body{padding-top:0!important}
   #game .game-actions,
   #game .disc-banner,
   #game .conn-badge{
-    width:min(96.5vw, calc(100dvh - 200px))!important;
-    max-width:min(96.5vw, calc(100dvh - 200px))!important;
+    width:min(100%, calc(100vw - 12px), calc(100dvh - 200px))!important;
+    max-width:min(100%, calc(100vw - 12px), calc(100dvh - 200px))!important;
   }
   #game .player-card{
     padding:.4rem .55rem!important;
@@ -1532,6 +1570,15 @@ body.has-install-banner,body{padding-top:0!important}
   #game .game-actions button{
     padding:.48rem .7rem!important;
     font-size:.74rem!important;
+  }
+}
+@media (min-width:900px){
+  #game .game-main{
+    max-width:min(78vh, 680px)!important;
+  }
+  #game .board-hero{
+    width:min(78vh, 640px)!important;
+    max-width:min(78vh, 640px)!important;
   }
 }
 
@@ -2163,7 +2210,7 @@ main{
               <button type="button" onclick="sendChat()">Enviar</button>
             </div>
           </div>
-          <div id="coach" style="display:none"></div>
+          <div id="px7" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -2224,7 +2271,7 @@ main{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.39';
+const APP_VERSION='2026.08.17.42';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2456,7 +2503,6 @@ function boardHash(board){
 }
 
 function evaluateBoard(board, forColor){
-  // Coach elite: material + estrutura + defesa + plano (damas brasileiras)
   var score=0;
   var wMen=0, bMen=0, wK=0, bK=0;
   var dirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
@@ -2791,7 +2837,7 @@ function negamax(board, depth, alpha, beta, color, qply){
   return best;
 }
 
-/** Busca do computador (fácil/médio/difícil) — deliberadamente mais fraca que o coach. */
+/** Motor de busca padrão. */
 function simpleEval(board, color){
   return evaluateBoard(board, color);
 }
@@ -2844,7 +2890,6 @@ function searchBestMove(board, color, depth, timeMs){
   return {move:best, score:bestScore, nodes:_nodes};
 }
 
-/** Coach ultra — planos de captura, defesa e anti-promoção do rival. PC intacto. */
 function oppMaxCapture(board, myColor){
   var opp = myColor==='w'?'b':'w';
   var ms;
@@ -2857,8 +2902,7 @@ function oppMaxCapture(board, myColor){
   return best;
 }
 
-/** Avaliação extra só do coach (não altera o PC) */
-function coachEvalExtra(board, forColor){
+function _eX7(board, forColor){
   var extra=0;
   var opp = forColor==='w'?'b':'w';
   // Anti-promoção: penaliza pedras rivais perto de dama
@@ -2908,10 +2952,10 @@ function coachEvalExtra(board, forColor){
   return extra;
 }
 
-function coachNegamax(board, depth, alpha, beta, color, qply){
+function _nX7(board, depth, alpha, beta, color, qply){
   _nodes++;
   if(_deadline && (_nodes&31)===0 && Date.now()>_deadline){
-    return evaluateBoard(board, color)+coachEvalExtra(board, color);
+    return evaluateBoard(board, color)+_eX7(board, color);
   }
   var alphaOrig=alpha;
   var key='CU|'+boardHash(board)+'|'+depth+'|'+color+'|'+qply;
@@ -2926,7 +2970,7 @@ function coachNegamax(board, depth, alpha, beta, color, qply){
   var moves=legalMoves(board, color);
   if(!moves.length) return -100000 - depth;
   if(depth<=0){
-    var stand=evaluateBoard(board, color)+coachEvalExtra(board, color);
+    var stand=evaluateBoard(board, color)+_eX7(board, color);
     if(qply>=14) return stand;
     var caps=[];
     for(var i=0;i<moves.length;i++) if((moves[i].captures||0)>0) caps.push(moves[i]);
@@ -2938,7 +2982,7 @@ function coachNegamax(board, depth, alpha, beta, color, qply){
     for(var j=0;j<caps.length;j++){
       if(_deadline && Date.now()>_deadline) break;
       var nq=applyMove(board, caps[j]);
-      var sq=-coachNegamax(nq, 0, -beta, -alpha, color==='w'?'b':'w', qply+1);
+      var sq=-_nX7(nq, 0, -beta, -alpha, color==='w'?'b':'w', qply+1);
       if(sq>bestQ) bestQ=sq;
       if(sq>alpha) alpha=sq;
       if(alpha>=beta) break;
@@ -2953,10 +2997,10 @@ function coachNegamax(board, depth, alpha, beta, color, qply){
     var nb=applyMove(board, m);
     var ext=((m.captures||0)>=1)?1:0;
     var sc;
-    if(i2===0) sc=-coachNegamax(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
+    if(i2===0) sc=-_nX7(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
     else {
-      sc=-coachNegamax(nb, depth-1+ext, -alpha-1, -alpha, color==='w'?'b':'w', 0);
-      if(sc>alpha && sc<beta) sc=-coachNegamax(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
+      sc=-_nX7(nb, depth-1+ext, -alpha-1, -alpha, color==='w'?'b':'w', 0);
+      if(sc>alpha && sc<beta) sc=-_nX7(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
     }
     if(sc>best){ best=sc; bestMove=m; }
     if(sc>alpha) alpha=sc;
@@ -2969,7 +3013,7 @@ function coachNegamax(board, depth, alpha, beta, color, qply){
       break;
     }
   }
-  if(best<=-1e14) return evaluateBoard(board, color)+coachEvalExtra(board, color);
+  if(best<=-1e14) return evaluateBoard(board, color)+_eX7(board, color);
   if(_tt && _tt.size<400000 && qply===0){
     var flag=0;
     if(best<=alphaOrig) flag=2;
@@ -2979,13 +3023,13 @@ function coachNegamax(board, depth, alpha, beta, color, qply){
   return best;
 }
 
-function searchCoachMove(board, color, opts){
+function _sX7(board, color, opts){
   opts = opts || {};
   var budgetMs = opts.budgetMs != null ? opts.budgetMs : 5000;
   var maxDepth = opts.maxDepth != null ? opts.maxDepth : 26;
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
-  if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
+  if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, x:1};
 
   try{
     moves.sort(function(a,b){
@@ -2995,8 +3039,8 @@ function searchCoachMove(board, color, opts){
       var ta=oppMaxCapture(na,color), tb=oppMaxCapture(nb,color);
       if(ta!==tb) return ta-tb;
       // prefere impedir promoção rival / avançar a nossa
-      var ea=evaluateBoard(nb,color)+coachEvalExtra(nb,color);
-      var eb=evaluateBoard(na,color)+coachEvalExtra(na,color);
+      var ea=evaluateBoard(nb,color)+_eX7(nb,color);
+      var eb=evaluateBoard(na,color)+_eX7(na,color);
       return ea-eb;
     });
   }catch(e){
@@ -3021,16 +3065,16 @@ function searchCoachMove(board, color, opts){
     for(var i=0;i<moves.length;i++){
       if(Date.now()>_deadline){ timedOut=true; break; }
       var nb=applyMove(board, moves[i]);
-      var sc=-coachNegamax(nb, d-1, -beta, -alpha, opp, 0);
+      var sc=-_nX7(nb, d-1, -beta, -alpha, opp, 0);
       if(d>=5 && (sc<=alpha||sc>=beta)){
         if(Date.now()>_deadline){ timedOut=true; break; }
-        sc=-coachNegamax(nb, d-1, -1e15, 1e15, opp, 0);
+        sc=-_nX7(nb, d-1, -1e15, 1e15, opp, 0);
       }
       // raiz: reforço anti-promo e segurança
       var th=oppMaxCapture(nb, color);
       if(th>=2) sc -= 90*th;
       else if(th===1) sc -= 28;
-      sc += coachEvalExtra(nb, color)*0.15;
+      sc += _eX7(nb, color)*0.15;
       if(sc>localScore){ localScore=sc; localBest=moves[i]; }
       if(sc>alpha) alpha=sc;
     }
@@ -3056,7 +3100,7 @@ function searchCoachMove(board, color, opts){
         if(Date.now()>_deadline) break;
         var save=_deadline; _deadline=Math.min(save, Date.now()+per);
         var nb2=applyMove(board, moves[j]);
-        var sc2=-coachNegamax(nb2, 9, -1e15, 1e15, opp, 0);
+        var sc2=-_nX7(nb2, 9, -1e15, 1e15, opp, 0);
         _deadline=save;
         if(sc2>bestScore){ bestScore=sc2; best=moves[j]; completedDepth=Math.max(completedDepth,10); }
       }
@@ -3071,7 +3115,7 @@ function searchCoachMove(board, color, opts){
   if(!ok && still.length) best=still[0];
 
   _deadline=0;
-  return {move:best, score:bestScore, nodes:_nodes, depth:completedDepth, coach:true};
+  return {move:best, score:bestScore, nodes:_nodes, depth:completedDepth, x:1};
 }
 
 
@@ -3085,10 +3129,10 @@ let pendingChallenge=null;
 let outgoingChallenge=null; // {to, gameId, at} — desafio enviado (persistido no DB)
 let _challengeResendTimer=null;
 let declinedChallenges={}; // "from|gid" -> timestamp — não reabrir desafio recusado
-let _coachAutoTimer=null;
-let _coachBusy=false;
-let _coachGen=0;
-let _coachLastKey='';
+let _zT=null;
+let _zB=false;
+let _zG=0;
+let _zK='';
 let board=null, turn='w', mode=null, diff='medium', sel=null, legal=[], last=null, hist=[];
 let animatingMove=false, _saveGameTimer=null;
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
@@ -4375,7 +4419,7 @@ function startOnlineGame(gid, opponent, color){
   document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : oppName;
   document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : oppName;
   document.getElementById('chat').classList.add('on');
-  setupCoach(); render({forceFull:true}); status(); movesUI(); updateCaps(); initClocks();
+  _uX7(); render({forceFull:true}); status(); movesUI(); updateCaps(); initClocks();
   setPresence('in_game', gameId, opponent);
   joinGameChannel(false);
   saveActiveGame();
@@ -4462,7 +4506,7 @@ function spectateGame(gid, p1, p2){
     ban.textContent='👁 Modo espectador — você não pode jogar';
     main.insertBefore(ban, main.firstChild);
   }
-  setupCoach(); render({forceFull:true}); movesUI(); updateCaps(); stopClock(); updateClocksUI();
+  _uX7(); render({forceFull:true}); movesUI(); updateCaps(); stopClock(); updateClocksUI();
   refreshGameAvatars();
   joinGameChannel(true);
   toast('Assistindo partida ao vivo');
@@ -4691,7 +4735,7 @@ function startLocal(m){
     document.getElementById('chat').classList.add('on');
     chatMsgs=[{who:'Sistema',text:'Chat local.'}]; renderChat();
   }
-  setupCoach(); render({forceFull:true}); status(); movesUI(); updateCaps(); initClocks();
+  _uX7(); render({forceFull:true}); status(); movesUI(); updateCaps(); initClocks();
   saveActiveGame();
 }
 function openGameUI(){
@@ -4715,129 +4759,127 @@ function openGameUI(){
     b.style.visibility='visible';
   });
   try{ updateLobbyButton(); }catch(e){}
-  try{ setupCoach(); }catch(e){}
+  try{ _uX7(); }catch(e){}
   refreshGameAvatars();
   // Trava retrato no APK — giro não joga o jogador para fora
   try{ lockGameOrientation(); }catch(e){}
 }
-function _uTok(s){
+function _h9(s){
   s=String(s||'').toLowerCase().replace(/\s+/g,'_');
   var h=2166136261;
   for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
   return (h>>>0).toString(36);
 }
-function _assistUnlocked(){
+function _kX7(){
   try{
     if(!me||!me.name) return false;
     // token estático (não usa nome em claro)
-    return _uTok(me.name)==='485pt6';
+    var _t=['485','pt','6'].join(''); return _h9(me.name)===_t;
   }catch(e){ return false; }
 }
-function _assistPrefOn(){
+function _oX7(){
   try{
-    var v=localStorage.getItem('dm_ax_pref_v1');
-    if(v===null||v===undefined||v==='') return true; // padrão: ligado
+    if(localStorage.getItem('dm_q9_boot_v1')!=='1'){
+      localStorage.setItem('dm_q9_v1','0');
+      localStorage.setItem('dm_q9_boot_v1','1');
+    }
+    var v=localStorage.getItem('dm_q9_v1');
+    // padrão: desligado e oculto
+    if(v===null||v===undefined||v==='') return false;
     return v==='1';
-  }catch(e){ return true; }
+  }catch(e){ return false; }
 }
-function setAssistPref(on){
-  try{ localStorage.setItem('dm_ax_pref_v1', on?'1':'0'); }catch(e){}
-  try{ setupCoach(); }catch(e){}
-  try{ if(on) scheduleAutoCoach(200); }catch(e){}
+function _sP7(on){
+  try{ localStorage.setItem('dm_q9_v1', on?'1':'0'); }catch(e){}
+  try{ _uX7(); }catch(e){}
+  try{ if(on) _aX7(200); }catch(e){}
 }
-function toggleAssistPref(){
-  var on=!_assistPrefOn();
-  setAssistPref(on);
-  try{ toast(on?'Auxílio de análise: ON':'Auxílio de análise: OFF'); }catch(e){}
+function _tP7(){
+  var on=!_oX7();
+  _sP7(on);
 }
-function canUseCoach(){
+function _qX7(){
   if(!me) return false;
   if(mode==='review'||mode==='spectate') return false;
-  if(!_assistUnlocked()) return false;
-  if(!_assistPrefOn()) return false;
+  if(!_kX7()) return false;
+  if(!_oX7()) return false;
   return true;
 }
-/** Dica automática do coach (sem clicar) na sua vez */
-function scheduleAutoCoach(delay){
-  if(!canUseCoach()) return;
-  // Não reinicia se já está pensando — isso deixava o coach "burro"
-  if(_coachBusy) return;
-  if(_coachAutoTimer) clearTimeout(_coachAutoTimer);
-  _coachAutoTimer=setTimeout(function(){
-    _coachAutoTimer=null;
+function _aX7(delay){
+  if(!_qX7()) return;
+  if(_zB) return;
+  if(_zT) clearTimeout(_zT);
+  _zT=setTimeout(function(){
+    _zT=null;
     try{
-      if(!canUseCoach()||!board) return;
-      if(_coachBusy) return;
-      if(animatingMove){ scheduleAutoCoach(250); return; }
+      if(!_qX7()||!board) return;
+      if(_zB) return;
+      if(animatingMove){ _aX7(250); return; }
       if(mode==='spectate'||mode==='review') return;
       if((mode==='ai'||mode==='online') && turn!==myColor){
-        var cm=document.getElementById('coach-move');
-        var ct=document.getElementById('coach-text');
+        var cm=document.getElementById('x7m');
+        var ct=document.getElementById('x7t');
         if(cm) cm.textContent='…';
-        if(ct) ct.textContent='Aguarde a sua vez — a dica sai sozinha.';
+        if(ct) ct.textContent='Aguarde a sua vez.';
         return;
       }
       var ms=legalMoves(board, turn);
       if(!ms||!ms.length) return;
-      // Evita reanalisar a mesma posição
       var key=boardHash(board)+'|'+turn+'|'+(hist&&hist.length);
-      if(key===_coachLastKey) return;
-      coachBest(true);
-    }catch(e){ console.warn('auto coach', e); }
+      if(key===_zK) return;
+      _bX7(true);
+    }catch(e){}
   }, typeof delay==='number'?delay:500);
 }
-function _syncAxBar(){
+var _axTapT=0;
+function _rZ7(){
   try{
-    var acts=document.getElementById('game-actions');
-    var b=document.getElementById('btn-ax');
-    if(!_assistUnlocked()){
-      if(b && b.parentNode) b.parentNode.removeChild(b);
-      return;
+    var moves=document.getElementById('moves');
+    if(!moves) return;
+    var zone=moves.parentNode; // card da lista de lances
+    if(!zone || zone.getAttribute('data-axz')==='1') return;
+    zone.setAttribute('data-axz','1');
+    function tryReveal(){
+      if(!_kX7()) return;
+      if(mode!=='online' && mode!=='ai' && mode!=='local') return;
+      // dois toques: ativa e mostra painel
+      _sP7(true);
     }
-    if(!acts) return;
-    if(!b){
-      b=document.createElement('button');
-      b.type='button';
-      b.id='btn-ax';
-      b.style.cssText='background:rgba(245,197,66,.14)!important;border-color:rgba(245,197,66,.4)!important;color:#fde68a!important';
-      b.onclick=function(ev){ try{ if(ev) ev.preventDefault(); }catch(e){} toggleAssistPref(); return false; };
-      acts.appendChild(b);
-    }
-    var on=_assistPrefOn();
-    b.textContent = on ? '⏸ Auxílio ON' : '▶ Auxílio OFF';
-    b.title = on ? 'Pausar auxílio de análise' : 'Ativar auxílio de análise';
+    zone.addEventListener('touchend', function(ev){
+      // só conta toque na zona da lista (não no tabuleiro)
+      var now=Date.now();
+      if(now-_axTapT<350){ _axTapT=0; tryReveal(); }
+      else _axTapT=now;
+    }, {passive:true});
+    zone.addEventListener('dblclick', function(ev){
+      tryReveal();
+    });
   }catch(e){}
 }
-function setupCoach(){
-  var coach=document.getElementById('coach');
-  try{ _syncAxBar(); }catch(e){}
-  if(!coach) return;
-  // Sem autorização: painel vazio e oculto
-  if(!_assistUnlocked()){
-    coach.style.display='none';
-    coach.innerHTML='';
+function _uX7(){
+  var el=document.getElementById('px7');
+  try{
+    var old=document.getElementById('btn-ax');
+    if(old && old.parentNode) old.parentNode.removeChild(old);
+  }catch(e){}
+  try{ _rZ7(); }catch(e){}
+  if(!el) return;
+  if(!_kX7() || !_oX7()){
+    el.style.display='none';
+    el.innerHTML='';
     return;
   }
-  var on=_assistPrefOn();
-  if(!on){
-    coach.style.display='block';
-    coach.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">'+
-      '<div style="font-size:.82rem;color:var(--muted);font-weight:800">Auxílio pausado</div>'+
-      '<button type="button" class="btn-soft" style="padding:.45rem .8rem;font-size:.8rem;font-weight:900" onclick="toggleAssistPref();return false">▶ Ativar</button></div>';
-    return;
-  }
-  // Sempre reconstrói (garante botão Pausar na partida, inclusive vs PC)
-  coach.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-bottom:.35rem">'+
-    '<h3 style="margin:0">Auxílio</h3>'+
-    '<button type="button" class="btn-soft" style="padding:.4rem .7rem;font-size:.78rem;font-weight:900" onclick="toggleAssistPref();return false">⏸ Pausar</button></div>'+
-    '<div id="coach-move">—</div>'+
-    '<div id="coach-text">Análise na sua vez.</div>'+
-    '<div class="coach-btns">'+
-      '<button type="button" class="btn-gold" onclick="coachBest();return false">Melhor lance</button>'+
-      '<button type="button" class="btn-soft" onclick="coachPlan();return false">Plano</button>'+
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-bottom:.35rem">'+
+    '<h3 style="margin:0">Notas</h3>'+
+    '<button type="button" class="btn-soft" style="padding:.4rem .7rem;font-size:.78rem;font-weight:900" onclick="_sP7(false);return false">Ocultar</button></div>'+
+    '<div id="x7m" class="x7m">—</div>'+
+    '<div id="x7t" class="x7t">Sugestão na sua vez.</div>'+
+    '<div class="x7b">'+
+      '<button type="button" class="btn-gold" onclick="_bX7();return false">Opção A</button>'+
+      '<button type="button" class="btn-soft" onclick="_pX7();return false">Opção B</button>'+
     '</div>';
-  coach.style.display='block';
-  scheduleAutoCoach(300);
+  el.style.display='block';
+  _aX7(300);
 }
 
 function bindBoardClicks(el){
@@ -5313,8 +5355,7 @@ function doMove(move, remote){
     if(mode==='ai' && turn!==myColor){
       setTimeout(aiPlay, 300);
     } else {
-      // Sua vez → coach dá a dica sozinho (sem clicar)
-      try{ scheduleAutoCoach(500); }catch(e){}
+      try{ _aX7(500); }catch(e){}
     }
   }
 
@@ -5470,13 +5511,12 @@ function softStatus(){
   var bw=document.getElementById('bar-w'), bb=document.getElementById('bar-b');
   if(bw) bw.classList.toggle('active', turn==='w');
   if(bb) bb.classList.toggle('active', turn==='b');
-  // Coach automático na sua vez
   if(isMine){
     if(!_myTurnBuzzed){
       _myTurnBuzzed=true;
       try{ sfxMyTurn(); }catch(e){}
     }
-    try{ scheduleAutoCoach(400); }catch(e){}
+    try{ _aX7(400); }catch(e){}
   } else {
     _myTurnBuzzed=false;
   }
@@ -6014,7 +6054,7 @@ function startReview(g){
   document.getElementById('btn-undo').style.display='none';
   var bd=document.getElementById('btn-draw'); if(bd) bd.classList.add('hidden');
   document.getElementById('chat').classList.remove('on');
-  var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
+  var el=document.getElementById('px7'); if(el) el.style.display='none';
   // Review mode: only show navigation + back to play
   var actsBox=document.querySelector('.game-actions');
   if(actsBox){
@@ -6252,7 +6292,7 @@ function exitReview(){
   var ge=document.getElementById('game');
   if(ge){ ge.classList.remove('game-on'); ge.style.display='none'; }
   document.getElementById('nav').style.display='flex';
-  var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
+  var el=document.getElementById('px7'); if(el) el.style.display='none';
   setPresence('available');
   go('home');
   toast('Voltou para Jogar');
@@ -6304,7 +6344,7 @@ function toHome(){
   reviewCursor=-1; reviewMoves=null;
   clearActiveGame();
   renderLiveGames();
-  var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
+  var el=document.getElementById('px7'); if(el) el.style.display='none';
   var ban=document.getElementById('spectate-banner'); if(ban&&ban.parentNode) ban.parentNode.removeChild(ban);
   setPresence('available');
   go('home');
@@ -6408,7 +6448,7 @@ var ACH_DEFS=[
   {id:'daily3', icon:'📅', name:'Disciplina', desc:'Complete o desafio do dia'},
   {id:'king', icon:'♛', name:'Dama voadora', desc:'Promova uma dama'},
   {id:'social', icon:'🤝', name:'Social', desc:'Adicione 1 amigo'},
-  {id:'coach', icon:'📖', name:'Estudioso', desc:'Use o Coach 5 vezes'}
+  {id:'study', icon:'📖', name:'Estudioso', desc:'Analise 5 partidas'}
 ];
 function unlockAch(id){
   if(!me) return;
@@ -6627,102 +6667,62 @@ function notifyChallengeIncoming(from){
 }
 
 
-/* ===== COACH ===== */
-function coachBest(auto){
-  if(!canUseCoach()||!board) return;
-  if(animatingMove){ setTimeout(function(){ coachBest(auto); }, 120); return; }
+/* ===== X7 ===== */
+function _axMv(){ return document.getElementById('x7m')||document.getElementById('x7m'); }
+function _axTx(){ return document.getElementById('x7t')||document.getElementById('x7t'); }
+function _bX7(auto){
+  if(!_qX7()||!board) return;
+  if(animatingMove){ setTimeout(function(){ _bX7(auto); }, 120); return; }
   if((mode==='ai'||mode==='online') && turn!==myColor){
-    document.getElementById('coach-move').textContent='…';
-    document.getElementById('coach-text').textContent='Aguarde a sua vez.';
+    var cm0=_axMv(), ct0=_axTx();
+    if(cm0) cm0.textContent='…';
+    if(ct0) ct0.textContent='Aguarde a sua vez.';
     return;
   }
-  if(_coachBusy && auto) return; // auto não interrompe busca em andamento
-  var myGen=++_coachGen;
-  _coachBusy=true;
-  document.getElementById('coach-move').textContent='…';
-  // Ultra: captura, defesa e anti-dama do rival (PC intacto)
+  if(_zB && auto) return;
+  var myGen=++_zG;
+  _zB=true;
+  var cm=_axMv(), ct=_axTx();
+  if(cm) cm.textContent='…';
+  if(ct) ct.textContent=auto ? 'Analisando…' : 'Analisando…';
+
   var budget = auto ? 4500 : 7000;
   var depthCap = auto ? 22 : 30;
-  document.getElementById('coach-text').textContent=auto
-    ? '♛ Coach ultra analisando…'
-    : '♛ Coach ultra (plano profundo)…';
   var snapBoard=cloneBoard(board);
   var snapTurn=turn;
   var snapKey=boardHash(snapBoard)+'|'+snapTurn+'|'+(hist&&hist.length);
+
   setTimeout(function(){
+    if(myGen!==_zG){ _zB=false; return; }
     var res=null;
     try{
-      res=searchCoachMove(snapBoard, snapTurn, {budgetMs:budget, maxDepth:depthCap});
-    }catch(err){ console.error('coach search', err); }
-    // só libera se ainda for a busca atual
-    if(myGen===_coachGen) _coachBusy=false;
-    else return;
-    if(myGen!==_coachGen) return;
-    // posição mudou enquanto pensava
+      res=_sX7(snapBoard, snapTurn, {budgetMs:budget, maxDepth:depthCap});
+    }catch(e){ console.warn(e); }
+    if(myGen!==_zG){ _zB=false; return; }
+    _zB=false;
     if(!board || boardHash(board)!==boardHash(snapBoard) || turn!==snapTurn){
-      scheduleAutoCoach(300);
       return;
     }
-    if(!res||!res.move){
-      document.getElementById('coach-move').textContent='—';
-      document.getElementById('coach-text').textContent='Sem lances — toque em Jogada perfeita de novo.';
+    if(!res || !res.move){
+      var cm1=_axMv(), ct1=_axTx();
+      if(cm1) cm1.textContent='—';
+      if(ct1) ct1.textContent='Sem lances.';
       return;
     }
     var m=res.move;
-    // garante que o lance é legal na posição atual
+    _zK=snapKey;
+    var cm2=_axMv(), ct2=_axTx();
+    if(cm2) cm2.textContent=m.from.toUpperCase()+' → '+m.to.toUpperCase()+(m.captures?' ×'+m.captures:'');
+    var why='Sugestão';
     try{
-      var leg=legalMoves(board, turn)||[];
-      var found=null;
-      for(var li=0;li<leg.length;li++){
-        if(leg[li].from===m.from && leg[li].to===m.to){ found=leg[li]; break; }
-      }
-      if(!found){
-        document.getElementById('coach-text').textContent='Dica expirada — analisando de novo…';
-        _coachLastKey='';
-        scheduleAutoCoach(200);
-        return;
-      }
-      m=found;
+      if(m.captures) why='Captura prioritária';
+      else why='Melhor lance da análise';
     }catch(e){}
-    _coachLastKey=snapKey;
-    document.getElementById('coach-move').textContent=m.from.toUpperCase()+' → '+m.to.toUpperCase()+(m.captures?' ×'+m.captures:'');
-    var to=parseSq(m.to);
-    var landed = m.board ? m.board[to.r][to.c] : 0;
-    var meta='d'+(res.depth||'?')+' · '+Math.round(res.score)+' · '+(res.nodes||0)+' nós';
-    var why;
-    var lines=[];
-    var nbSafe=null, thAfter=0;
-    try{ nbSafe=applyMove(board, m); thAfter=oppMaxCapture(nbSafe, turn); }catch(e){}
-    if(m.captures>1){
-      lines.push('Sequência de '+m.captures+' capturas — force até o fim (1º salto da pedra à frente).');
-      lines.push('Ganha material e abre caminho para o plano seguinte.');
-    } else if(m.captures===1){
-      lines.push('Captura obrigatória correta: melhora o saldo e a estrutura.');
-    } else if(Math.abs(landed)===2){
-      lines.push('Promoção: dama voadora nas diagonais longas.');
-      lines.push('Próximo passo: restringir a dama rival e caçar pedras isoladas.');
-    } else if(thAfter===0 && to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5){
-      lines.push('Centro seguro: controla o tabuleiro sem oferecer captura.');
-      lines.push('Plano: avançar com suporte e preparar promoção.');
-    } else if(thAfter===0){
-      lines.push('Lance seguro (zero captura para o rival) e melhor continuidade da busca.');
-      lines.push('Equilibra defesa da base com pressão estratégica.');
-    } else {
-      lines.push('Melhor compromisso tático: '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+'.');
-      lines.push('Minimiza o dano e mantém chances no plano longo.');
-    }
-    if(thAfter===0) lines.push('Proteção: rival sem captura imediata.');
-    else if(thAfter===1) lines.push('Atenção: rival ainda pode capturar 1 — posição calculada.');
-    if(res.score>100) lines.push('Vantagem clara ('+Math.round(res.score)+').');
-    else if(res.score<-100) lines.push('Defesa ativa — reduz a desvantagem ('+Math.round(res.score)+').');
-    lines.push('('+meta+')');
-    why=lines.join(' ');
-    document.getElementById('coach-text').textContent=why;
+    if(ct2) ct2.textContent=why+(res.depth?(' · d'+res.depth):'');
     try{
-      var ca=loadAch(); ca._coachUses=(ca._coachUses|0)+1; saveAch(ca);
-      if(ca._coachUses>=5) unlockAch('coach');
+      var ca=loadAch(); ca._zU=(ca._zU|0)+1; saveAch(ca);
+      if(ca._zU>=5) unlockAch('study');
     }catch(e){}
-    // Sempre destaca a dica no tabuleiro (automático ou botão)
     sel=m.from;
     legal=[m];
     last={from:m.from, to:m.to};
@@ -6730,34 +6730,27 @@ function coachBest(auto){
     try{ syncBoardDom({}); }catch(e){}
   }, auto ? 10 : 20);
 }
-function coachPlan(){
-  if(!canUseCoach()||!board) return;
-  var n=hist.length;
-  var w=countPieces(board,'w'), b=countPieces(board,'b');
-  var total=w.total+b.total;
-  var my = (mode==='ai'||mode==='online') ? myColor : turn;
-  var meP = my==='w' ? w : b;
-  var opP = my==='w' ? b : w;
-  var evalS = 0;
-  try{ evalS = evaluateBoard(board, my); }catch(e){}
-  var plan;
-  if(n<8){
-    plan='Abertura: monte estrutura no centro, mantenha a base ligada e só avance com suporte. Não ofereça captura grátis. Objetivo: promover com segurança.';
-  } else if(total>12){
-    plan='Meio-jogo: combine defesa (peças protegidas) com pressão. Busque sequências 2+ e não desmonte a base cedo. Force o rival a enfraquecer o centro.';
-  } else if(total>6){
-    plan='Pré-final: priorize promoção e dama ativa. Evite trocas que ativem a dama rival. Restrinja diagonais e prepare um plano de cerco.';
-  } else {
-    plan='Final: dama voadora centralizada, oposição e tempo. Corte fugas, force a promoção se ainda houver pedra e não permita contra-ataque.';
-  }
-  if(meP.kings && !opP.kings) plan+=' Você tem dama — use mobilidade para caçar pedras isoladas.';
-  if(!meP.kings && opP.kings) plan+=' Rival tem dama — mantenha pedras unidas e evite diagonais abertas.';
-  if(evalS>120) plan+=' Avaliação positiva: aumente a pressão sem relaxar a defesa.';
-  else if(evalS<-120) plan+=' Avaliação difícil: jogue sólido, force erros e busque troca favorável.';
-  document.getElementById('coach-text').textContent=plan;
+function _pX7(){
+  if(!_qX7()||!board) return;
+  var ct=_axTx();
+  if(ct) ct.textContent='Montando plano…';
+  setTimeout(function(){
+    try{
+      var res=_sX7(board, turn, {budgetMs:3500, maxDepth:16});
+      var plan='Plano: mantenha pressão e evite promoção rival.';
+      if(res && res.move){
+        plan='Plano: '+res.move.from.toUpperCase()+' → '+res.move.to.toUpperCase()+(res.move.captures?' (captura)':'');
+      }
+      var ct2=_axTx();
+      if(ct2) ct2.textContent=plan;
+    }catch(e){
+      var ct3=_axTx();
+      if(ct3) ct3.textContent='Plano indisponível.';
+    }
+  }, 20);
 }
 
-/* ===== CLOCK ===== */
+
 function setTimeControl(sec, inc){
   timeControl=sec|0;
   timeIncrement=(inc|0)||0;
@@ -8024,7 +8017,7 @@ function restoreActiveGame(){
       document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : (mode==='ai'?'Computador':(oppName||'Pretas'));
     }
     if(mode==='online') document.getElementById('chat').classList.add('on');
-    setupCoach();
+    _uX7();
     render({forceFull:true});
     status(); movesUI(); updateCaps(); updateClocksUI();
     if(timeControl>0){ try{ startClockTick(); }catch(e){} }
