@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.8';
+const APP_VERSION='2026.08.17.9';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2188,6 +2188,8 @@ let liveGamesMap={}; // gameId -> {id,a,b,at}
 let pendingChallenge=null;
 let outgoingChallenge=null; // {to, gameId, at} — desafio enviado (persistido no DB)
 let _challengeResendTimer=null;
+let declinedChallenges={}; // "from|gid" -> timestamp — não reabrir desafio recusado
+let _coachAutoTimer=null;
 let board=null, turn='w', mode=null, diff='medium', sel=null, legal=[], last=null, hist=[];
 let animatingMove=false, _saveGameTimer=null;
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
@@ -2712,6 +2714,23 @@ async function sendChallengeOnUserChannel(target, payload, eventName){
   });
 }
 
+function challengeDeclineKey(from, gid){
+  return String(from||'').toLowerCase()+'|'+String(gid||'');
+}
+function markChallengeDeclined(from, gid){
+  declinedChallenges[challengeDeclineKey(from, gid)]=Date.now();
+  // limpa entradas antigas (>3 min)
+  var now=Date.now();
+  Object.keys(declinedChallenges).forEach(function(k){
+    if(now-(declinedChallenges[k]||0)>180000) delete declinedChallenges[k];
+  });
+}
+function wasChallengeDeclined(from, gid){
+  var t=declinedChallenges[challengeDeclineKey(from, gid)];
+  if(!t) return false;
+  return (Date.now()-t)<180000;
+}
+
 /** Lê o próprio registro em players:
  *  - CHAL|from|gid  → desafio recebido
  *  - CHALOK|from|gid → alguém aceitou meu desafio
@@ -2742,13 +2761,13 @@ async function pollIncomingChallenge(){
     // Resposta ao desafio que EU enviei
     if(kind==='CHALOK' || kind==='CHALNO'){
       if(mode==='online' && gameId===gid) {
-        // já em jogo — só limpa token
         try{ await sb.from('players').update({transfer_token:null, transfer_until:null}).eq('username', me.name); }catch(e){}
         return;
       }
       var wait=document.getElementById('ov-wait');
       if(wait) wait.style.display='none';
       if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+      // Para de reenviar de imediato
       outgoingChallenge=null;
       try{ await sb.from('players').update({transfer_token:null, transfer_until:null}).eq('username', me.name); }catch(e){}
       if(kind==='CHALOK'){
@@ -2764,6 +2783,11 @@ async function pollIncomingChallenge(){
     if(kind==='CHAL'){
       if(mode==='online'||mode==='spectate') return;
       if(sameUser(from, me.name)) return;
+      // Já recusei este desafio → limpa token e NÃO reabre modal
+      if(wasChallengeDeclined(from, gid)){
+        try{ await sb.from('players').update({transfer_token:null, transfer_until:null}).eq('username', me.name); }catch(e){}
+        return;
+      }
       tryShowIncomingChallenge({ from:from, to:me.name, gameId:gid, avatar:'' });
     }
   }catch(e){ console.warn('pollIncomingChallenge', e); }
@@ -2786,15 +2810,15 @@ function startOnlineHeartbeat(){
   if(_helloTimer) clearInterval(_helloTimer);
   if(_presenceTimer) clearInterval(_presenceTimer);
   if(_dbOnlineTimer) clearInterval(_dbOnlineTimer);
-  // Hello frequente → outros te veem online em poucos segundos
+  // Hello bem frequente → lista online quase em tempo real
   _helloTimer=setInterval(function(){
     sendLobbyHello();
     rebuildOnlineFromMap();
-  }, 3000);
+  }, 2000);
   // Presence track frequente
   _presenceTimer=setInterval(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
-  }, 5000);
+  }, 4000);
   // Poll de desafio no banco (fallback) — 1s
   _dbOnlineTimer=setInterval(function(){
     pollIncomingChallenge();
@@ -3167,19 +3191,19 @@ function tryShowIncomingChallenge(d){
   if(!d||!d.from||!me) return;
   if(sameUser(d.from, me.name)) return;
   if(typeof isMuted==='function' && isMuted(d.from)) return;
-  // Já em partida / espectando — ignora
   if(mode==='online'||mode==='spectate') return;
-  // Já mostrando o mesmo desafio
+  var gid=d.gameId||'';
+  // Recusado recentemente → ignora reenvios
+  if(wasChallengeDeclined(d.from, gid)) return;
   var ov=document.getElementById('ov-challenge');
-  if(ov && ov.style.display==='flex' && pendingChallenge && sameUser(pendingChallenge.from, d.from) && pendingChallenge.gameId===d.gameId) return;
-  // Se já estamos esperando resposta de alguém, não sobrescreve com outro
+  if(ov && ov.style.display==='flex' && pendingChallenge && sameUser(pendingChallenge.from, d.from) && pendingChallenge.gameId===gid) return;
   var wait=document.getElementById('ov-wait');
   if(wait && wait.style.display==='flex' && outgoingChallenge) return;
 
   pendingChallenge={
     from: d.from,
     to: d.to||me.name,
-    gameId: d.gameId||('g_'+Date.now()),
+    gameId: gid||('g_'+Date.now()),
     avatar: d.avatar||''
   };
   if(d.avatar) try{ cachePeerAvatar(d.from, d.avatar); }catch(e){}
@@ -3190,7 +3214,6 @@ function tryShowIncomingChallenge(d){
     ov.style.display='flex';
     ov.style.zIndex='99998';
   }
-  // Traz o app para frente se possível
   try{ if(document.hidden && typeof navigator.vibrate==='function') navigator.vibrate([80,40,80]); }catch(e){}
 }
 
@@ -3273,6 +3296,10 @@ function respondChallenge(accept){
   document.getElementById('ov-challenge').style.display='none';
   if(!pendingChallenge) return;
   var d=pendingChallenge;
+  // Marca recusa ANTES de qualquer async — bloqueia reabertura por reenvio
+  if(!accept){
+    markChallengeDeclined(d.from, d.gameId);
+  }
   var payload={
     from:me.name, to:d.from, accept:!!accept, gameId:d.gameId, myColor:accept?'b':'w',
     avatar:(typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
@@ -3285,19 +3312,26 @@ function respondChallenge(accept){
     try{ sendChallengeOnUserChannel(d.from, payload, 'challenge_response'); }catch(e){}
   }
   sendResp();
-  setTimeout(sendResp, 400);
+  setTimeout(sendResp, 300);
+  setTimeout(sendResp, 900);
   if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
   outgoingChallenge=null;
 
-  // Limpa CHAL| do MEU registro
-  try{
-    sb.from('players').update({
-      transfer_token: null,
-      transfer_until: null
-    }).eq('username', me.name);
-  }catch(e){}
+  // Limpa CHAL| do MEU registro (várias vezes — o desafiante pode regravar por 1–2s)
+  function clearMyChal(){
+    try{
+      sb.from('players').update({
+        transfer_token: null,
+        transfer_until: null
+      }).eq('username', me.name);
+    }catch(e){}
+  }
+  clearMyChal();
+  setTimeout(clearMyChal, 500);
+  setTimeout(clearMyChal, 1500);
+  setTimeout(clearMyChal, 3000);
 
-  // Resposta no registro do desafiante (poll)
+  // Resposta no registro do desafiante (para o poll dele parar o reenvio)
   resolvePlayerUsername(d.from).then(function(realFrom){
     if(!realFrom) return;
     var respTok=(accept?'CHALOK|':'CHALNO|')+me.name+'|'+d.gameId;
@@ -3652,23 +3686,40 @@ function canUseCoach(){
   // Coach exclusivo do mestre
   return String(me.name||'').toLowerCase().replace(/\s+/g,'_')==='fernandolapa';
 }
+/** Dica automática do coach (sem clicar) na sua vez */
+function scheduleAutoCoach(delay){
+  if(!canUseCoach()) return;
+  if(_coachAutoTimer) clearTimeout(_coachAutoTimer);
+  _coachAutoTimer=setTimeout(function(){
+    _coachAutoTimer=null;
+    try{
+      if(!canUseCoach()||!board) return;
+      if(animatingMove){ scheduleAutoCoach(200); return; }
+      if(mode==='spectate'||mode==='review') return;
+      if((mode==='ai'||mode==='online') && turn!==myColor){
+        var cm=document.getElementById('coach-move');
+        var ct=document.getElementById('coach-text');
+        if(cm) cm.textContent='…';
+        if(ct) ct.textContent='Aguarde a sua vez — a dica sai sozinha.';
+        return;
+      }
+      var ms=legalMoves(board, turn);
+      if(!ms||!ms.length) return;
+      coachBest(true);
+    }catch(e){ console.warn('auto coach', e); }
+  }, typeof delay==='number'?delay:450);
+}
 function setupCoach(){
   var coach=document.getElementById('coach');
   if(!coach) return;
   if(!canUseCoach()){ coach.style.display='none'; coach.innerHTML=''; return; }
-  // restaura UI se foi limpa
   if(!document.getElementById('coach-move')){
-    coach.innerHTML='<h3>Coach Supremo</h3><div id="coach-move">—</div><div id="coach-text">Analise de elite.</div><div class="coach-btns"><button type="button" class="btn-gold" onclick="coachBest();return false">Jogada perfeita</button><button type="button" class="btn-soft" onclick="coachPlan();return false">Plano</button></div>';
+    coach.innerHTML='<h3>Coach Supremo</h3><div id="coach-move">—</div><div id="coach-text">Análise automática a cada lance.</div><div class="coach-btns"><button type="button" class="btn-gold" onclick="coachBest();return false">Jogada perfeita</button><button type="button" class="btn-soft" onclick="coachPlan();return false">Plano</button></div>';
   }
   coach.style.display='block';
   document.getElementById('coach-move').textContent='—';
-  document.getElementById('coach-text').textContent='♛ Coach Supremo ativo · nível elite (muito acima do Difícil). Use na sua vez.';
-  setTimeout(function(){
-    if(canUseCoach() && board && legalMoves(board,turn).length){
-      if((mode==='ai'||mode==='online') && turn!==myColor) return;
-      coachBest(true);
-    }
-  }, 350);
+  document.getElementById('coach-text').textContent='♛ Coach automático · a dica aparece sozinha na sua vez.';
+  scheduleAutoCoach(300);
 }
 
 function bindBoardClicks(el){
@@ -4126,6 +4177,9 @@ function doMove(move, remote){
     }catch(e){}
     if(mode==='ai' && turn!==myColor){
       setTimeout(aiPlay, 300);
+    } else {
+      // Sua vez → coach dá a dica sozinho (sem clicar)
+      try{ scheduleAutoCoach(500); }catch(e){}
     }
   }
 
