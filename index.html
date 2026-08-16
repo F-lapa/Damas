@@ -808,6 +808,14 @@ body.theme-carbon{--bg:#0a0a0a;--card:rgba(24,24,27,.95);--blue:#a1a1aa;--violet
 .conn-badge.ok{color:#6ee7b7}
 .conn-badge.warn{color:#fbbf24}
 .conn-badge.bad{color:#fb7185}
+.disc-banner{
+  display:none;width:100%;max-width:min(94vw,600px);margin:.2rem auto 0;
+  padding:.55rem .75rem;border-radius:14px;text-align:center;
+  font-weight:900;font-size:.84rem;line-height:1.35;
+  background:rgba(251,113,133,.14);border:1px solid rgba(251,113,133,.4);color:#fecaca;
+}
+.disc-banner.on{display:block}
+.disc-banner b{color:#fff}
 .home-week-mini{margin-top:.75rem;padding:.75rem .85rem;border-radius:16px;border:1px solid rgba(245,197,66,.25);background:linear-gradient(145deg,rgba(245,197,66,.1),rgba(0,0,0,.2))}
 .home-week-mini h3{margin:0 0 .45rem;font-size:.88rem;color:var(--gold)}
 #btn-rematch.rematch-hot{background:linear-gradient(135deg,#f5c542,#f59e0b)!important;color:#1a1200!important;border:none!important;font-weight:900!important}
@@ -1539,6 +1547,7 @@ body.has-install-banner,body{padding-top:0!important}
           </div>
           <div class="turn-under w" id="turn-under">▶ Vez das Brancas</div>
           <div class="conn-badge" id="conn-badge" style="display:none">● Conectando…</div>
+          <div class="disc-banner" id="disc-banner" role="status"></div>
           <div class="review-panel" id="review-panel">
             <div class="rp-title" id="review-title">Revisão da partida</div>
             <div class="rp-btns">
@@ -1645,7 +1654,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.34';
+const APP_VERSION='2026.08.17.35';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2520,6 +2529,10 @@ let gameFinished=false; // true após fim — não restaurar/salvar
 let posRepMap={};
 let _lastNetOk=0;
 let _myTurnBuzzed=false;
+let _oppLastSeen=0;
+let _discActive=false;
+let _discCountdown=null;
+let _gamePingTimer=null;
 let prefs={ui:'dark', board:'classic', pieces:'classic', sound:true, coords:true};
 let rankKing='';
 
@@ -3304,6 +3317,10 @@ function joinLobby(){
         var key=payload&&payload.key;
         if(key && _onlineMap[key]) delete _onlineMap[key];
         rebuildOnlineFromMap();
+        // Adversário saiu do lobby no meio da partida → inicia contagem
+        if(mode==='online' && !gameFinished && oppName && key && sameUser(key, oppName)){
+          if(!_discActive) startDisconnectCountdown();
+        }
       }catch(e){}
     });
     lobbyCh.on('broadcast',{event:'lobby_hello'}, function(p){
@@ -3799,6 +3816,7 @@ function startOnlineGame(gid, opponent, color){
   startLiveAnnounce();
   renderLiveGames();
   try{ updateConnBadge(true); }catch(e){}
+  try{ startGameHeartbeat(); }catch(e){}
   // Tutorial curto só na 1ª partida online
   try{
     if(localStorage.getItem('dm_online_tip_v1')!=='1'){
@@ -3884,6 +3902,64 @@ function spectateGame(gid, p1, p2){
   joinGameChannel(true);
   toast('Assistindo partida ao vivo');
 }
+function noteOpponentAlive(){
+  _oppLastSeen=Date.now();
+  if(_discActive) clearDisconnectWarning(true);
+}
+function showDiscBanner(sec){
+  var el=document.getElementById('disc-banner');
+  if(!el) return;
+  el.classList.add('on');
+  var name=oppName||'Adversário';
+  el.innerHTML='⚠️ <b>'+escapeHtml(name)+'</b> desconectou — <b>'+sec+'s</b> para voltar';
+}
+function clearDisconnectWarning(reconnected){
+  _discActive=false;
+  if(_discCountdown){ clearInterval(_discCountdown); _discCountdown=null; }
+  var el=document.getElementById('disc-banner');
+  if(el){ el.classList.remove('on'); el.innerHTML=''; }
+  if(reconnected){
+    try{ toast((oppName||'Adversário')+' voltou à partida'); }catch(e){}
+  }
+}
+function startDisconnectCountdown(){
+  if(_discActive || gameFinished || mode!=='online') return;
+  _discActive=true;
+  var left=30;
+  showDiscBanner(left);
+  try{ toast((oppName||'Adversário')+' desconectou — 30s para voltar'); }catch(e){}
+  if(_discCountdown) clearInterval(_discCountdown);
+  _discCountdown=setInterval(function(){
+    if(gameFinished || mode!=='online'){ clearDisconnectWarning(false); return; }
+    left--;
+    if(left>0){ showDiscBanner(left); return; }
+    clearDisconnectWarning(false);
+    try{
+      if(!gameFinished && mode==='online'){
+        finishOnline('win', (oppName||'Adversário')+' não voltou (desconexão).');
+      }
+    }catch(e){ console.warn(e); }
+  }, 1000);
+}
+function stopGameHeartbeat(){
+  if(_gamePingTimer){ clearInterval(_gamePingTimer); _gamePingTimer=null; }
+}
+function startGameHeartbeat(){
+  stopGameHeartbeat();
+  _oppLastSeen=Date.now();
+  clearDisconnectWarning(false);
+  _gamePingTimer=setInterval(function(){
+    if(mode!=='online' || gameFinished || !gameCh) return;
+    try{
+      gameCh.send({type:'broadcast', event:'ping', payload:{by:me&&me.name, t:Date.now()}});
+    }catch(e){}
+    var silent=Date.now()-(_oppLastSeen||0);
+    // 12s sem sinal do adversário → inicia contagem de 30s
+    if(!_discActive && _oppLastSeen && silent>12000){
+      startDisconnectCountdown();
+    }
+  }, 3000);
+}
 function joinGameChannel(asSpectator){
   if(!sb||!gameId) return;
   try{
@@ -3892,12 +3968,18 @@ function joinGameChannel(asSpectator){
     gameCh.on('broadcast',{event:'move'}, function(p){
       var d=p.payload||{};
       if(sameUser(d.by, me.name)) return;
+      try{ noteOpponentAlive(); }catch(e){}
       if(mode==='spectate'){
         // Spectators apply any move for the side to move
         applySpectateMove(d);
         return;
       }
       applyRemoteMove(d);
+    });
+    gameCh.on('broadcast',{event:'ping'}, function(p){
+      var d=p.payload||{};
+      if(!d.by || sameUser(d.by, me.name)) return;
+      try{ noteOpponentAlive(); }catch(e){}
     });
     gameCh.on('broadcast',{event:'chat'}, function(p){
       var d=p.payload||{};
@@ -3933,6 +4015,7 @@ function joinGameChannel(asSpectator){
     gameCh.on('broadcast',{event:'ready'}, function(p){
       var d=p.payload||{};
       if(sameUser(d.by, me.name)) return;
+      try{ noteOpponentAlive(); }catch(e){}
       if(d.avatar){ cachePeerAvatar(d.by, d.avatar); refreshGameAvatars(); }
     });
     gameCh.on('broadcast',{event:'avatar'}, function(p){
@@ -3991,6 +4074,7 @@ function joinGameChannel(asSpectator){
     gameCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
         try{
+          if(!asSpectator && mode==='online'){ try{ startGameHeartbeat(); }catch(e){} }
           gameCh.send({type:'broadcast', event:'ready', payload:{by:me.name, color:myColor, avatar:getPublicAvatar(me.name)||'', spectator:!!asSpectator}});
           setTimeout(function(){
             try{ gameCh.send({type:'broadcast', event:'avatar', payload:{by:me.name, avatar:getPublicAvatar(me.name)||''}}); }catch(e){}
@@ -5026,6 +5110,7 @@ async function finishOnline(result, msg, opts){
   if(gameFinished || window.__finishingOnline) return;
   window.__finishingOnline=true;
   gameFinished=true;
+  try{ stopGameHeartbeat(); clearDisconnectWarning(false); }catch(e){}
   stopClock();
   lastEndResult=result; lastEndMode='online';
   try{
