@@ -1648,7 +1648,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.27';
+const APP_VERSION='2026.08.17.28';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -7544,7 +7544,13 @@ function showUpdatePrompt(remoteVer){
   if(!remoteVer) return;
   remoteVer=String(remoteVer);
   if(remoteVer === String(APP_VERSION)) return;
-  try{ if(localStorage.getItem('dm_skip_ver_'+remoteVer)==='1') return; }catch(e){}
+  try{
+    // Já atualizou / dispensou esta versão → não insiste
+    if(localStorage.getItem('dm_skip_ver_'+remoteVer)==='1') return;
+    if(localStorage.getItem('dm_app_version')===remoteVer) return;
+    var appliedAt=Number(localStorage.getItem('dm_update_applied_at_'+remoteVer)||0);
+    if(appliedAt && (Date.now()-appliedAt) < 2*60*60*1000) return; // 2h após clicar Atualizar
+  }catch(e){}
   try{
     if(window.DamasNative && typeof DamasNative.isVersionSkipped==='function'){
       if(DamasNative.isVersionSkipped(remoteVer)) return;
@@ -7589,6 +7595,15 @@ function dismissUpdate(){
 }
 async function applyUpdate(){
   var ver=window.__remoteVersion||APP_VERSION;
+  // Fecha modal e marca versão como aplicada → não reabre em loop
+  try{
+    var el0=document.getElementById('ov-update');
+    if(el0) el0.style.display='none';
+    window.__updatePromptShown = String(ver);
+    localStorage.setItem('dm_app_version', String(ver));
+    localStorage.setItem('dm_skip_ver_'+String(ver), '1');
+    localStorage.setItem('dm_update_applied_at_'+String(ver), String(Date.now()));
+  }catch(e){}
   // Se está em partida: salva e retoma depois do reload (não abandona o tabuleiro)
   try{
     if((mode==='online'||mode==='ai'||mode==='local') && board && !gameFinished){
@@ -7651,8 +7666,15 @@ async function checkForAppUpdate(){
     var remote=String(data.version).trim();
     if(!remote) return;
     if(remote === String(APP_VERSION)){
-      try{ localStorage.setItem('dm_app_version', remote); }catch(e){}
-      // limpa skip de versoes antigas
+      try{
+        localStorage.setItem('dm_app_version', remote);
+        localStorage.removeItem('dm_skip_ver_'+remote);
+        localStorage.removeItem('dm_update_applied_at_'+remote);
+      }catch(e){}
+      try{
+        var el=document.getElementById('ov-update');
+        if(el) el.style.display='none';
+      }catch(e){}
       return;
     }
     console.log('[update] remote='+remote+' local='+APP_VERSION);
