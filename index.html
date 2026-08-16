@@ -958,10 +958,20 @@ button:focus-visible{box-shadow:0 0 0 2px rgba(91,157,255,.45)}
   letter-spacing:.02em!important;padding:.45rem .75rem!important;
   background:rgba(255,255,255,.05)!important;border:1px solid var(--line)!important;
 }
-.turn-banner.mine,.turn-under.mine{
-  background:linear-gradient(135deg,rgba(245,197,66,.18),rgba(245,197,66,.08))!important;
-  border-color:rgba(245,197,66,.5)!important;color:#ffe9a8!important;
+
+@keyframes sua-vez-pulse{
+  0%,100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(255,80,80,.55); background:linear-gradient(135deg,#ff3b3b,#ff8a00)!important; color:#fff!important; border-color:#ffd18a!important; }
+  50%{ transform:scale(1.03); box-shadow:0 0 28px 4px rgba(255,60,60,.55); background:linear-gradient(135deg,#ff5a1f,#ffcc00)!important; color:#1a0a00!important; border-color:#fff!important; }
 }
+.turn-banner.mine,.turn-under.mine{
+  animation:sua-vez-pulse 1.1s ease-in-out infinite!important;
+  font-weight:900!important;
+  letter-spacing:.04em!important;
+}
+.side-status.my-turn{
+  animation:sua-vez-pulse 1.1s ease-in-out infinite!important;
+}
+
 .board-hero{width:100%!important;max-width:560px!important;display:flex!important;justify-content:center!important}
 .board-frame{
   width:min(96vw,520px)!important;aspect-ratio:1!important;
@@ -1518,7 +1528,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.18';
+const APP_VERSION='2026.08.17.20';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2138,7 +2148,7 @@ function searchBestMove(board, color, depth, timeMs){
   return {move:best, score:bestScore, nodes:_nodes};
 }
 
-/** Coach = mesma inteligência do PC Difícil (pedido do usuário). */
+/** Coach ultra — planos de captura, defesa e anti-promoção do rival. PC intacto. */
 function oppMaxCapture(board, myColor){
   var opp = myColor==='w'?'b':'w';
   var ms;
@@ -2151,27 +2161,221 @@ function oppMaxCapture(board, myColor){
   return best;
 }
 
-/**
- * Coach usa EXATAMENTE o mesmo motor do nível Difícil:
- * searchBestMove(board, color, depth=11, timeMs=280)
- * (searchBestMove limita o tempo internamente igual ao PC hard)
- */
+/** Avaliação extra só do coach (não altera o PC) */
+function coachEvalExtra(board, forColor){
+  var extra=0;
+  var opp = forColor==='w'?'b':'w';
+  // Anti-promoção: penaliza pedras rivais perto de dama
+  for(var r=0;r<8;r++){
+    for(var c=0;c<8;c++){
+      var p=board[r][c]; if(!p) continue;
+      if(forColor==='w'){
+        if(p===-1){ // black man
+          extra -= (r)*9; // quanto mais embaixo, pior
+          if(r>=6) extra -= 40;
+          if(r===7) extra -= 80;
+        }
+        if(p===1){ // our man advancing
+          extra += (7-r)*4;
+          if(r<=1) extra += 25;
+        }
+        if(p===-2) extra -= 15; // enemy king pressure
+        if(p===2) extra += 12;
+      } else {
+        if(p===1){
+          extra -= (7-r)*9;
+          if(r<=1) extra -= 40;
+          if(r===0) extra -= 80;
+        }
+        if(p===-1){
+          extra += r*4;
+          if(r>=6) extra += 25;
+        }
+        if(p===2) extra -= 15;
+        if(p===-2) extra += 12;
+      }
+    }
+  }
+  // ameaça imediata do rival
+  var th=oppMaxCapture(board, forColor);
+  if(th>=3) extra -= 200;
+  else if(th===2) extra -= 110;
+  else if(th===1) extra -= 35;
+  // bônus se nós temos captura
+  try{
+    var ms=legalMoves(board, forColor);
+    var bestC=0;
+    for(var i=0;i<(ms||[]).length;i++) if((ms[i].captures||0)>bestC) bestC=ms[i].captures;
+    if(bestC>=2) extra += 30+bestC*12;
+    else if(bestC===1) extra += 10;
+  }catch(e){}
+  return extra;
+}
+
+function coachNegamax(board, depth, alpha, beta, color, qply){
+  _nodes++;
+  if(_deadline && (_nodes&31)===0 && Date.now()>_deadline){
+    return evaluateBoard(board, color)+coachEvalExtra(board, color);
+  }
+  var alphaOrig=alpha;
+  var key='CU|'+boardHash(board)+'|'+depth+'|'+color+'|'+qply;
+  if(_tt && depth>=0 && qply===0){
+    var e=_tt.get(key);
+    if(e && e.d>=depth){
+      if(e.flag===0) return e.val;
+      if(e.flag===1 && e.val>=beta) return e.val;
+      if(e.flag===2 && e.val<=alpha) return e.val;
+    }
+  }
+  var moves=legalMoves(board, color);
+  if(!moves.length) return -100000 - depth;
+  if(depth<=0){
+    var stand=evaluateBoard(board, color)+coachEvalExtra(board, color);
+    if(qply>=14) return stand;
+    var caps=[];
+    for(var i=0;i<moves.length;i++) if((moves[i].captures||0)>0) caps.push(moves[i]);
+    if(!caps.length) return stand;
+    if(stand>=beta) return stand;
+    if(stand>alpha) alpha=stand;
+    orderMoves(caps, 0, null);
+    var bestQ=stand;
+    for(var j=0;j<caps.length;j++){
+      if(_deadline && Date.now()>_deadline) break;
+      var nq=applyMove(board, caps[j]);
+      var sq=-coachNegamax(nq, 0, -beta, -alpha, color==='w'?'b':'w', qply+1);
+      if(sq>bestQ) bestQ=sq;
+      if(sq>alpha) alpha=sq;
+      if(alpha>=beta) break;
+    }
+    return bestQ;
+  }
+  orderMoves(moves, depth, null);
+  var best=-1e15, bestMove=null;
+  for(var i2=0;i2<moves.length;i2++){
+    if(_deadline && Date.now()>_deadline) break;
+    var m=moves[i2];
+    var nb=applyMove(board, m);
+    var ext=((m.captures||0)>=1)?1:0;
+    var sc;
+    if(i2===0) sc=-coachNegamax(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
+    else {
+      sc=-coachNegamax(nb, depth-1+ext, -alpha-1, -alpha, color==='w'?'b':'w', 0);
+      if(sc>alpha && sc<beta) sc=-coachNegamax(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
+    }
+    if(sc>best){ best=sc; bestMove=m; }
+    if(sc>alpha) alpha=sc;
+    if(alpha>=beta){
+      if(_killers && (m.captures||0)===0){
+        var kd=_killers[depth]||(_killers[depth]=[null,null]);
+        if(!kd[0]||kd[0].from!==m.from||kd[0].to!==m.to){ kd[1]=kd[0]; kd[0]={from:m.from,to:m.to}; }
+      }
+      if(_history){ var mk=moveKey(m); _history[mk]=(_history[mk]||0)+depth*depth; }
+      break;
+    }
+  }
+  if(best<=-1e14) return evaluateBoard(board, color)+coachEvalExtra(board, color);
+  if(_tt && _tt.size<400000 && qply===0){
+    var flag=0;
+    if(best<=alphaOrig) flag=2;
+    else if(best>=beta) flag=1;
+    _tt.set(key, {val:best, flag:flag, d:depth, m:bestMove});
+  }
+  return best;
+}
+
 function searchCoachMove(board, color, opts){
   opts = opts || {};
-  // Mesmos parâmetros do aiPlay no nível hard
-  var depth = 11;
-  var budget = 280;
-  if(opts.budgetMs != null) budget = opts.budgetMs;
-  if(opts.maxDepth != null) depth = opts.maxDepth;
-  var res = searchBestMove(board, color, depth, budget);
-  if(!res || !res.move) return null;
-  return {
-    move: res.move,
-    score: res.score,
-    nodes: res.nodes,
-    depth: depth,
-    coach: true
-  };
+  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 5000;
+  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 26;
+  var moves=legalMoves(board, color);
+  if(!moves.length) return null;
+  if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
+
+  try{
+    moves.sort(function(a,b){
+      var ca=a.captures||0, cb=b.captures||0;
+      if(cb!==ca) return cb-ca;
+      var na=applyMove(board,a), nb=applyMove(board,b);
+      var ta=oppMaxCapture(na,color), tb=oppMaxCapture(nb,color);
+      if(ta!==tb) return ta-tb;
+      // prefere impedir promoção rival / avançar a nossa
+      var ea=evaluateBoard(nb,color)+coachEvalExtra(nb,color);
+      var eb=evaluateBoard(na,color)+coachEvalExtra(na,color);
+      return ea-eb;
+    });
+  }catch(e){
+    moves.sort(function(a,b){ return (b.captures||0)-(a.captures||0); });
+  }
+
+  _tt=new Map(); _nodes=0; _killers=[]; _history={};
+  _deadline=Date.now()+Math.max(1000, budgetMs);
+  var best=moves[0], bestScore=-1e15, completedDepth=0, rootPV=null;
+  var opp=color==='w'?'b':'w';
+
+  for(var d=1; d<=maxDepth; d++){
+    if(Date.now()>_deadline) break;
+    orderMoves(moves, d, rootPV);
+    var localBest=null, localScore=-1e15;
+    var alpha=-1e15, beta=1e15;
+    if(d>=5 && completedDepth>=d-1 && bestScore>-1e14 && bestScore<1e14){
+      var win=d>=12?20:40;
+      alpha=bestScore-win; beta=bestScore+win;
+    }
+    var timedOut=false;
+    for(var i=0;i<moves.length;i++){
+      if(Date.now()>_deadline){ timedOut=true; break; }
+      var nb=applyMove(board, moves[i]);
+      var sc=-coachNegamax(nb, d-1, -beta, -alpha, opp, 0);
+      if(d>=5 && (sc<=alpha||sc>=beta)){
+        if(Date.now()>_deadline){ timedOut=true; break; }
+        sc=-coachNegamax(nb, d-1, -1e15, 1e15, opp, 0);
+      }
+      // raiz: reforço anti-promo e segurança
+      var th=oppMaxCapture(nb, color);
+      if(th>=2) sc -= 90*th;
+      else if(th===1) sc -= 28;
+      sc += coachEvalExtra(nb, color)*0.15;
+      if(sc>localScore){ localScore=sc; localBest=moves[i]; }
+      if(sc>alpha) alpha=sc;
+    }
+    if(localBest && !timedOut){
+      best=localBest; bestScore=localScore; completedDepth=d; rootPV=localBest;
+      for(var p=0;p<moves.length;p++){
+        if(moves[p].from===rootPV.from && moves[p].to===rootPV.to){
+          if(p>0){ var tmp=moves[0]; moves[0]=moves[p]; moves[p]=tmp; }
+          break;
+        }
+      }
+      if(bestScore>90000||bestScore<-90000) break;
+    } else {
+      break; // incompleto: mantém profundidade anterior
+    }
+  }
+
+  if(completedDepth<6){
+    var remain=_deadline-Date.now();
+    if(remain>300){
+      var per=Math.max(100, Math.floor(remain/Math.max(1,moves.length)));
+      for(var j=0;j<moves.length;j++){
+        if(Date.now()>_deadline) break;
+        var save=_deadline; _deadline=Math.min(save, Date.now()+per);
+        var nb2=applyMove(board, moves[j]);
+        var sc2=-coachNegamax(nb2, 9, -1e15, 1e15, opp, 0);
+        _deadline=save;
+        if(sc2>bestScore){ bestScore=sc2; best=moves[j]; completedDepth=Math.max(completedDepth,10); }
+      }
+    }
+  }
+
+  var still=legalMoves(board, color)||[];
+  var ok=false;
+  for(var k=0;k<still.length;k++){
+    if(still[k].from===best.from && still[k].to===best.to){ best=still[k]; ok=true; break; }
+  }
+  if(!ok && still.length) best=still[0];
+
+  _deadline=0;
+  return {move:best, score:bestScore, nodes:_nodes, depth:completedDepth, coach:true};
 }
 
 
@@ -2248,15 +2452,24 @@ async function dbGetPlayer(username){
 }
 async function dbUpdatePlayer(username, patch){
   if(!sb) return null;
-  // update sem .single() — evita falha de RLS no RETURNING
-  var res=await sb.from('players').update(patch).eq('username', username);
+  var u = (typeof norm==='function' ? norm(username) : String(username||'').trim());
+  // Confirma update com .select()
+  var res=await sb.from('players').update(patch).eq('username', u).select('*');
   if(res.error) throw res.error;
-  // tenta ler de volta (opcional)
+  if(res.data && res.data.length) return res.data[0];
+  // tenta username exact (caso norm mude)
+  if(u !== username){
+    res=await sb.from('players').update(patch).eq('username', username).select('*');
+    if(res.error) throw res.error;
+    if(res.data && res.data.length) return res.data[0];
+  }
+  // fallback read
   try{
-    var r2=await sb.from('players').select('*').eq('username', username).maybeSingle();
+    var r2=await sb.from('players').select('*').eq('username', u).maybeSingle();
     if(!r2.error && r2.data) return r2.data;
   }catch(e){}
-  return patch;
+  console.warn('dbUpdatePlayer: 0 rows', u, patch);
+  return null;
 }
 async function dbSetAvatar(username, dataUrl){
   if(!sb || !username || !dataUrl) throw new Error('Dados inválidos');
@@ -3578,7 +3791,17 @@ function joinGameChannel(asSpectator){
       var d=p.payload||{};
       if(mode==='spectate'){
         showEnd('Fim de jogo', d.msg||'Partida encerrada');
+        return;
       }
+      // Perdedor / outro lado: se ainda estamos em partida online, aplica resultado inverso
+      if(mode!=='online' || gameFinished) return;
+      if(sameUser(d.by, me.name)) return; // quem enviou já aplicou o próprio rank
+      var hisResult=d.result||'';
+      var myResult='loss';
+      if(hisResult==='loss') myResult='win';
+      else if(hisResult==='win') myResult='loss';
+      else if(hisResult==='draw') myResult='draw';
+      finishOnline(myResult, d.msg|| (myResult==='loss'?'Derrota':'Fim de jogo'));
     });
     gameCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
@@ -3768,7 +3991,7 @@ function setupCoach(){
   }
   coach.style.display='block';
   document.getElementById('coach-move').textContent='—';
-  document.getElementById('coach-text').textContent='♛ Coach no mesmo nível do PC Difícil · dica automática.';
+  document.getElementById('coach-text').textContent='♛ Coach ultra · captura, defesa e anti-promoção.';
   scheduleAutoCoach(300);
 }
 
@@ -4612,30 +4835,54 @@ async function finishOnline(result, msg){
 async function applyRank(result){
   if(!me||!sb) return;
   try{
-    var row=await dbGetPlayer(me.name); if(!row) return;
+    var row=await dbGetPlayer(me.name);
+    if(!row){
+      console.warn('applyRank: player not found', me.name);
+      toast('Não achou seu perfil para atualizar pontos');
+      return;
+    }
     var games=(row.games||0)+1, wins=row.wins||0, losses=row.losses||0, draws=row.draws||0;
     var streak=row.streak||0, best=row.best_streak||0;
     var delta=0;
     if(result==='win'){delta=25;wins++;streak++;if(streak>best)best=streak}
     else if(result==='loss'){delta=-8;losses++;streak=0}
     else {draws++;streak=0}
-    var fromPts=row.points||0;
-    var newPts=Math.max(0,fromPts+delta);
-    var updated=await dbUpdatePlayer(me.name,{games:games,wins:wins,losses:losses,draws:draws,streak:streak,best_streak:best,points:newPts});
-    // Keep displayed points at fromPts until animation; sync me.points to new for state after anim
-    me=rowToMe(updated);
-    me.points=fromPts; // UI still shows old until anim
+    var fromPts=row.points|0;
+    var newPts=Math.max(0, fromPts+delta);
+    var updated=await dbUpdatePlayer(me.name,{
+      games:games, wins:wins, losses:losses, draws:draws,
+      streak:streak, best_streak:best, points:newPts
+    });
+    if(!updated){
+      // segunda tentativa só pontos
+      updated=await dbUpdatePlayer(me.name,{points:newPts, losses:losses, games:games});
+    }
+    if(updated && updated.points!=null){
+      // confere se gravou
+      if((updated.points|0)!==(newPts|0)){
+        console.warn('applyRank mismatch', updated.points, newPts);
+        await dbUpdatePlayer(me.name,{points:newPts});
+      }
+    } else {
+      toast('Falha ao salvar pontos — tente de novo ao sair');
+      console.warn('applyRank update failed', me.name, newPts);
+    }
+    if(updated && updated.username) me=rowToMe(updated);
+    me.points=fromPts; // UI anima depois
     pendingResult={
       result:result,
       delta:delta,
       fromPts:fromPts,
       toPts:newPts,
       title:result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate'),
-      sub:result==='win'?'Ótimo jogo online!':(result==='loss'?'Continue treinando.':'Partida equilibrada.'),
+      sub:result==='win'?'Ótimo jogo online!':(result==='loss'?'Você perdeu '+Math.abs(delta)+' pts.':'Partida equilibrada.'),
       applied:true
     };
-    document.getElementById('h-pts').textContent=fromPts+' pts';
-  }catch(e){console.error(e)}
+    try{ document.getElementById('h-pts').textContent=fromPts+' pts'; }catch(e){}
+  }catch(e){
+    console.error('applyRank', e);
+    toast('Erro ao atualizar pontos');
+  }
 }
 function setPendingResult(result, delta, extraMsg){
   var fromPts = (me && me.points!=null) ? me.points : 0;
@@ -4668,6 +4915,10 @@ function leaveEndToResult(){
     pendingResult=null;
     return;
   }
+  // Garante que me.points vai para o valor final mesmo antes do OK
+  try{
+    if(typeof pr.toPts==='number' && me) me.points=pr.toPts;
+  }catch(e){}
   var box=document.getElementById('result-modal-box');
   var icon=document.getElementById('result-icon');
   var title=document.getElementById('result-title');
@@ -5485,12 +5736,12 @@ function coachBest(auto){
   var myGen=++_coachGen;
   _coachBusy=true;
   document.getElementById('coach-move').textContent='…';
-  // Mesma inteligência do PC Difícil (rápido e estável)
-  var budget = 280;
-  var depthCap = 11;
+  // Ultra: captura, defesa e anti-dama do rival (PC intacto)
+  var budget = auto ? 4500 : 7000;
+  var depthCap = auto ? 22 : 30;
   document.getElementById('coach-text').textContent=auto
-    ? '♛ Coach (nível Difícil)…'
-    : '♛ Coach (nível Difícil)…';
+    ? '♛ Coach ultra analisando…'
+    : '♛ Coach ultra (plano profundo)…';
   var snapBoard=cloneBoard(board);
   var snapTurn=turn;
   var snapKey=boardHash(snapBoard)+'|'+snapTurn+'|'+(hist&&hist.length);
@@ -5687,22 +5938,37 @@ function aiPointsDelta(result){
 }
 async function awardAiPoints(result, silentUI){
   var delta=aiPointsDelta(result);
-  if(!delta) return;
-  // Update DB without jumping the header counter when silentUI
-  if(silentUI){
-    try{
-      if(!me||!sb) return;
-      var row=await dbGetPlayer(me.name); if(!row) return;
-      var fromPts=row.points||0;
-      var newPts=Math.max(0,fromPts+delta);
+  // mesmo com delta 0 (empate), atualiza games
+  try{
+    if(!me||!sb) return;
+    var row=await dbGetPlayer(me.name); if(!row) return;
+    var fromPts=row.points|0;
+    var newPts=Math.max(0, fromPts+(delta||0));
+    var games=(row.games||0)+1;
+    var wins=row.wins||0, losses=row.losses||0, draws=row.draws||0;
+    if(result==='win') wins++;
+    else if(result==='loss') losses++;
+    else draws++;
+    var updated=await dbUpdatePlayer(me.name,{
+      points:newPts, games:games, wins:wins, losses:losses, draws:draws
+    });
+    if(!updated){
       await dbUpdatePlayer(me.name,{points:newPts});
-      if(pendingResult){ pendingResult.fromPts=fromPts; pendingResult.toPts=newPts; pendingResult.delta=delta; }
-      // keep me.points at from for anim
-      me.points=fromPts;
-    }catch(e){console.error(e)}
-    return;
+    }
+    if(pendingResult){
+      pendingResult.fromPts=fromPts;
+      pendingResult.toPts=newPts;
+      pendingResult.delta=delta||0;
+      pendingResult.applied=true;
+    }
+    me.points=fromPts;
+    if(!silentUI){
+      try{ await adjustPoints(delta||0, result==='win'?'vitória vs IA':'derrota vs IA'); }catch(e){}
+    }
+  }catch(e){
+    console.error('awardAiPoints', e);
+    toast('Erro ao salvar pontos da partida');
   }
-  await adjustPoints(delta, result==='win'?'vitória vs IA':'derrota vs IA');
 }
 
 /* ===== UI NAV ===== */
@@ -6718,9 +6984,17 @@ function restoreActiveGame(){
 
   var age=Date.now()-(data.savedAt||0);
 
-  // ONLINE: se ficou parado tempo demais (fechou o app) → desistência + perde pontos
+  // ONLINE: fechou o app de verdade → desistência. Atualização forçada → retoma.
+  var forceResume=false;
+  try{
+    forceResume = localStorage.getItem('dm_force_resume')==='1';
+    if(forceResume){
+      localStorage.removeItem('dm_force_resume');
+      localStorage.removeItem('dm_force_resume_at');
+    }
+  }catch(e){}
   if(data.mode==='online'){
-    if(age > 10000){ // >10s sem o app ativo = fechou de verdade
+    if(age > 10000 && !forceResume){
       clearActiveGame();
       try{ forfeitAbandonedOnline(data); }catch(e){ console.warn(e); }
       return false;
@@ -6915,7 +7189,13 @@ function showUpdatePrompt(remoteVer){
   window.__updatePromptShown = remoteVer;
   window.__remoteVersion = remoteVer;
   var tx=document.getElementById('update-text');
-  if(tx) tx.textContent='Nova versão '+remoteVer+' disponível (você está na '+APP_VERSION+'). Atualizar agora?';
+  if(tx){
+    var inG=false;
+    try{ inG=(mode==='online'||mode==='ai'||mode==='local')&&board&&!gameFinished; }catch(e){}
+    tx.textContent=inG
+      ? ('Nova versão '+remoteVer+' disponível. Você está em partida — ao atualizar o jogo será retomado no tabuleiro.')
+      : ('Nova versão '+remoteVer+' disponível (você está na '+APP_VERSION+'). Atualizar agora?');
+  }
   if(el){
     el.style.display='flex';
     el.style.zIndex='99999';
@@ -6941,6 +7221,15 @@ function dismissUpdate(){
 }
 async function applyUpdate(){
   var ver=window.__remoteVersion||APP_VERSION;
+  // Se está em partida: salva e retoma depois do reload (não abandona o tabuleiro)
+  try{
+    if((mode==='online'||mode==='ai'||mode==='local') && board && !gameFinished){
+      saveActiveGame();
+      localStorage.setItem('dm_force_resume','1');
+      localStorage.setItem('dm_force_resume_at', String(Date.now()));
+      toast('Atualizando… a partida continua depois');
+    }
+  }catch(e){}
   try{
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
