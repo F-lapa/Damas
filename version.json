@@ -1,4 +1,4 @@
 {
-  "version": "2026.08.17.15",
-  "message": "Fix coach: não reinicia busca (bug que deixava burro)"
+  "version": "2026.08.17.16",
+  "message": "Regra: ao virar dama na captura, encerra a sequência"
 }

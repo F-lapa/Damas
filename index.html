@@ -1518,7 +1518,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.15';
+const APP_VERSION='2026.08.17.16';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -1686,7 +1686,19 @@ function getAllJumpSequences(board, r, c){
         var npath2=path.concat([{r:rr,c:cc,toR:lr2,toC:lc2,capR:mr,capC:mc}]);
         var ncaps2=Object.assign({},caps); ncaps2[mk2]=true;
         extended=true;
-        dfs(nb2, lr2, lc2, npath2, ncaps2);
+        // REGRA: ao virar dama na captura, a sequência TERMINA (não continua comendo)
+        if(Math.abs(piece)===1 && Math.abs(moved)===2){
+          sequences.push({
+            steps: npath2,
+            from: sqName(npath2[0].r, npath2[0].c),
+            to: sqName(npath2[npath2.length-1].toR, npath2[npath2.length-1].toC),
+            board: nb2,
+            captures: npath2.length,
+            promoted: true
+          });
+        } else {
+          dfs(nb2, lr2, lc2, npath2, ncaps2);
+        }
       }
     }
 
