@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.4';
+const APP_VERSION='2026.08.17.5';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2556,18 +2556,54 @@ function rebuildOnlineFromMap(){
 function sendLobbyHello(){
   if(!lobbyCh||!me) return;
   try{
-    lobbyCh.send({
-      type:'broadcast',
-      event:'lobby_hello',
-      payload:{
-        user: me.name,
-        status: presenceStatus||'available',
-        gameId: (presenceStatus==='in_game'?(gameId||''):''),
-        opp: (presenceStatus==='in_game'?(oppName||''):''),
-        avatar: (typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
-        at: Date.now()
-      }
-    });
+    var payload={
+      user: me.name,
+      status: presenceStatus||'available',
+      gameId: (presenceStatus==='in_game'?(gameId||''):''),
+      opp: (presenceStatus==='in_game'?(oppName||''):''),
+      avatar: (typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
+      at: Date.now()
+    };
+    // Piggyback do desafio em TODO hello (Realtime costuma entregar hello)
+    if(outgoingChallenge && outgoingChallenge.to && outgoingChallenge.gameId){
+      payload.challenge_to=outgoingChallenge.to;
+      payload.challenge_gid=outgoingChallenge.gameId;
+      payload.status='challenging';
+    }
+    lobbyCh.send({ type:'broadcast', event:'lobby_hello', payload:payload });
+  }catch(e){}
+}
+
+/** Grava desafio na linha do ALVO em lobby_online (game_id = chal:ID) */
+async function pushChallengeToTarget(target, gid){
+  if(!sb||!me||!target||!gid) return;
+  try{
+    var cur=await sb.from('lobby_online').select('username,status,game_id,opp').eq('username', target).maybeSingle();
+    if(cur.data && cur.data.status==='in_game') return; // não interrompe partida
+    await sb.from('lobby_online').upsert({
+      username: target,
+      status: (cur.data && cur.data.status==='challenging') ? 'available' : ((cur.data && cur.data.status) || 'available'),
+      game_id: 'chal:'+gid,
+      opp: me.name,
+      updated_at: new Date().toISOString()
+    }, {onConflict:'username'});
+  }catch(e){ console.warn('pushChallengeToTarget', e); }
+}
+
+/** Limpa marcador de desafio na linha do alvo */
+async function clearChallengeOnTarget(target){
+  if(!sb||!target) return;
+  try{
+    var cur=await sb.from('lobby_online').select('game_id,status').eq('username', target).maybeSingle();
+    if(!cur.data) return;
+    if(String(cur.data.game_id||'').indexOf('chal:')!==0) return;
+    await sb.from('lobby_online').upsert({
+      username: target,
+      status: 'available',
+      game_id: null,
+      opp: null,
+      updated_at: new Date().toISOString()
+    }, {onConflict:'username'});
   }catch(e){}
 }
 
@@ -2576,15 +2612,39 @@ async function dbOnlineBeat(){
   if(!sb||!me) return;
   var st=presenceStatus||'available';
   var gid=null, op=null;
-  // Desafio pendente tem prioridade no status do banco (entrega confiável)
-  if(outgoingChallenge && outgoingChallenge.to && (!presenceStatus || presenceStatus==='available')){
+
+  // 1) Se estamos desafiando alguém → publica no NOSSO registro
+  if(outgoingChallenge && outgoingChallenge.to && st!=='in_game'){
     st='challenging';
     gid=outgoingChallenge.gameId||null;
     op=outgoingChallenge.to;
   } else if(st==='in_game'){
     gid=gameId||null;
     op=oppName||null;
+  } else {
+    // 2) Preserva desafio INCOMING gravado na nossa linha (chal:...)
+    //    para o heartbeat não apagar o convite antes de responder
+    try{
+      var cur=await sb.from('lobby_online').select('game_id,opp,status,updated_at').eq('username', me.name).maybeSingle();
+      if(cur && cur.data){
+        var cgid=String(cur.data.game_id||'');
+        if(cgid.indexOf('chal:')===0 && cur.data.opp){
+          var age=cur.data.updated_at ? (Date.now()-Date.parse(cur.data.updated_at)) : 999999;
+          if(age<60000 && st!=='in_game'){
+            gid=cgid;
+            op=cur.data.opp;
+            tryShowIncomingChallenge({
+              from: cur.data.opp,
+              to: me.name,
+              gameId: cgid.slice(5),
+              avatar: ''
+            });
+          }
+        }
+      }
+    }catch(e){}
   }
+
   var row={
     username: me.name,
     status: st,
@@ -2596,46 +2656,57 @@ async function dbOnlineBeat(){
     var r=await sb.from('lobby_online').upsert(row, {onConflict:'username'});
     if(r.error) throw r.error;
   }catch(e){
-    // fallback: tenta last_seen em players (se a coluna existir)
     try{
       await sb.from('players').update({ last_seen: new Date().toISOString() }).eq('username', me.name);
     }catch(e2){}
   }
 }
+
+function processLobbyRowForChallenge(row){
+  if(!row||!row.username||!me) return;
+  // A) Alguém com status=challenging e opp=eu
+  if(row.status==='challenging' && sameUser(row.opp, me.name) && row.game_id && String(row.game_id).indexOf('chal:')!==0){
+    var age=row.updated_at ? (Date.now()-Date.parse(row.updated_at)) : 999999;
+    if(age<90000){
+      tryShowIncomingChallenge({ from:row.username, to:me.name, gameId:row.game_id, avatar:'' });
+    }
+  }
+  // B) Minha própria linha com game_id=chal:xxx (desafio empurrado no meu registro)
+  if(sameUser(row.username, me.name)){
+    var cg=String(row.game_id||'');
+    if(cg.indexOf('chal:')===0 && row.opp){
+      var age2=row.updated_at ? (Date.now()-Date.parse(row.updated_at)) : 999999;
+      if(age2<90000){
+        tryShowIncomingChallenge({ from:row.opp, to:me.name, gameId:cg.slice(5), avatar:'' });
+      }
+    }
+  }
+}
+
 async function dbFetchOnline(){
   if(!sb||!me) return;
   try{
-    var since=new Date(Date.now()-70000).toISOString();
+    var since=new Date(Date.now()-90000).toISOString();
     var r=await sb.from('lobby_online').select('username,status,game_id,opp,updated_at').gte('updated_at', since);
     if(r.error) throw r.error;
     (r.data||[]).forEach(function(row){
       if(!row||!row.username) return;
-      // Detecta desafio vindo pelo banco (fallback quando Realtime falha)
-      if(row.status==='challenging' && sameUser(row.opp, me.name) && row.game_id){
-        var age=row.updated_at ? (Date.now()-Date.parse(row.updated_at)) : 999999;
-        if(age<90000){
-          tryShowIncomingChallenge({
-            from: row.username,
-            to: me.name,
-            gameId: row.game_id,
-            avatar: ''
-          });
-        }
-      }
-      // Quem está desafiando aparece como disponível na lista (não em partida)
-      var uiStatus=(row.status==='challenging') ? 'available' : (row.status||'available');
+      processLobbyRowForChallenge(row);
+      var rawStatus=row.status||'available';
+      var uiStatus=(rawStatus==='challenging') ? 'available' : rawStatus;
+      // game_id chal: não é partida ao vivo
+      var gshow=(uiStatus==='in_game' && String(row.game_id||'').indexOf('chal:')!==0) ? (row.game_id||'') : '';
       upsertOnline(row.username, {
         status: uiStatus,
-        gameId: (uiStatus==='in_game'?(row.game_id||''):''),
+        gameId: gshow,
         opp: row.opp||''
       });
     });
     rebuildOnlineFromMap();
     return;
   }catch(e){
-    // fallback players.last_seen
     try{
-      var since2=new Date(Date.now()-70000).toISOString();
+      var since2=new Date(Date.now()-90000).toISOString();
       var r2=await sb.from('players').select('username,last_seen,avatar').gte('last_seen', since2);
       if(!r2.error && r2.data){
         r2.data.forEach(function(row){
@@ -2654,19 +2725,20 @@ function startOnlineHeartbeat(){
   _helloTimer=setInterval(function(){
     sendLobbyHello();
     rebuildOnlineFromMap();
-  }, 12000);
+  }, 8000);
   _presenceTimer=setInterval(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
-  }, 15000);
+  }, 12000);
+  // Polling mais agressivo para desafios (3s)
   _dbOnlineTimer=setInterval(function(){
     dbOnlineBeat();
     dbFetchOnline();
-  }, 10000);
+  }, 3000);
   setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 200);
   setTimeout(sendLobbyHello, 400);
-  setTimeout(sendLobbyHello, 1500);
-  setTimeout(sendLobbyHello, 3500);
-  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 2500);
+  setTimeout(sendLobbyHello, 1200);
+  setTimeout(sendLobbyHello, 2500);
+  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 800);
 }
 
 function joinLobby(){
@@ -2710,9 +2782,19 @@ function joinLobby(){
       var d=p.payload||{};
       if(!d.user) return;
       if(me && sameUser(d.user, me.name)) return;
+      // Desafio piggyback no hello
+      if(d.challenge_to && d.challenge_gid && sameUser(d.challenge_to, me.name)){
+        tryShowIncomingChallenge({
+          from: d.user,
+          to: me.name,
+          gameId: d.challenge_gid,
+          avatar: d.avatar||''
+        });
+      }
+      var uiSt=(d.status==='challenging')?'available':(d.status||'available');
       upsertOnline(d.user, {
-        status: d.status||'available',
-        gameId: d.gameId||'',
+        status: uiSt,
+        gameId: (uiSt==='in_game'?(d.gameId||''):''),
         avatar: d.avatar||'',
         opp: d.opp||''
       });
@@ -3025,7 +3107,12 @@ function tryShowIncomingChallenge(d){
   var tx=document.getElementById('challenge-text');
   if(tx) tx.textContent=d.from+' desafiou você para uma partida de damas!';
   try{ sfxChallenge(); toast('⚔️ '+d.from+' desafiou você!'); }catch(e){}
-  if(ov) ov.style.display='flex';
+  if(ov){
+    ov.style.display='flex';
+    ov.style.zIndex='99998';
+  }
+  // Traz o app para frente se possível
+  try{ if(document.hidden && typeof navigator.vibrate==='function') navigator.vibrate([80,40,80]); }catch(e){}
 }
 
 function sendChallengeBroadcast(user, gid){
@@ -3047,36 +3134,45 @@ function sendChallengeBroadcast(user, gid){
 
 function challengePlayer(user){
   if(!me||sameUser(user,me.name)) return;
-  if(!lobbyCh){ toast('Lobby ainda conectando… tente de novo em 2s'); return; }
+  if(!lobbyCh){
+    try{ joinLobby(); }catch(e){}
+    toast('Lobby reconectando… toque de novo em 2s');
+    return;
+  }
   if(typeof isMuted==='function' && isMuted(user)) return toast('Você silenciou este jogador');
   if(mode==='online'||mode==='spectate') return toast('Saia da partida atual primeiro');
-  // Cancela reenvio anterior se houver
   if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
 
   var gid='g_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
   outgoingChallenge={to:user, gameId:gid, at:Date.now()};
   pendingChallenge={to:user, from:me.name, gameId:gid, myColor:'w'};
 
-  // Entrega imediata via Realtime
+  // 1) Broadcast dedicado (x3)
   sendChallengeBroadcast(user, gid);
-  // Reenvios (Realtime pode perder msg no mobile/APK)
+  setTimeout(function(){ sendChallengeBroadcast(user, gid); }, 300);
+  setTimeout(function(){ sendChallengeBroadcast(user, gid); }, 900);
+  // 2) Hello com piggyback
+  try{ sendLobbyHello(); }catch(e){}
+  // 3) Banco: meu registro + registro do alvo
+  try{ dbOnlineBeat(); }catch(e){}
+  try{ pushChallengeToTarget(user, gid); }catch(e){}
+
+  // Reenvio contínuo enquanto espera
   _challengeResendTimer=setInterval(function(){
     var w=document.getElementById('ov-wait');
     if(!outgoingChallenge || !w || w.style.display!=='flex'){
       clearInterval(_challengeResendTimer); _challengeResendTimer=null; return;
     }
-    // Expira após 60s
     if(Date.now()-(outgoingChallenge.at||0)>60000){
       cancelChallenge();
       toast('Desafio expirou — ninguém respondeu');
       return;
     }
     sendChallengeBroadcast(outgoingChallenge.to, outgoingChallenge.gameId);
+    try{ sendLobbyHello(); }catch(e){}
     try{ dbOnlineBeat(); }catch(e){}
-  }, 2500);
-
-  // Persistência no banco (status=challenging) — o outro jogador detecta no heartbeat
-  try{ dbOnlineBeat(); }catch(e){}
+    try{ pushChallengeToTarget(outgoingChallenge.to, outgoingChallenge.gameId); }catch(e){}
+  }, 2000);
 
   document.getElementById('wait-text').textContent='Aguardando '+user+'…';
   document.getElementById('ov-wait').style.display='flex';
@@ -3085,9 +3181,11 @@ function challengePlayer(user){
 
 function cancelChallenge(){
   document.getElementById('ov-wait').style.display='none';
+  var target=outgoingChallenge && outgoingChallenge.to;
   if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
   outgoingChallenge=null;
   pendingChallenge=null;
+  try{ if(target) clearChallengeOnTarget(target); }catch(e){}
   try{ dbOnlineBeat(); sendLobbyHello(); }catch(e){}
 }
 
@@ -3105,13 +3203,21 @@ function respondChallenge(accept){
       }});
     }catch(e){ console.warn('challenge_response', e); }
   }
-  // Envia 3 vezes (Realtime mobile/APK pode perder o 1º pacote)
   sendResp();
   setTimeout(sendResp, 400);
   setTimeout(sendResp, 1200);
-  // Limpa qualquer estado de desafio nosso
   if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
   outgoingChallenge=null;
+  // Limpa marcador chal: na minha linha
+  try{
+    sb.from('lobby_online').upsert({
+      username: me.name,
+      status: accept ? 'in_game' : 'available',
+      game_id: accept ? d.gameId : null,
+      opp: accept ? d.from : null,
+      updated_at: new Date().toISOString()
+    }, {onConflict:'username'});
+  }catch(e){}
   if(accept){
     startOnlineGame(d.gameId, d.from, 'b');
   }

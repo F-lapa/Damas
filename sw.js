@@ -1,5 +1,5 @@
 /* Damas Mestre — Service Worker */
-const CACHE = 'damas-mestre-v6';
+const CACHE = 'damas-mestre-v7';
 const PRECACHE = [
   './',
   './index.html',
