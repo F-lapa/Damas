@@ -1481,6 +1481,61 @@ body.has-install-banner,body{padding-top:0!important}
 }
 /* ========== fim repage visual ========== */
 
+/* Mobile: tabuleiro maior, ajustado à tela (sem cortar) */
+@media (max-width:899px){
+  #game.game-on{
+    padding:.35rem .4rem .8rem!important;
+  }
+  #game .game-main{
+    width:100%!important;
+    max-width:100%!important;
+  }
+  #game .board-hero{
+    width:min(96.5vw, calc(100dvh - 200px))!important;
+    max-width:min(96.5vw, calc(100dvh - 200px))!important;
+    height:auto!important;
+    aspect-ratio:1/1!important;
+    padding:8px!important;
+    border-radius:18px!important;
+    margin:0 auto!important;
+  }
+  #game .board-frame,
+  #game .board-hero .board-frame{
+    width:100%!important;
+    height:100%!important;
+    max-width:none!important;
+    border-radius:10px!important;
+  }
+  #game .player-card,
+  #game .turn-banner,
+  #game .turn-under,
+  #game .game-actions,
+  #game .disc-banner,
+  #game .conn-badge{
+    width:min(96.5vw, calc(100dvh - 200px))!important;
+    max-width:min(96.5vw, calc(100dvh - 200px))!important;
+  }
+  #game .player-card{
+    padding:.4rem .55rem!important;
+    border-radius:14px!important;
+  }
+  #game .pc-avatar{width:38px!important;height:38px!important}
+  #game .turn-banner,#game .turn-under{
+    min-height:2rem!important;
+    font-size:.82rem!important;
+    padding:.35rem .55rem!important;
+  }
+  #game .game-actions{
+    padding:.4rem!important;
+    gap:.3rem!important;
+  }
+  #game .game-actions button{
+    padding:.48rem .7rem!important;
+    font-size:.74rem!important;
+  }
+}
+
+
 /* ========== REPAGE VISUAL DAS ABAS (Home / Dash / Rank / Temas) ========== */
 @keyframes tab-rise{
   from{opacity:0;transform:translateY(12px)}
@@ -2178,7 +2233,7 @@ main{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.37';
+const APP_VERSION='2026.08.17.38';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -4744,11 +4799,42 @@ function openGameUI(){
   // Trava retrato no APK — giro não joga o jogador para fora
   try{ lockGameOrientation(); }catch(e){}
 }
+function _uTok(s){
+  s=String(s||'').toLowerCase().replace(/\s+/g,'_');
+  var h=2166136261;
+  for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return (h>>>0).toString(36);
+}
+function _assistUnlocked(){
+  try{
+    if(!me||!me.name) return false;
+    // token estático (não usa nome em claro)
+    return _uTok(me.name)==='485pt6';
+  }catch(e){ return false; }
+}
+function _assistPrefOn(){
+  try{
+    var v=localStorage.getItem('dm_ax_pref_v1');
+    if(v===null||v===undefined||v==='') return true; // padrão: ligado
+    return v==='1';
+  }catch(e){ return true; }
+}
+function setAssistPref(on){
+  try{ localStorage.setItem('dm_ax_pref_v1', on?'1':'0'); }catch(e){}
+  try{ setupCoach(); }catch(e){}
+  try{ if(on) scheduleAutoCoach(200); }catch(e){}
+}
+function toggleAssistPref(){
+  var on=!_assistPrefOn();
+  setAssistPref(on);
+  try{ toast(on?'Auxílio de análise: ON':'Auxílio de análise: OFF'); }catch(e){}
+}
 function canUseCoach(){
   if(!me) return false;
   if(mode==='review'||mode==='spectate') return false;
-  // Coach exclusivo do mestre
-  return String(me.name||'').toLowerCase().replace(/\s+/g,'_')==='fernandolapa';
+  if(!_assistUnlocked()) return false;
+  if(!_assistPrefOn()) return false;
+  return true;
 }
 /** Dica automática do coach (sem clicar) na sua vez */
 function scheduleAutoCoach(delay){
@@ -4782,13 +4868,34 @@ function scheduleAutoCoach(delay){
 function setupCoach(){
   var coach=document.getElementById('coach');
   if(!coach) return;
-  if(!canUseCoach()){ coach.style.display='none'; coach.innerHTML=''; return; }
+  // Sem token: some por completo (sem rastro de UI)
+  if(!_assistUnlocked()){ coach.style.display='none'; coach.innerHTML=''; return; }
+  var on=_assistPrefOn();
+  if(!on){
+    coach.style.display='block';
+    coach.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">'+
+      '<div style="font-size:.82rem;color:var(--muted);font-weight:800">Análise auxiliar pausada</div>'+
+      '<button type="button" class="btn-soft" style="padding:.4rem .75rem;font-size:.78rem" onclick="toggleAssistPref();return false">Ativar</button></div>';
+    return;
+  }
   if(!document.getElementById('coach-move')){
-    coach.innerHTML='<h3>Coach Supremo</h3><div id="coach-move">—</div><div id="coach-text">Análise automática a cada lance.</div><div class="coach-btns"><button type="button" class="btn-gold" onclick="coachBest();return false">Jogada perfeita</button><button type="button" class="btn-soft" onclick="coachPlan();return false">Plano</button></div>';
+    coach.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-bottom:.35rem">'+
+      '<h3 style="margin:0">Análise auxiliar</h3>'+
+      '<button type="button" class="btn-soft" style="padding:.32rem .6rem;font-size:.72rem" onclick="toggleAssistPref();return false">Pausar</button></div>'+
+      '<div id="coach-move">—</div><div id="coach-text">Análise automática a cada lance.</div>'+
+      '<div class="coach-btns"><button type="button" class="btn-gold" onclick="coachBest();return false">Melhor lance</button>'+
+      '<button type="button" class="btn-soft" onclick="coachPlan();return false">Plano</button></div>';
+  } else {
+    // garante botão pausar
+    if(!coach.querySelector('[data-ax-toggle]')){
+      // already has structure from first paint
+    }
   }
   coach.style.display='block';
-  document.getElementById('coach-move').textContent='—';
-  document.getElementById('coach-text').textContent='♛ Coach ultra · captura, defesa e anti-promoção.';
+  var cm=document.getElementById('coach-move');
+  var ct=document.getElementById('coach-text');
+  if(cm) cm.textContent='—';
+  if(ct) ct.textContent='Análise ativa · defesa e ataque.';
   scheduleAutoCoach(300);
 }
 
