@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.6';
+const APP_VERSION='2026.08.17.7';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2545,7 +2545,8 @@ function rebuildOnlineFromMap(){
   Object.keys(_onlineMap).forEach(function(k){
     var p=_onlineMap[k];
     if(!p) return;
-    if(now - (p.at||0) > 90000){ delete _onlineMap[k]; return; }
+    // Some mais rápido: some após 35s sem sinal (hello a cada ~3s mantém vivo)
+    if(now - (p.at||0) > 35000){ delete _onlineMap[k]; return; }
     onlinePlayers.push(p);
   });
   onlinePlayers.sort(function(a,b){ return String(a.user).localeCompare(String(b.user)); });
@@ -2683,22 +2684,32 @@ function startOnlineHeartbeat(){
   if(_helloTimer) clearInterval(_helloTimer);
   if(_presenceTimer) clearInterval(_presenceTimer);
   if(_dbOnlineTimer) clearInterval(_dbOnlineTimer);
+  // Hello frequente → outros te veem online em poucos segundos
   _helloTimer=setInterval(function(){
     sendLobbyHello();
     rebuildOnlineFromMap();
-  }, 8000);
+  }, 3000);
+  // Presence track frequente
   _presenceTimer=setInterval(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
-  }, 12000);
-  // Poll de desafio a cada 2s na tabela players (caminho confiável)
+  }, 5000);
+  // Poll de desafio
   _dbOnlineTimer=setInterval(function(){
     pollIncomingChallenge();
   }, 2000);
   setTimeout(pollIncomingChallenge, 300);
   setTimeout(pollIncomingChallenge, 1000);
+  // Rajada inicial para aparecer rápido na lista dos outros
+  setTimeout(sendLobbyHello, 100);
   setTimeout(sendLobbyHello, 400);
-  setTimeout(sendLobbyHello, 1200);
-  setTimeout(sendLobbyHello, 2500);
+  setTimeout(sendLobbyHello, 900);
+  setTimeout(sendLobbyHello, 1800);
+  setTimeout(function(){
+    try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
+  }, 200);
+  setTimeout(function(){
+    try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
+  }, 800);
 }
 
 function joinLobby(){
@@ -2759,7 +2770,8 @@ function joinLobby(){
         opp: d.opp||''
       });
       rebuildOnlineFromMap();
-      if(Date.now()-_lastHelloReply>4000){
+      // Responde hello mais rápido para o outro te ver logo
+      if(Date.now()-_lastHelloReply>1500){
         _lastHelloReply=Date.now();
         try{ sendLobbyHello(); }catch(e){}
       }
@@ -2851,14 +2863,17 @@ function joinLobby(){
       console.log('lobby status', status);
       if(status==='SUBSCRIBED' || status==='joined'){
         setConn(true,'online');
-        try{ setPresence('available'); }catch(e){}
+        try{ setPresence(presenceStatus||'available'); }catch(e){}
         startOnlineHeartbeat();
         try{ dbOnlineBeat(); dbFetchOnline(); }catch(e){}
         try{ lobbyCh.send({type:'broadcast', event:'live_games_request', payload:{by:me.name}}); }catch(e){}
+        // Aparece online imediatamente
+        try{ sendLobbyHello(); }catch(e){}
+        setTimeout(function(){ try{ sendLobbyHello(); setPresence(presenceStatus||'available'); }catch(e){} }, 250);
+        setTimeout(function(){ try{ sendLobbyHello(); }catch(e){} }, 700);
         setTimeout(shareMyAvatar, 400);
         setTimeout(shareMyAvatar, 2000);
         setTimeout(fillMissingAvatars, 600);
-        // Re-share periodically so late joiners get the photo
         if(window._avatarShareTimer) clearInterval(window._avatarShareTimer);
         window._avatarShareTimer=setInterval(function(){
           shareMyAvatar();
@@ -6724,9 +6739,27 @@ window.addEventListener('DOMContentLoaded', async function(){
   setTimeout(checkForAppUpdate, 5000);
   setInterval(checkForAppUpdate, 45*1000);
   document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState==='visible') setTimeout(checkForAppUpdate, 400);
+    if(document.visibilityState==='visible'){
+      setTimeout(checkForAppUpdate, 400);
+      // Voltou ao app → avisa o lobby na hora
+      try{
+        if(me && lobbyCh){
+          sendLobbyHello();
+          setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:'');
+          pollIncomingChallenge();
+        }
+      }catch(e){}
+    }
   });
-  window.addEventListener('focus', function(){ setTimeout(checkForAppUpdate, 400); });
+  window.addEventListener('focus', function(){
+    setTimeout(checkForAppUpdate, 400);
+    try{
+      if(me && lobbyCh){
+        sendLobbyHello();
+        setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:'');
+      }
+    }catch(e){}
+  });
   // APK: pede checagem nativa (contorna bloqueio file:// → https)
   setTimeout(function(){
     try{ if(window.DamasNative && DamasNative.checkUpdate) DamasNative.checkUpdate(); }catch(e){}
