@@ -1648,7 +1648,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.28';
+const APP_VERSION='2026.08.17.29';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -4134,11 +4134,7 @@ function openGameUI(){
     b.style.display='';
     b.style.visibility='visible';
   });
-  // Lobby sempre visível na partida
-  try{
-    var lb=document.getElementById('btn-lobby');
-    if(lb){ lb.style.display=''; lb.style.visibility='visible'; }
-  }catch(e){}
+  try{ updateLobbyButton(); }catch(e){}
   refreshGameAvatars();
   // Trava retrato no APK — giro não joga o jogador para fora
   try{ lockGameOrientation(); }catch(e){}
@@ -4554,6 +4550,7 @@ function doMove(move, remote){
   hist.push({from:move.from, to:move.to, captures:caps, san:move.from+'-'+move.to+(caps?'x'+caps:'')});
   sel=null; legal=[];
   turn = turn==='w'?'b':'w';
+  try{ updateLobbyButton(); }catch(e){}
   // Empate por repetição de posição (3x mesma posição + vez)
   try{
     var pk=String(boardHash(board))+'|'+turn;
@@ -5608,12 +5605,28 @@ function exitReview(){
   toast('Voltou para Jogar');
 }
 function leaveToLobby(){
+  // Sem lances: volta ao lobby SEM desistência. Com lances o botão some.
   try{
-    if(mode==='online' && !gameFinished){
-      try{ resign(); return; }catch(e){}
+    if(hist && hist.length>0){
+      toast('Use Desistir para sair da partida');
+      return;
     }
   }catch(e){}
   toHome();
+}
+function updateLobbyButton(){
+  try{
+    var lb=document.getElementById('btn-lobby');
+    if(!lb) return;
+    var moved = !!(hist && hist.length>0);
+    if(moved){
+      lb.style.display='none';
+      lb.style.visibility='hidden';
+    } else {
+      lb.style.display='';
+      lb.style.visibility='visible';
+    }
+  }catch(e){}
 }
 function toHome(){
   stopClock();
@@ -7334,7 +7347,7 @@ function unlockGameOrientation(){
   }catch(e){}
 }
 
-/** Restaura partida salva (rotação/reload rápido). Online após fechar app = desistência. */
+/** Restaura partida salva — volta ao tabuleiro de onde parou. */
 function restoreActiveGame(){
   var data=loadActiveGameRaw();
   if(!data||!me) return false;
@@ -7352,24 +7365,13 @@ function restoreActiveGame(){
 
   var age=Date.now()-(data.savedAt||0);
 
-  // ONLINE: fechou o app de verdade → desistência. Atualização forçada → retoma.
-  var forceResume=false;
+  // Sempre retoma o tabuleiro de onde parou (fechar app/site sem querer)
   try{
-    forceResume = localStorage.getItem('dm_force_resume')==='1';
-    if(forceResume){
-      localStorage.removeItem('dm_force_resume');
-      localStorage.removeItem('dm_force_resume_at');
-    }
+    localStorage.removeItem('dm_force_resume');
+    localStorage.removeItem('dm_force_resume_at');
   }catch(e){}
-  if(data.mode==='online'){
-    if(age > 10000 && !forceResume){
-      clearActiveGame();
-      try{ forfeitAbandonedOnline(data); }catch(e){ console.warn(e); }
-      return false;
-    }
-  }
 
-  // Restaura estado (rotação / reload curto)
+  // Restaura estado (reload / fechar e abrir)
   try{
     mode=data.mode;
     gameId=data.gameId||'';
