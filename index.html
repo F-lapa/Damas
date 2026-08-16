@@ -1139,6 +1139,26 @@ main{overflow-anchor:none!important}
 .pc-avatar .av-emoji{font-size:1.2rem}
 
 
+
+/* Botão APK discreto (não atrapalha a visão) */
+.apk-chip-float{
+  position:fixed;right:12px;bottom:14px;z-index:40;
+  display:inline-flex;align-items:center;gap:.35rem;
+  padding:.42rem .7rem;border-radius:999px;
+  font-size:.72rem;font-weight:800;letter-spacing:.02em;
+  color:rgba(255,255,255,.88);
+  background:rgba(20,24,40,.72);
+  border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(8px);
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+  cursor:pointer;user-select:none;
+  opacity:.82;transition:opacity .15s, transform .15s, background .15s;
+}
+.apk-chip-float:hover{opacity:1;background:rgba(30,36,58,.9);transform:translateY(-1px)}
+.apk-chip-float.hidden-apk{display:none!important}
+@media (max-width:720px){
+  .apk-chip-float{bottom:72px;right:10px;font-size:.68rem;padding:.38rem .62rem}
+}
 /* SEM faixa de APK no topo */
 #install-banner{display:none!important}
 body.has-install-banner,body{padding-top:0!important}
@@ -1224,6 +1244,7 @@ body.has-install-banner,body{padding-top:0!important}
     <button type="button" class="ib-close" onclick="dismissInstall()">Fechar</button>
   </div>
 </div>
+<button type="button" class="apk-chip-float" id="apk-chip-float" onclick="downloadApk();return false" title="Baixar APK Android">📱 APK</button>
 <div id="auth">
   <div class="auth-card">
     <div class="brand">⬤</div>
@@ -1627,7 +1648,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.25';
+const APP_VERSION='2026.08.17.26';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -7683,8 +7704,20 @@ window.addEventListener('appinstalled', function(){
 function isStandalone(){ return isNativeApp(); }
 
 function showInstallBanner(){
-  // Faixa removida: APK só por botão em Configurações
+  // Faixa removida — botão discreto no canto
   hideInstallBanner();
+  try{ updateApkChip(); }catch(e){}
+}
+function updateApkChip(){
+  var el=document.getElementById('apk-chip-float');
+  if(!el) return;
+  try{
+    if(typeof isNativeApp==='function' && isNativeApp()){
+      el.classList.add('hidden-apk');
+      return;
+    }
+  }catch(e){}
+  el.classList.remove('hidden-apk');
 }
 
 function hideInstallBanner(){
