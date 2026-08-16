@@ -1,4 +1,4 @@
 {
-  "version": "2026.08.17.14",
-  "message": "Coach v3 elite >> PC difícil; níveis PC intactos"
+  "version": "2026.08.17.15",
+  "message": "Fix coach: não reinicia busca (bug que deixava burro)"
 }

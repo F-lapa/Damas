@@ -1518,7 +1518,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.14';
+const APP_VERSION='2026.08.17.15';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -1713,7 +1713,9 @@ function legalMoves(board, color){
 }
 
 function applyMove(board, move){
-  return move.board ? cloneBoard(move.board) : board;
+  if(move && move.board) return cloneBoard(move.board);
+  // fallback seguro (não deveria acontecer)
+  return board;
 }
 
 function countPieces(board, color){
@@ -2332,6 +2334,9 @@ let outgoingChallenge=null; // {to, gameId, at} — desafio enviado (persistido 
 let _challengeResendTimer=null;
 let declinedChallenges={}; // "from|gid" -> timestamp — não reabrir desafio recusado
 let _coachAutoTimer=null;
+let _coachBusy=false;
+let _coachGen=0;
+let _coachLastKey='';
 let board=null, turn='w', mode=null, diff='medium', sel=null, legal=[], last=null, hist=[];
 let animatingMove=false, _saveGameTimer=null;
 let myColor='w', oppName='', gameId='', chatMsgs=[], capW=[], capB=[];
@@ -3876,12 +3881,15 @@ function canUseCoach(){
 /** Dica automática do coach (sem clicar) na sua vez */
 function scheduleAutoCoach(delay){
   if(!canUseCoach()) return;
+  // Não reinicia se já está pensando — isso deixava o coach "burro"
+  if(_coachBusy) return;
   if(_coachAutoTimer) clearTimeout(_coachAutoTimer);
   _coachAutoTimer=setTimeout(function(){
     _coachAutoTimer=null;
     try{
       if(!canUseCoach()||!board) return;
-      if(animatingMove){ scheduleAutoCoach(200); return; }
+      if(_coachBusy) return;
+      if(animatingMove){ scheduleAutoCoach(250); return; }
       if(mode==='spectate'||mode==='review') return;
       if((mode==='ai'||mode==='online') && turn!==myColor){
         var cm=document.getElementById('coach-move');
@@ -3892,9 +3900,12 @@ function scheduleAutoCoach(delay){
       }
       var ms=legalMoves(board, turn);
       if(!ms||!ms.length) return;
+      // Evita reanalisar a mesma posição
+      var key=boardHash(board)+'|'+turn+'|'+(hist&&hist.length);
+      if(key===_coachLastKey) return;
       coachBest(true);
     }catch(e){ console.warn('auto coach', e); }
-  }, typeof delay==='number'?delay:450);
+  }, typeof delay==='number'?delay:500);
 }
 function setupCoach(){
   var coach=document.getElementById('coach');
@@ -5612,21 +5623,40 @@ function sfxChallenge(){
 /* ===== COACH ===== */
 function coachBest(auto){
   if(!canUseCoach()||!board) return;
-  if(animatingMove){ setTimeout(function(){ coachBest(auto); }, 100); return; }
+  if(animatingMove){ setTimeout(function(){ coachBest(auto); }, 120); return; }
   if((mode==='ai'||mode==='online') && turn!==myColor){
     document.getElementById('coach-move').textContent='…';
     document.getElementById('coach-text').textContent='Aguarde a sua vez.';
     return;
   }
+  if(_coachBusy && auto) return; // auto não interrompe busca em andamento
+  var myGen=++_coachGen;
+  _coachBusy=true;
   document.getElementById('coach-move').textContent='…';
-  // Elite: facilmente acima do PC Difícil (PC não usa este caminho)
-  var budget = auto ? 5500 : 8000;
-  var depthCap = auto ? 28 : 40;
+  // Tempo sério e estável (PC Difícil ~140ms — coach bem acima)
+  var budget = auto ? 4000 : 6500;
+  var depthCap = auto ? 22 : 30;
   document.getElementById('coach-text').textContent=auto
-    ? '♛ Coach elaborando plano…'
+    ? '♛ Coach analisando…'
     : '♛ Coach em busca profunda…';
+  var snapBoard=cloneBoard(board);
+  var snapTurn=turn;
+  var snapKey=boardHash(snapBoard)+'|'+snapTurn+'|'+(hist&&hist.length);
   setTimeout(function(){
-    var res=searchCoachMove(board, turn, {budgetMs:budget, maxDepth:depthCap});
+    var res=null;
+    try{
+      res=searchCoachMove(snapBoard, snapTurn, {budgetMs:budget, maxDepth:depthCap});
+    }catch(err){ console.error('coach search', err); }
+    // só libera se ainda for a busca atual
+    if(myGen===_coachGen) _coachBusy=false;
+    else return;
+    if(myGen!==_coachGen) return;
+    // posição mudou enquanto pensava
+    if(!board || boardHash(board)!==boardHash(snapBoard) || turn!==snapTurn){
+      scheduleAutoCoach(300);
+      return;
+    }
+    _coachLastKey=snapKey;
     if(!res||!res.move){
       document.getElementById('coach-move').textContent='—';
       document.getElementById('coach-text').textContent='Sem lances disponíveis.';
