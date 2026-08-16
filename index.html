@@ -1517,7 +1517,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.5';
+const APP_VERSION='2026.08.17.6';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2574,150 +2574,111 @@ function sendLobbyHello(){
   }catch(e){}
 }
 
-/** Grava desafio na linha do ALVO em lobby_online (game_id = chal:ID) */
+/**
+ * DESAFIO PERSISTENTE via tabela players (lobby_online NÃO existe no projeto).
+ * Formato: transfer_token = "CHAL|fromUser|gameId"
+ * transfer_pass fica null → não confunde com login por transferência do APK.
+ */
 async function pushChallengeToTarget(target, gid){
-  if(!sb||!me||!target||!gid) return;
+  if(!sb||!me||!target||!gid) return false;
   try{
-    var cur=await sb.from('lobby_online').select('username,status,game_id,opp').eq('username', target).maybeSingle();
-    if(cur.data && cur.data.status==='in_game') return; // não interrompe partida
-    await sb.from('lobby_online').upsert({
-      username: target,
-      status: (cur.data && cur.data.status==='challenging') ? 'available' : ((cur.data && cur.data.status) || 'available'),
-      game_id: 'chal:'+gid,
-      opp: me.name,
-      updated_at: new Date().toISOString()
-    }, {onConflict:'username'});
-  }catch(e){ console.warn('pushChallengeToTarget', e); }
+    var until=new Date(Date.now()+90000).toISOString();
+    var token='CHAL|'+me.name+'|'+gid;
+    // Grava no registro do ALVO na tabela players (existe de verdade)
+    var res=await sb.from('players').update({
+      transfer_token: token,
+      transfer_until: until
+    }).eq('username', target);
+    if(res.error){ console.warn('pushChallenge', res.error); return false; }
+    console.log('[challenge] gravado para', target, token);
+    return true;
+  }catch(e){ console.warn('pushChallengeToTarget', e); return false; }
 }
 
-/** Limpa marcador de desafio na linha do alvo */
 async function clearChallengeOnTarget(target){
   if(!sb||!target) return;
   try{
-    var cur=await sb.from('lobby_online').select('game_id,status').eq('username', target).maybeSingle();
+    var cur=await sb.from('players').select('transfer_token').eq('username', target).maybeSingle();
     if(!cur.data) return;
-    if(String(cur.data.game_id||'').indexOf('chal:')!==0) return;
-    await sb.from('lobby_online').upsert({
-      username: target,
-      status: 'available',
-      game_id: null,
-      opp: null,
-      updated_at: new Date().toISOString()
-    }, {onConflict:'username'});
+    var tok=String(cur.data.transfer_token||'');
+    if(tok.indexOf('CHAL|')!==0) return;
+    await sb.from('players').update({
+      transfer_token: null,
+      transfer_until: null
+    }).eq('username', target);
   }catch(e){}
 }
 
-/** Heartbeat no banco — funciona mesmo se Realtime falhar */
-async function dbOnlineBeat(){
+/** Lê o próprio registro em players:
+ *  - CHAL|from|gid  → desafio recebido
+ *  - CHALOK|from|gid → alguém aceitou meu desafio
+ *  - CHALNO|from|gid → alguém recusou meu desafio
+ */
+async function pollIncomingChallenge(){
   if(!sb||!me) return;
-  var st=presenceStatus||'available';
-  var gid=null, op=null;
-
-  // 1) Se estamos desafiando alguém → publica no NOSSO registro
-  if(outgoingChallenge && outgoingChallenge.to && st!=='in_game'){
-    st='challenging';
-    gid=outgoingChallenge.gameId||null;
-    op=outgoingChallenge.to;
-  } else if(st==='in_game'){
-    gid=gameId||null;
-    op=oppName||null;
-  } else {
-    // 2) Preserva desafio INCOMING gravado na nossa linha (chal:...)
-    //    para o heartbeat não apagar o convite antes de responder
-    try{
-      var cur=await sb.from('lobby_online').select('game_id,opp,status,updated_at').eq('username', me.name).maybeSingle();
-      if(cur && cur.data){
-        var cgid=String(cur.data.game_id||'');
-        if(cgid.indexOf('chal:')===0 && cur.data.opp){
-          var age=cur.data.updated_at ? (Date.now()-Date.parse(cur.data.updated_at)) : 999999;
-          if(age<60000 && st!=='in_game'){
-            gid=cgid;
-            op=cur.data.opp;
-            tryShowIncomingChallenge({
-              from: cur.data.opp,
-              to: me.name,
-              gameId: cgid.slice(5),
-              avatar: ''
-            });
-          }
-        }
-      }
-    }catch(e){}
-  }
-
-  var row={
-    username: me.name,
-    status: st,
-    game_id: gid,
-    opp: op,
-    updated_at: new Date().toISOString()
-  };
   try{
-    var r=await sb.from('lobby_online').upsert(row, {onConflict:'username'});
-    if(r.error) throw r.error;
-  }catch(e){
-    try{
-      await sb.from('players').update({ last_seen: new Date().toISOString() }).eq('username', me.name);
-    }catch(e2){}
-  }
+    var res=await sb.from('players').select('transfer_token,transfer_pass,transfer_until').eq('username', me.name).maybeSingle();
+    if(res.error||!res.data) return;
+    var tok=String(res.data.transfer_token||'');
+    if(!tok) return;
+    if(res.data.transfer_pass) return; // login APK em andamento — não mexer
+
+    var exp=res.data.transfer_until ? Date.parse(res.data.transfer_until) : 0;
+    if(exp && Date.now()>exp){
+      try{ await sb.from('players').update({transfer_token:null, transfer_until:null}).eq('username', me.name); }catch(e){}
+      return;
+    }
+
+    var parts=tok.split('|');
+    if(parts.length<3) return;
+    var kind=parts[0];
+    var from=parts[1];
+    var gid=parts.slice(2).join('|');
+    if(!from||!gid) return;
+
+    // Resposta ao desafio que EU enviei
+    if(kind==='CHALOK' || kind==='CHALNO'){
+      if(mode==='online' && gameId===gid) {
+        // já em jogo — só limpa token
+        try{ await sb.from('players').update({transfer_token:null, transfer_until:null}).eq('username', me.name); }catch(e){}
+        return;
+      }
+      var wait=document.getElementById('ov-wait');
+      if(wait) wait.style.display='none';
+      if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
+      outgoingChallenge=null;
+      try{ await sb.from('players').update({transfer_token:null, transfer_until:null}).eq('username', me.name); }catch(e){}
+      if(kind==='CHALOK'){
+        if(mode!=='online') startOnlineGame(gid, from, 'w');
+      } else {
+        toast(from+' recusou o desafio');
+        pendingChallenge=null;
+      }
+      return;
+    }
+
+    // Desafio recebido
+    if(kind==='CHAL'){
+      if(mode==='online'||mode==='spectate') return;
+      if(sameUser(from, me.name)) return;
+      tryShowIncomingChallenge({ from:from, to:me.name, gameId:gid, avatar:'' });
+    }
+  }catch(e){ console.warn('pollIncomingChallenge', e); }
 }
 
-function processLobbyRowForChallenge(row){
-  if(!row||!row.username||!me) return;
-  // A) Alguém com status=challenging e opp=eu
-  if(row.status==='challenging' && sameUser(row.opp, me.name) && row.game_id && String(row.game_id).indexOf('chal:')!==0){
-    var age=row.updated_at ? (Date.now()-Date.parse(row.updated_at)) : 999999;
-    if(age<90000){
-      tryShowIncomingChallenge({ from:row.username, to:me.name, gameId:row.game_id, avatar:'' });
-    }
-  }
-  // B) Minha própria linha com game_id=chal:xxx (desafio empurrado no meu registro)
-  if(sameUser(row.username, me.name)){
-    var cg=String(row.game_id||'');
-    if(cg.indexOf('chal:')===0 && row.opp){
-      var age2=row.updated_at ? (Date.now()-Date.parse(row.updated_at)) : 999999;
-      if(age2<90000){
-        tryShowIncomingChallenge({ from:row.opp, to:me.name, gameId:cg.slice(5), avatar:'' });
-      }
-    }
-  }
+/** Heartbeat leve — presença continua via Realtime; desafios via players */
+async function dbOnlineBeat(){
+  // Mantido por compatibilidade; lobby_online não existe neste projeto
+  if(!sb||!me) return;
+  try{ await pollIncomingChallenge(); }catch(e){}
 }
 
 async function dbFetchOnline(){
+  // Online list vem do Realtime; aqui só reforça poll de desafio
   if(!sb||!me) return;
-  try{
-    var since=new Date(Date.now()-90000).toISOString();
-    var r=await sb.from('lobby_online').select('username,status,game_id,opp,updated_at').gte('updated_at', since);
-    if(r.error) throw r.error;
-    (r.data||[]).forEach(function(row){
-      if(!row||!row.username) return;
-      processLobbyRowForChallenge(row);
-      var rawStatus=row.status||'available';
-      var uiStatus=(rawStatus==='challenging') ? 'available' : rawStatus;
-      // game_id chal: não é partida ao vivo
-      var gshow=(uiStatus==='in_game' && String(row.game_id||'').indexOf('chal:')!==0) ? (row.game_id||'') : '';
-      upsertOnline(row.username, {
-        status: uiStatus,
-        gameId: gshow,
-        opp: row.opp||''
-      });
-    });
-    rebuildOnlineFromMap();
-    return;
-  }catch(e){
-    try{
-      var since2=new Date(Date.now()-90000).toISOString();
-      var r2=await sb.from('players').select('username,last_seen,avatar').gte('last_seen', since2);
-      if(!r2.error && r2.data){
-        r2.data.forEach(function(row){
-          if(!row||!row.username) return;
-          upsertOnline(row.username, { status:'available', avatar: row.avatar||'' });
-        });
-        rebuildOnlineFromMap();
-      }
-    }catch(e2){}
-  }
+  try{ await pollIncomingChallenge(); }catch(e){}
 }
+
 function startOnlineHeartbeat(){
   if(_helloTimer) clearInterval(_helloTimer);
   if(_presenceTimer) clearInterval(_presenceTimer);
@@ -2729,16 +2690,15 @@ function startOnlineHeartbeat(){
   _presenceTimer=setInterval(function(){
     try{ setPresence(presenceStatus||'available', presenceStatus==='in_game'?gameId:'', presenceStatus==='in_game'?oppName:''); }catch(e){}
   }, 12000);
-  // Polling mais agressivo para desafios (3s)
+  // Poll de desafio a cada 2s na tabela players (caminho confiável)
   _dbOnlineTimer=setInterval(function(){
-    dbOnlineBeat();
-    dbFetchOnline();
-  }, 3000);
-  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 200);
+    pollIncomingChallenge();
+  }, 2000);
+  setTimeout(pollIncomingChallenge, 300);
+  setTimeout(pollIncomingChallenge, 1000);
   setTimeout(sendLobbyHello, 400);
   setTimeout(sendLobbyHello, 1200);
   setTimeout(sendLobbyHello, 2500);
-  setTimeout(function(){ dbOnlineBeat(); dbFetchOnline(); }, 800);
 }
 
 function joinLobby(){
@@ -3147,17 +3107,18 @@ function challengePlayer(user){
   outgoingChallenge={to:user, gameId:gid, at:Date.now()};
   pendingChallenge={to:user, from:me.name, gameId:gid, myColor:'w'};
 
-  // 1) Broadcast dedicado (x3)
+  // 1) Realtime (instantâneo quando funciona)
   sendChallengeBroadcast(user, gid);
   setTimeout(function(){ sendChallengeBroadcast(user, gid); }, 300);
   setTimeout(function(){ sendChallengeBroadcast(user, gid); }, 900);
-  // 2) Hello com piggyback
   try{ sendLobbyHello(); }catch(e){}
-  // 3) Banco: meu registro + registro do alvo
-  try{ dbOnlineBeat(); }catch(e){}
-  try{ pushChallengeToTarget(user, gid); }catch(e){}
 
-  // Reenvio contínuo enquanto espera
+  // 2) CAMINHO CONFIÁVEL: grava CHAL| na tabela players do alvo
+  pushChallengeToTarget(user, gid).then(function(ok){
+    if(!ok) console.warn('Falha ao gravar desafio no banco');
+  });
+
+  // Reenvio enquanto aguarda
   _challengeResendTimer=setInterval(function(){
     var w=document.getElementById('ov-wait');
     if(!outgoingChallenge || !w || w.style.display!=='flex'){
@@ -3170,8 +3131,7 @@ function challengePlayer(user){
     }
     sendChallengeBroadcast(outgoingChallenge.to, outgoingChallenge.gameId);
     try{ sendLobbyHello(); }catch(e){}
-    try{ dbOnlineBeat(); }catch(e){}
-    try{ pushChallengeToTarget(outgoingChallenge.to, outgoingChallenge.gameId); }catch(e){}
+    pushChallengeToTarget(outgoingChallenge.to, outgoingChallenge.gameId);
   }, 2000);
 
   document.getElementById('wait-text').textContent='Aguardando '+user+'…';
@@ -3186,7 +3146,7 @@ function cancelChallenge(){
   outgoingChallenge=null;
   pendingChallenge=null;
   try{ if(target) clearChallengeOnTarget(target); }catch(e){}
-  try{ dbOnlineBeat(); sendLobbyHello(); }catch(e){}
+  try{ sendLobbyHello(); }catch(e){}
 }
 
 function respondChallenge(accept){
@@ -3208,21 +3168,28 @@ function respondChallenge(accept){
   setTimeout(sendResp, 1200);
   if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
   outgoingChallenge=null;
-  // Limpa marcador chal: na minha linha
+
+  // 1) Limpa CHAL| do MEU registro
   try{
-    sb.from('lobby_online').upsert({
-      username: me.name,
-      status: accept ? 'in_game' : 'available',
-      game_id: accept ? d.gameId : null,
-      opp: accept ? d.from : null,
-      updated_at: new Date().toISOString()
-    }, {onConflict:'username'});
+    sb.from('players').update({
+      transfer_token: null,
+      transfer_until: null
+    }).eq('username', me.name);
   }catch(e){}
+
+  // 2) Grava resposta no registro do DESAFIANTE (caminho confiável via DB)
+  try{
+    var respTok=(accept?'CHALOK|':'CHALNO|')+me.name+'|'+d.gameId;
+    sb.from('players').update({
+      transfer_token: respTok,
+      transfer_until: new Date(Date.now()+60000).toISOString()
+    }).eq('username', d.from);
+  }catch(e){ console.warn('respondChallenge db', e); }
+
   if(accept){
     startOnlineGame(d.gameId, d.from, 'b');
   }
   pendingChallenge=null;
-  try{ dbOnlineBeat(); }catch(e){}
 }
 
 function startOnlineGame(gid, opponent, color){
