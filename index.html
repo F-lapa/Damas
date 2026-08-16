@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="screen-orientation" content="portrait"/>
 <meta name="theme-color" content="#04060c"/>
 <meta name="description" content="Damas brasileiras online com IA, ranking e multiplayer"/>
 <meta name="mobile-web-app-capable" content="yes"/>
@@ -1517,7 +1518,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.10';
+const APP_VERSION='2026.08.17.12';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -1735,30 +1736,60 @@ function boardHash(board){
 }
 
 function evaluateBoard(board, forColor){
-  // Avaliacao elite — damas brasileiras (dama voadora, captura obrigatoria)
+  // Coach elite: material + estrutura + defesa + plano (damas brasileiras)
   var score=0;
   var wMen=0, bMen=0, wK=0, bK=0;
   var dirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  // Tabelas de avanço (pedras) e domínio (damas)
   var manW=[
     [0,0,0,0,0,0,0,0],
-    [2,8,10,12,12,10,8,2],
-    [4,10,14,16,16,14,10,4],
-    [6,12,16,20,20,16,12,6],
+    [4,10,12,14,14,12,10,4],
+    [6,12,16,18,18,16,12,6],
     [8,14,18,22,22,18,14,8],
-    [12,18,22,24,24,22,18,12],
-    [16,20,24,26,26,24,20,16],
+    [10,16,20,24,24,20,16,10],
+    [14,18,22,26,26,22,18,14],
+    [18,22,26,30,30,26,22,18],
     [0,0,0,0,0,0,0,0]
   ];
   var kingT=[
-    [2,4,6,8,8,6,4,2],
-    [4,10,14,16,16,14,10,4],
-    [6,14,20,24,24,20,14,6],
-    [8,16,24,28,28,24,16,8],
-    [8,16,24,28,28,24,16,8],
-    [6,14,20,24,24,20,14,6],
-    [4,10,14,16,16,14,10,4],
-    [2,4,6,8,8,6,4,2]
+    [4,8,10,12,12,10,8,4],
+    [8,14,18,22,22,18,14,8],
+    [10,18,26,30,30,26,18,10],
+    [12,22,30,34,34,30,22,12],
+    [12,22,30,34,34,30,22,12],
+    [10,18,26,30,30,26,18,10],
+    [8,14,18,22,22,18,14,8],
+    [4,8,10,12,12,10,8,4]
   ];
+
+  function pieceAt(r,c){
+    if(r<0||r>7||c<0||c>7) return null;
+    return board[r][c];
+  }
+
+  // Conta se uma casa escura está "pendurada" (pode ser capturada no próximo lance)
+  // Aproximação barata: adversário tem peça adjacente e casa de aterrissagem vazia
+  function isHanging(r,c,isW){
+    var p=board[r][c]; if(!p) return false;
+    for(var d=0;d<4;d++){
+      var or=r-dirs[d][0], oc=c-dirs[d][1];
+      var lr=r+dirs[d][0], lc=c+dirs[d][1];
+      if(or<0||or>7||oc<0||oc>7||lr<0||lr>7||lc<0||lc>7) continue;
+      var att=board[or][oc];
+      if(!att) continue;
+      if((att>0)===isW) continue; // só adversário ataca
+      if(board[lr][lc]!==0) continue;
+      // pedra só captura "à frente" no 1º salto — damas BR: men capture forward only first jump
+      var absA=Math.abs(att);
+      if(absA===1){
+        // white men capture up (r decreases), black men down (r increases)
+        if(att>0 && dirs[d][0]!==-1) continue;
+        if(att<0 && dirs[d][0]!==1) continue;
+      }
+      return true;
+    }
+    return false;
+  }
 
   for(var r=0;r<8;r++){
     for(var c=0;c<8;c++){
@@ -1766,89 +1797,131 @@ function evaluateBoard(board, forColor){
       var isW=p>0, king=Math.abs(p)===2;
       var val=0;
       if(king){
-        val = 220 + kingT[r][c]*1.6;
-        var mob=0;
+        val = 240 + kingT[r][c]*1.8;
+        // mobilidade da dama voadora
+        var mob=0, rays=0;
         for(var d=0;d<4;d++){
-          var nr=r+dirs[d][0], nc=c+dirs[d][1];
+          var nr=r+dirs[d][0], nc=c+dirs[d][1], ray=0;
           while(nr>=0&&nr<=7&&nc>=0&&nc<=7){
             if(board[nr][nc]!==0) break;
-            mob++;
+            mob++; ray++;
             nr+=dirs[d][0]; nc+=dirs[d][1];
           }
+          if(ray>=3) rays++;
         }
-        val += mob*7;
-        if(r===0||r===7||c===0||c===7) val -= 6;
+        val += mob*8 + rays*6;
+        // dama central vale mais; na beira perde pressão
+        if(r===0||r===7||c===0||c===7) val -= 10;
+        // dama protegendo base
+        if(isW && r>=5) val += 8;
+        if(!isW && r<=2) val += 8;
       } else {
-        val = 32;
+        val = 36;
         if(isW){
           val += manW[r][c];
-          val += (7-r)*5.5;
-          if(r<=1) val += 28;
-          if(r===0) val += 12;
+          val += (7-r)*6; // avanço
+          if(r<=1) val += 32; // perto de promover
+          if(r===0) val += 16;
+          // base sólida
+          if(r===7) val += 10;
+          if(r===6 && c>=2 && c<=5) val += 6;
         } else {
           val += manW[7-r][c];
-          val += r*5.5;
-          if(r>=6) val += 28;
-          if(r===7) val += 12;
+          val += r*6;
+          if(r>=6) val += 32;
+          if(r===7) val += 16;
+          if(r===0) val += 10;
+          if(r===1 && c>=2 && c<=5) val += 6;
         }
-        if(c===0||c===7) val -= 3;
-        // pedra segura na base
-        if(isW && r===7) val += 4;
-        if(!isW && r===0) val += 4;
+        // laterais um pouco piores
+        if(c===0||c===7) val -= 4;
       }
-      if(c>=2&&c<=5&&r>=2&&r<=5) val += 6;
-      // pares / suporte diagonal
-      var support=0;
+
+      // Centro estratégico
+      if(c>=2&&c<=5&&r>=2&&r<=5) val += 8;
+      if(c>=3&&c<=4&&r>=3&&r<=4) val += 5;
+
+      // Cadeia / suporte diagonal (estrutura)
+      var support=0, friends=0;
       for(var d2=0;d2<4;d2++){
         var sr=r+dirs[d2][0], sc=c+dirs[d2][1];
         if(sr>=0&&sr<=7&&sc>=0&&sc<=7){
           var sp=board[sr][sc];
-          if(sp && ((sp>0)===isW)) support++;
+          if(sp && ((sp>0)===isW)){ support++; friends++; }
         }
       }
-      val += support*2.5;
+      val += support*3.5;
+      // pedra isolada
+      if(!king && support===0) val -= 8;
+
+      // DEFESA: peça pendurada
+      if(isHanging(r,c,isW)){
+        val -= king ? 55 : 28;
+      }
+
       score += isW ? val : -val;
       if(isW){ if(king) wK++; else wMen++; }
       else { if(king) bK++; else bMen++; }
     }
   }
 
-  // Material (dama ~ 3.5 pedras)
-  score += (wMen-bMen)*48 + (wK-bK)*175;
+  // Material (dama ~ 3.2–3.5 pedras)
+  score += (wMen-bMen)*52 + (wK-bK)*185;
 
   var total = wMen+bMen+wK+bK;
-  var wMat = wMen + wK*3.5;
-  var bMat = bMen + bK*3.5;
+  var wMat = wMen + wK*3.3;
+  var bMat = bMen + bK*3.3;
 
-  // Final: dama e mobilidade valem mais
-  if(total<=8){
-    score += (wK-bK)*40;
-    if(wK && !bK) score += 30;
-    if(bK && !wK) score -= 30;
+  // Plano de final: damas e mobilidade dominam
+  if(total<=10){
+    score += (wK-bK)*50;
+    if(wK && !bK) score += 45;
+    if(bK && !wK) score -= 45;
+  }
+  if(total<=6){
+    score += (wK-bK)*30;
   }
 
-  // Tempo / oposicao simples no final
-  if(total<=6 && wK===0 && bK===0){
-    // corrida a promocao
+  // Corrida de promoção (só pedras)
+  if(total<=8 && wK===0 && bK===0){
     var wBest=99, bBest=99;
-    for(var r=0;r<8;r++) for(var c=0;c<8;c++){
-      var p=board[r][c];
-      if(p===1) wBest=Math.min(wBest, r);
-      if(p===-1) bBest=Math.min(bBest, 7-r);
+    for(var r2=0;r2<8;r2++) for(var c2=0;c2<8;c2++){
+      var p2=board[r2][c2];
+      if(p2===1) wBest=Math.min(wBest, r2);
+      if(p2===-1) bBest=Math.min(bBest, 7-r2);
     }
     if(wBest<99 && bBest<99){
-      if(wBest<bBest) score += 25;
-      else if(bBest<wBest) score -= 25;
+      if(wBest<bBest) score += 35;
+      else if(bBest<wBest) score -= 35;
+      else score += (bBest-wBest)*8;
     }
   }
 
-  // Penaliza desbalanceamento suicida (poucas pecas vs muitas)
-  if(wMat<=1 && bMat>=3) score -= 80;
-  if(bMat<=1 && wMat>=3) score += 80;
+  // Não jogar posição perdida "bonita" — material extremo
+  if(wMat<=1 && bMat>=3) score -= 120;
+  if(bMat<=1 && wMat>=3) score += 120;
 
-  // Ameaca tatica: capturas disponiveis para o lado a mover nao entram aqui
-  // (o search resolve). Mas se o adversario tem multi-captura forcada no board
-  // atual, isso e resolvido pelos filhos do minimax.
+  // Integridade da base (plano defensivo)
+  var wBase=0, bBase=0;
+  for(var c3=0;c3<8;c3++){
+    if(board[7][c3]===1) wBase++;
+    if(board[6][c3]===1) wBase+=0.5;
+    if(board[0][c3]===-1) bBase++;
+    if(board[1][c3]===-1) bBase+=0.5;
+  }
+  if(total>=12){
+    score += (wBase-bBase)*6;
+  }
+
+  // Tempo: quem tem mais espaço de avanço no meio-jogo
+  if(total>=10 && total<=20){
+    var wAdv=0, bAdv=0;
+    for(var r3=0;r3<8;r3++) for(var c4=0;c4<8;c4++){
+      if(board[r3][c4]===1) wAdv += (7-r3);
+      if(board[r3][c4]===-1) bAdv += r3;
+    }
+    score += (wAdv-bAdv)*1.2;
+  }
 
   return forColor==='w' ? score : -score;
 }
@@ -2051,7 +2124,7 @@ function searchBestMove(board, color, depth, timeMs){
   return {move:best, score:bestScore, nodes:_nodes};
 }
 
-/** Coach Supremo — busca elite: muito mais profunda e tática que o PC. */
+/** Coach Supremo — busca elite: defesa + estratégia + tática profunda. */
 function oppMaxCapture(board, myColor){
   var opp = myColor==='w'?'b':'w';
   var ms;
@@ -2064,16 +2137,29 @@ function oppMaxCapture(board, myColor){
   return best;
 }
 
+/** Quantas peças minhas o rival pode comer no melhor lance dele */
+function oppThreatScore(board, myColor){
+  var opp = myColor==='w'?'b':'w';
+  var ms;
+  try{ ms=legalMoves(board, opp); }catch(e){ return 0; }
+  var best=0, multi=0;
+  for(var i=0;i<(ms||[]).length;i++){
+    var c=ms[i].captures||0;
+    if(c>best) best=c;
+    if(c>=2) multi++;
+  }
+  return best*40 + multi*15;
+}
+
 function searchCoachMove(board, color, opts){
   opts = opts || {};
-  // Rapido e forte: acima do Difícil (simpleMinimax ~280ms)
-  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 1200;
-  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 18;
+  // Mais tempo e profundidade = coach "super inteligente"
+  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 2200;
+  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 22;
   var moves=legalMoves(board, color);
   if(!moves.length) return null;
   if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
 
-  // Prioriza captura e promocao (tatíca imediata)
   moves.sort(function(a,b){
     var ca=a.captures||0, cb=b.captures||0;
     if(cb!==ca) return cb-ca;
@@ -2083,40 +2169,51 @@ function searchCoachMove(board, color, opts){
   });
 
   _tt=new Map(); _nodes=0; _killers=[]; _history={};
-  _deadline=Date.now()+Math.max(250, budgetMs);
+  _deadline=Date.now()+Math.max(400, budgetMs);
   var best=moves[0], bestScore=-1e15, completedDepth=0;
   var rootPV=null;
 
-  // Iterative deepening com corte de tempo
   for(var d=1; d<=maxDepth; d++){
     if(Date.now()>_deadline) break;
     orderMoves(moves, d, rootPV);
     var localBest=null, localScore=-1e15;
     var alpha=-1e15, beta=1e15;
-    if(d>=3 && bestScore>-1e14 && bestScore<1e14){
-      alpha=bestScore-30;
-      beta=bestScore+30;
+    // janela de aspiração mais apertada em profundidades altas
+    if(d>=4 && bestScore>-1e14 && bestScore<1e14){
+      var win = d>=10 ? 22 : 35;
+      alpha=bestScore-win;
+      beta=bestScore+win;
     }
     for(var i=0;i<moves.length;i++){
       if(Date.now()>_deadline) break;
       var nb=applyMove(board, moves[i]);
       var sc=-negamax(nb, d-1, -beta, -alpha, color==='w'?'b':'w', 0);
-      if((sc<=alpha || sc>=beta) && d>=3){
+      if((sc<=alpha || sc>=beta) && d>=4){
         sc=-negamax(nb, d-1, -1e15, 1e15, color==='w'?'b':'w', 0);
       }
-      // Seguranca: penaliza deixar capturas para o adversario (sem brecha)
+      // DEFESA: penaliza forte deixar o rival comer
       var threat=oppMaxCapture(nb, color);
-      if(threat>=3) sc -= 220;
-      else if(threat===2) sc -= 120;
-      else if(threat===1) sc -= 35;
-      // Bonus captura propria / promocao
+      if(threat>=3) sc -= 320;
+      else if(threat===2) sc -= 180;
+      else if(threat===1) sc -= 55;
+      sc -= oppThreatScore(nb, color)*0.35;
+
+      // Estratégia: recompensa captura boa / promoção / centro
       var cap=moves[i].captures||0;
-      if(cap>=3) sc += 25;
-      else if(cap===2) sc += 12;
-      else if(cap===1) sc += 4;
+      if(cap>=3) sc += 35;
+      else if(cap===2) sc += 18;
+      else if(cap===1) sc += 6;
       var fr=parseSq(moves[i].from), to=parseSq(moves[i].to);
       var piece=board[fr.r][fr.c];
-      if(Math.abs(piece)===1 && (to.r===0||to.r===7)) sc += 18;
+      if(Math.abs(piece)===1 && (to.r===0||to.r===7)) sc += 28;
+      // ocupar centro em lances quietos
+      if(cap===0 && to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5) sc += 6;
+      // não desmontar base cedo
+      if(cap===0 && Math.abs(piece)===1){
+        if(color==='w' && fr.r===7 && to.r<7) sc -= 4;
+        if(color==='b' && fr.r===0 && to.r>0) sc -= 4;
+      }
+
       if(sc>localScore){ localScore=sc; localBest=moves[i]; }
       if(sc>alpha) alpha=sc;
     }
@@ -2126,29 +2223,28 @@ function searchCoachMove(board, color, opts){
     }
   }
 
-  // Verificacao rapida so se sobrar tempo: top 3 com filtro de seguranca
+  // Passo extra de segurança se ainda houver tempo
   var left=_deadline - Date.now();
-  if(left>180){
-    orderMoves(moves, completedDepth||8, best);
-    var top=moves.slice(0, Math.min(4, moves.length));
+  if(left>250){
+    orderMoves(moves, completedDepth||10, best);
+    var top=moves.slice(0, Math.min(6, moves.length));
     for(var t=0;t<top.length;t++){
       if(Date.now()>_deadline) break;
       var nb2=applyMove(board, top[t]);
-      var sc2=-negamax(nb2, Math.min((completedDepth||8)+1, maxDepth), -1e15, 1e15, color==='w'?'b':'w', 0);
+      var sc2=-negamax(nb2, Math.min((completedDepth||10)+2, maxDepth), -1e15, 1e15, color==='w'?'b':'w', 0);
       var th=oppMaxCapture(nb2, color);
-      if(th>=2) sc2 -= 100*th;
-      else if(th===1) sc2 -= 30;
+      if(th>=2) sc2 -= 140*th;
+      else if(th===1) sc2 -= 50;
+      sc2 -= oppThreatScore(nb2, color)*0.4;
       if(sc2>bestScore){ bestScore=sc2; best=top[t]; }
     }
   }
 
-  // Desempate final: entre lances parecidos, o que menos abre pro rival
+  // Desempate: prioriza zero ameaça do rival, depois melhor eval
   try{
-    var margin=18;
     var cands=[];
     for(var j=0;j<moves.length;j++){
       var nb3=applyMove(board, moves[j]);
-      // score raso + ameaca
       var th3=oppMaxCapture(nb3, color);
       var base=evaluateBoard(nb3, color);
       cands.push({m:moves[j], th:th3, base:base});
@@ -2157,17 +2253,22 @@ function searchCoachMove(board, color, opts){
       if(a.th!==b.th) return a.th-b.th;
       return b.base-a.base;
     });
-    // se o best deixa ameaca e existe alternativa sem ameaca com eval proxima, troca
     var bestNb=applyMove(board, best);
     var bestTh=oppMaxCapture(bestNb, color);
     if(bestTh>0){
       for(var k=0;k<cands.length;k++){
         if(cands[k].th===0){
-          var alt=cands[k].m;
-          // so troca se nao for claramente pior material/posicao
-          if(cands[k].base >= evaluateBoard(bestNb, color)-40){
-            best=alt; bestScore=cands[k].base;
+          if(cands[k].base >= evaluateBoard(bestNb, color)-55){
+            best=cands[k].m; bestScore=cands[k].base;
           }
+          break;
+        }
+      }
+    } else {
+      // entre lances seguros, prefira o de melhor estrutura
+      for(var k2=0;k2<Math.min(3,cands.length);k2++){
+        if(cands[k2].th===0 && cands[k2].base > evaluateBoard(bestNb, color)+8){
+          best=cands[k2].m; bestScore=cands[k2].base;
           break;
         }
       }
@@ -3722,6 +3823,8 @@ function openGameUI(){
     b.style.display='';
   });
   refreshGameAvatars();
+  // Trava retrato no APK — giro não joga o jogador para fora
+  try{ lockGameOrientation(); }catch(e){}
 }
 function canUseCoach(){
   if(!me) return false;
@@ -4595,7 +4698,9 @@ async function finishOnline(result, msg){
   setPresence('available');
   if(gameCh&&sb){try{await sb.removeChannel(gameCh)}catch(e){} gameCh=null}
   gameId=''; mode=null;
+  gameFinished=true;
   clearActiveGame();
+  try{ unlockGameOrientation(); }catch(e){}
   renderLiveGames();
   var tt = result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate');
   showEnd(tt, msg);
@@ -5473,12 +5578,12 @@ function coachBest(auto){
     return;
   }
   document.getElementById('coach-move').textContent='…';
-  // auto = rapido e forte; botao = um pouco mais fundo (ainda < 2s)
-  var budget = auto ? 850 : 1600;
-  var depthCap = auto ? 14 : 18;
+  // auto ainda profundo; botão = análise máxima
+  var budget = auto ? 1600 : 2800;
+  var depthCap = auto ? 18 : 24;
   document.getElementById('coach-text').textContent=auto
-    ? 'Coach analisando…'
-    : 'Coach pensando…';
+    ? '♛ Coach elaborando plano…'
+    : '♛ Coach em busca profunda…';
   setTimeout(function(){
     var res=searchCoachMove(board, turn, {budgetMs:budget, maxDepth:depthCap});
     if(!res||!res.move){
@@ -5493,24 +5598,30 @@ function coachBest(auto){
     var meta='d'+(res.depth||'?')+' · '+Math.round(res.score)+' · '+(res.nodes||0)+' nós';
     var why;
     var lines=[];
+    var nbSafe=null, thAfter=0;
+    try{ nbSafe=applyMove(board, m); thAfter=oppMaxCapture(nbSafe, turn); }catch(e){}
     if(m.captures>1){
-      lines.push('Sequência forçada de '+m.captures+' capturas — jogue até o fim sem interromper.');
-      lines.push('Em damas brasileiras o 1º salto da pedra é à frente; na sequência pode voltar.');
+      lines.push('Sequência de '+m.captures+' capturas — force até o fim (1º salto da pedra à frente).');
+      lines.push('Ganha material e abre caminho para o plano seguinte.');
     } else if(m.captures===1){
-      lines.push('Melhor captura disponível (captura é obrigatória).');
-      lines.push('Ganha material ou melhora a estrutura após a troca.');
+      lines.push('Captura obrigatória correta: melhora o saldo e a estrutura.');
     } else if(Math.abs(landed)===2){
-      lines.push('Promoção: a dama voadora controla diagonais longas.');
-      lines.push('Use a dama para restringir o rival e criar novas capturas.');
-    } else if(to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5){
-      lines.push('Ocupa o centro e limita as opções do adversário.');
-      lines.push('Prepara avanço de pedras e futuras promoções.');
+      lines.push('Promoção: dama voadora nas diagonais longas.');
+      lines.push('Próximo passo: restringir a dama rival e caçar pedras isoladas.');
+    } else if(thAfter===0 && to.c>=2&&to.c<=5&&to.r>=2&&to.r<=5){
+      lines.push('Centro seguro: controla o tabuleiro sem oferecer captura.');
+      lines.push('Plano: avançar com suporte e preparar promoção.');
+    } else if(thAfter===0){
+      lines.push('Lance seguro (zero captura para o rival) e melhor continuidade da busca.');
+      lines.push('Equilibra defesa da base com pressão estratégica.');
     } else {
-      lines.push('Melhor lance da busca profunda: '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+'.');
-      lines.push('Mantém equilíbrio de material e inicia a melhor continuidade.');
+      lines.push('Melhor compromisso tático: '+m.from.toUpperCase()+' → '+m.to.toUpperCase()+'.');
+      lines.push('Minimiza o dano e mantém chances no plano longo.');
     }
-    if(res.score>80) lines.push('Avaliação favorável ('+Math.round(res.score)+').');
-    else if(res.score<-80) lines.push('Posição difícil — este lance minimiza o dano.');
+    if(thAfter===0) lines.push('Proteção: rival sem captura imediata.');
+    else if(thAfter===1) lines.push('Atenção: rival ainda pode capturar 1 — posição calculada.');
+    if(res.score>100) lines.push('Vantagem clara ('+Math.round(res.score)+').');
+    else if(res.score<-100) lines.push('Defesa ativa — reduz a desvantagem ('+Math.round(res.score)+').');
     lines.push('('+meta+')');
     why=lines.join(' ');
     document.getElementById('coach-text').textContent=why;
@@ -5531,12 +5642,25 @@ function coachPlan(){
   var n=hist.length;
   var w=countPieces(board,'w'), b=countPieces(board,'b');
   var total=w.total+b.total;
+  var my = (mode==='ai'||mode==='online') ? myColor : turn;
+  var meP = my==='w' ? w : b;
+  var opP = my==='w' ? b : w;
+  var evalS = 0;
+  try{ evalS = evaluateBoard(board, my); }catch(e){}
   var plan;
-  if(n<6) plan='Abertura: avance o centro e prepare promoções. Captura é obrigatória — evite deixar peças penduradas na diagonal.';
-  else if(total>10) plan='Meio-jogo: busque sequências 2+ (1º salto da pedra à frente, depois pode voltar). Force capturas e lute pela dama voadora.';
-  else if(total>4) plan='Final: a dama corre várias casas — domine diagonais longas, restrinja a dama rival e force promoções.';
-  else plan='Final técnico: com dama voadora, centralize, varra as diagonais e deixe o adversário sem casas seguras.';
-  if(w.kings+b.kings) plan+=' Dama ativa vale mais do que material parado.';
+  if(n<8){
+    plan='Abertura: monte estrutura no centro, mantenha a base ligada e só avance com suporte. Não ofereça captura grátis. Objetivo: promover com segurança.';
+  } else if(total>12){
+    plan='Meio-jogo: combine defesa (peças protegidas) com pressão. Busque sequências 2+ e não desmonte a base cedo. Force o rival a enfraquecer o centro.';
+  } else if(total>6){
+    plan='Pré-final: priorize promoção e dama ativa. Evite trocas que ativem a dama rival. Restrinja diagonais e prepare um plano de cerco.';
+  } else {
+    plan='Final: dama voadora centralizada, oposição e tempo. Corte fugas, force a promoção se ainda houver pedra e não permita contra-ataque.';
+  }
+  if(meP.kings && !opP.kings) plan+=' Você tem dama — use mobilidade para caçar pedras isoladas.';
+  if(!meP.kings && opP.kings) plan+=' Rival tem dama — mantenha pedras unidas e evite diagonais abertas.';
+  if(evalS>120) plan+=' Avaliação positiva: aumente a pressão sem relaxar a defesa.';
+  else if(evalS<-120) plan+=' Avaliação difícil: jogue sólido, force erros e busque troca favorável.';
   document.getElementById('coach-text').textContent=plan;
 }
 
@@ -5645,6 +5769,16 @@ async function awardAiPoints(result, silentUI){
 
 /* ===== UI NAV ===== */
 function go(v){
+  // Não sai da partida no meio do jogo (só desistir / empate / fim)
+  try{
+    var gameEl=document.getElementById('game');
+    var inGame=gameEl && gameEl.style.display==='block' && (mode==='online'||mode==='ai'||mode==='local') && !gameFinished;
+    if(inGame && v!=='game'){
+      toast('Saia só por Desistir ou Empate — a partida continua');
+      return;
+    }
+  }catch(e){}
+
   try{ if(v!=='game') showReviewPanel(false); }catch(e){}
   rememberScroll();
   // ao trocar aba, sobe so o main (nao empurra com foco)
@@ -6604,6 +6738,31 @@ function loadActiveGameRaw(){
     return data;
   }catch(e){ return null; }
 }
+function lockGameOrientation(){
+  try{
+    if(screen.orientation && typeof screen.orientation.lock==='function'){
+      screen.orientation.lock('portrait').catch(function(){});
+    }
+  }catch(e){}
+  try{
+    if(window.DamasNative){
+      if(typeof DamasNative.lockPortrait==='function') DamasNative.lockPortrait();
+      if(typeof DamasNative.setOrientation==='function') DamasNative.setOrientation('portrait');
+    }
+  }catch(e){}
+}
+function unlockGameOrientation(){
+  try{
+    if(screen.orientation && typeof screen.orientation.unlock==='function'){
+      screen.orientation.unlock();
+    }
+  }catch(e){}
+  try{
+    if(window.DamasNative && typeof DamasNative.unlockOrientation==='function') DamasNative.unlockOrientation();
+  }catch(e){}
+}
+
+/** Restaura partida salva (rotação/reload rápido). Online após fechar app = desistência. */
 function restoreActiveGame(){
   var data=loadActiveGameRaw();
   if(!data||!me) return false;
@@ -6614,17 +6773,138 @@ function restoreActiveGame(){
 
   var testBoard=deserializeBoard(data.board);
   var testTurn=data.turn||'w';
-  // Se a partida já terminou (sem lances), descarta
   try{
     var ms=legalMoves(testBoard, testTurn);
     if(!ms || !ms.length){ clearActiveGame(); return false; }
   }catch(e){ clearActiveGame(); return false; }
 
-  // Não restaurar automaticamente no F5 — volta ao lobby
-  clearActiveGame();
-  return false;
+  var age=Date.now()-(data.savedAt||0);
+
+  // ONLINE: se ficou parado tempo demais (fechou o app) → desistência + perde pontos
+  if(data.mode==='online'){
+    if(age > 10000){ // >10s sem o app ativo = fechou de verdade
+      clearActiveGame();
+      try{ forfeitAbandonedOnline(data); }catch(e){ console.warn(e); }
+      return false;
+    }
+  }
+
+  // Restaura estado (rotação / reload curto)
+  try{
+    mode=data.mode;
+    gameId=data.gameId||'';
+    oppName=data.oppName||'';
+    myColor=data.myColor||'w';
+    turn=data.turn||'w';
+    board=testBoard;
+    hist=data.hist||[];
+    capW=data.capW||[];
+    capB=data.capB||[];
+    last=data.last||null;
+    boardFlipped=!!data.boardFlipped;
+    diff=data.diff||diff;
+    timeControl=data.timeControl||0;
+    clockW=data.clockW||0;
+    clockB=data.clockB||0;
+    chatMsgs=data.chatMsgs||[];
+    sel=null; legal=[];
+    gameFinished=false;
+    lastEndMode=mode;
+    openGameUI();
+    lockGameOrientation();
+    document.getElementById('btn-undo').style.display = (mode==='online')?'none':'';
+    var bd=document.getElementById('btn-draw');
+    if(bd){ if(mode==='online') bd.classList.remove('hidden'); else bd.classList.add('hidden'); }
+    if(mode==='online'||mode==='ai'){
+      document.getElementById('n-w').textContent = myColor==='w' ? (me.name+' (você)') : (oppName||'Brancas');
+      document.getElementById('n-b').textContent = myColor==='b' ? (me.name+' (você)') : (mode==='ai'?'Computador':(oppName||'Pretas'));
+    }
+    if(mode==='online') document.getElementById('chat').classList.add('on');
+    setupCoach();
+    render({forceFull:true});
+    status(); movesUI(); updateCaps(); updateClocksUI();
+    if(timeControl>0){ try{ startClockTick(); }catch(e){} }
+    if(mode==='online' && gameId){
+      setPresence('in_game', gameId, oppName);
+      joinGameChannel(false);
+      startLiveAnnounce();
+    }
+    saveActiveGame();
+    toast('Partida retomada');
+    return true;
+  }catch(e){
+    console.warn('restoreActiveGame', e);
+    clearActiveGame();
+    return false;
+  }
 }
 
+/** Desistência automática ao reabrir o app no meio de online */
+async function forfeitAbandonedOnline(data){
+  if(!me||!data) return;
+  try{
+    toast('Partida online abandonada — desistência (-pts)');
+  }catch(e){}
+  // Aplica derrota localmente
+  try{
+    mode='online';
+    gameId=data.gameId||'';
+    oppName=data.oppName||'';
+    myColor=data.myColor||'w';
+    gameFinished=true;
+    // Avisa adversário se canal possível
+    try{
+      if(sb && gameId){
+        var ch=sb.channel('damas-game-'+gameId, {config:{broadcast:{ack:true}}});
+        ch.subscribe(function(st){
+          if(st==='SUBSCRIBED'||st==='joined'){
+            try{ ch.send({type:'broadcast', event:'resign', payload:{by:me.name, reason:'app_closed'}}); }catch(e){}
+            setTimeout(function(){ try{ sb.removeChannel(ch); }catch(e){} }, 800);
+          }
+        });
+      }
+    }catch(e){}
+    try{ finishOnline('loss', 'Você fechou o app (desistência).'); }catch(e){
+      // fallback se finishOnline depender de UI de jogo
+      try{
+        var row=await dbGetPlayer(me.name);
+        if(row){
+          var pts=Math.max(0, (row.points||0)-8);
+          var losses=(row.losses||0)+1;
+          var games=(row.games||0)+1;
+          await dbUpdatePlayer(me.name, {points:pts, losses:losses, games:games, streak:0});
+        }
+      }catch(e2){}
+    }
+  }catch(e){ console.warn('forfeitAbandonedOnline', e); }
+}
+
+
+// Giro de tela: NÃO sai da partida — só reajusta o tabuleiro
+window.addEventListener('orientationchange', function(){
+  try{
+    if(mode==='online'||mode==='ai'||mode==='local'){
+      lockGameOrientation();
+      setTimeout(function(){
+        try{ if(board) render({forceFull:true}); }catch(e){}
+        try{ lockScrollY(); }catch(e){}
+      }, 120);
+      setTimeout(function(){
+        try{ if(board) render({forceFull:true}); status(); }catch(e){}
+      }, 350);
+    }
+  }catch(e){}
+});
+window.addEventListener('resize', function(){
+  try{
+    if(mode==='online'||mode==='ai'||mode==='local'){
+      if(window.__resizeBoardTimer) clearTimeout(window.__resizeBoardTimer);
+      window.__resizeBoardTimer=setTimeout(function(){
+        try{ if(board) render({forceFull:true}); }catch(e){}
+      }, 150);
+    }
+  }catch(e){}
+});
 
 function lockScrollY(){
   try{
