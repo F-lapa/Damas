@@ -2018,6 +2018,91 @@ main{
 }
 
 
+
+/* Desktop: sem tela cheia fixa (mobile mantém layout grande) */
+@media (min-width:900px){
+  #game.game-on{
+    position:relative!important;
+    inset:auto!important;
+    width:100%!important;
+    height:auto!important;
+    max-width:100%!important;
+    min-height:0!important;
+    z-index:1!important;
+    padding:0.5rem 0.75rem 1rem!important;
+    overflow:visible!important;
+    background:transparent!important;
+    display:block!important;
+  }
+  #game.game-on .game-shell{
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    height:auto!important;
+    gap:1.1rem!important;
+  }
+  #game.game-on .game-side{
+    display:flex!important;
+    flex-direction:column!important;
+    width:min(320px,30vw)!important;
+  }
+  #game.game-on .game-main{
+    width:auto!important;
+    max-width:min(82vh, 720px)!important;
+  }
+  #game.game-on .board-hero{
+    width:min(82vh, 700px)!important;
+    max-width:min(82vh, 700px)!important;
+  }
+  #game.game-on .player-card,
+  #game.game-on .turn-banner,
+  #game.game-on .turn-under,
+  #game.game-on .game-actions,
+  #game.game-on .conn-badge{
+    width:min(82vh, 700px)!important;
+    max-width:min(82vh, 700px)!important;
+  }
+}
+
+/* Abas no topo, organizadas, sem atrapalhar */
+header{
+  position:sticky!important;
+  top:0!important;
+  z-index:40!important;
+  background:linear-gradient(180deg,rgba(10,12,20,.96),rgba(10,12,20,.88))!important;
+  backdrop-filter:blur(12px)!important;
+}
+#nav, nav#nav{
+  position:sticky!important;
+  top:52px!important;
+  z-index:39!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+  justify-content:center!important;
+  gap:.35rem!important;
+  padding:.45rem .75rem .55rem!important;
+  margin:0 auto!important;
+  max-width:1180px!important;
+  width:100%!important;
+  background:rgba(10,12,20,.92)!important;
+  border-bottom:1px solid rgba(255,255,255,.08)!important;
+  backdrop-filter:blur(10px)!important;
+}
+#nav button{
+  border-radius:999px!important;
+  border:1px solid rgba(255,255,255,.1)!important;
+  padding:.45rem .95rem!important;
+  font-size:.82rem!important;
+  background:rgba(255,255,255,.04)!important;
+}
+#nav button.on{
+  background:linear-gradient(135deg,rgba(91,157,255,.28),rgba(167,139,250,.18))!important;
+  border-color:rgba(91,157,255,.45)!important;
+  color:#fff!important;
+}
+#nav button.on::after{display:none!important}
+
 </style>
 
 </head>
@@ -2426,7 +2511,7 @@ main{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.48';
+const APP_VERSION='2026.08.17.49';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -4322,14 +4407,14 @@ function renderOnline(){
   list.innerHTML=others.map(function(p){
     var busy=p.status==='in_game';
     var muted=isMuted(p.user);
-    var click = busy
-      ? (p.gameId ? "spectateGame('"+p.gameId+"','"+p.user+"','"+(p.opp||'')+"')" : "")
-      : "challengePlayer('"+p.user+"')";
-    return '<div class="player-row '+(busy?'busy':'available')+'" '+(click?'onclick="'+click+'"':'')+'>'+
+    // Sempre pode desafiar (jogador livre para jogar)
+    var u=(p.user||'').replace(/\\/g,'').replace(/'/g,'');
+    var click = "challengePlayer('"+u+"')";
+    return '<div class="player-row available" onclick="'+click+'">'+
       '<div class="avatar">'+avatarHtml(p.user)+'</div>'+
       '<div class="p-info"><div class="p-name">'+escapeHtml(p.user)+'</div>'+
-      '<div class="p-meta">'+(busy?('Em partida'+(p.opp?' vs '+escapeHtml(p.opp):'')):'Disponível')+(muted?' · silenciado':'')+'</div></div>'+
-      (busy?'<span class="badge busy">👁 Ver</span>':'<span class="badge ok">Livre</span>')+
+      '<div class="p-meta">'+(busy?('Em partida'+(p.opp?' vs '+escapeHtml(p.opp):'')+' · toque para desafiar'):'Disponível')+(muted?' · silenciado':'')+'</div></div>'+
+      '<span class="badge ok">Desafiar</span>'+
       '</div>';
   }).join('');
 }
@@ -4450,11 +4535,11 @@ function challengePlayer(user){
   if(!me||sameUser(user,me.name)) return;
   if(!lobbyCh){
     try{ joinLobby(); }catch(e){}
-    toast('Lobby reconectando… toque de novo em 2s');
-    return;
+    // tenta mesmo assim via banco/canal privado
   }
   if(typeof isMuted==='function' && isMuted(user)) return toast('Você silenciou este jogador');
   if(mode==='online'||mode==='spectate') return toast('Saia da partida atual primeiro');
+  try{ freePlayerPresence(); }catch(e){}
   if(_challengeResendTimer){ clearInterval(_challengeResendTimer); _challengeResendTimer=null; }
 
   var gid='g_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
@@ -5942,8 +6027,10 @@ function resign(){
   if(mode==='review'){ exitReview(); return; }
   if(!confirm('Desistir?')) return;
   if(mode==='online'){
-    if(gameCh) gameCh.send({type:'broadcast',event:'resign',payload:{by:me.name}});
-    finishOnline('loss','Você desistiu.'); return;
+    try{ if(gameCh) gameCh.send({type:'broadcast',event:'resign',payload:{by:me.name}}); }catch(e){}
+    try{ finishOnline('loss','Você desistiu.'); }catch(e){}
+    try{ freePlayerPresence(); }catch(e){}
+    return;
   }
   if(mode==='ai'){
     lastEndResult='loss';
@@ -6031,12 +6118,13 @@ async function finishOnline(result, msg, opts){
       delete liveGamesMap[gameId];
     }
   }catch(e){}
-  setPresence('available');
+  try{ freePlayerPresence(); }catch(e){ try{ setPresence('available'); }catch(e2){} }
   if(gameCh&&sb){try{await sb.removeChannel(gameCh)}catch(e){} gameCh=null}
-  gameId=''; mode=null;
+  gameId=''; mode=null; oppName='';
   clearActiveGame();
   try{ unlockGameOrientation(); }catch(e){}
   renderLiveGames();
+  try{ renderOnline(); }catch(e){}
   var tt = result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate');
   showEnd(tt, msg);
   window.__finishingOnline=false;
@@ -6587,28 +6675,46 @@ function exitReview(){
   go('home');
   toast('Voltou para Jogar');
 }
-function leaveToLobby(){
-  // Sem lances: volta ao lobby SEM desistência. Com lances o botão some.
+function freePlayerPresence(){
+  try{ presenceStatus='available'; }catch(e){}
+  try{ setPresence('available'); }catch(e){}
   try{
-    if(hist && hist.length>0){
-      toast('Use Desistir para sair da partida');
-      return;
+    if(sb && me && me.name){
+      sb.from('players').update({
+        transfer_token: 'ONLINE|available',
+        transfer_until: new Date(Date.now()+180000).toISOString()
+      }).eq('username', me.name);
     }
   }catch(e){}
+  try{ sendLobbyHello(); }catch(e){}
+  try{ renderOnline(); }catch(e){}
+}
+function leaveToLobby(){
+  // Sempre libera o jogador (e o adversário, se online)
+  try{
+    if(mode==='online' && !gameFinished){
+      if(hist && hist.length>0){
+        try{
+          if(gameCh) gameCh.send({type:'broadcast', event:'resign', payload:{by:me&&me.name}});
+        }catch(e){}
+        try{ finishOnline('loss', 'Você voltou ao lobby.'); }catch(e){}
+        try{ freePlayerPresence(); }catch(e){}
+        return;
+      }
+      try{
+        if(gameCh) gameCh.send({type:'broadcast', event:'game_over', payload:{by:me&&me.name, result:'loss', msg:'Adversário voltou ao lobby'}});
+      }catch(e){}
+    }
+  }catch(e){}
+  try{ freePlayerPresence(); }catch(e){}
   toHome();
 }
 function updateLobbyButton(){
   try{
     var lb=document.getElementById('btn-lobby');
     if(!lb) return;
-    var moved = !!(hist && hist.length>0);
-    if(moved){
-      lb.style.display='none';
-      lb.style.visibility='hidden';
-    } else {
-      lb.style.display='';
-      lb.style.visibility='visible';
-    }
+    lb.style.display='';
+    lb.style.visibility='visible';
   }catch(e){}
 }
 function toHome(){
@@ -6636,7 +6742,7 @@ function toHome(){
   renderLiveGames();
   var el=document.getElementById('z9'); if(el) el.style.display='none';
   var ban=document.getElementById('spectate-banner'); if(ban&&ban.parentNode) ban.parentNode.removeChild(ban);
-  setPresence('available');
+  try{ freePlayerPresence(); }catch(e){ try{ setPresence('available'); }catch(e2){} }
   go('home');
 }
 function rematch(){
