@@ -1518,7 +1518,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.16';
+const APP_VERSION='2026.08.17.18';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -2138,7 +2138,7 @@ function searchBestMove(board, color, depth, timeMs){
   return {move:best, score:bestScore, nodes:_nodes};
 }
 
-/** Coach Supremo v3 — motor de elite (muito acima do PC Difícil). Níveis do PC intactos. */
+/** Coach = mesma inteligência do PC Difícil (pedido do usuário). */
 function oppMaxCapture(board, myColor){
   var opp = myColor==='w'?'b':'w';
   var ms;
@@ -2152,186 +2152,26 @@ function oppMaxCapture(board, myColor){
 }
 
 /**
- * Negamax exclusivo do coach — sem LMR agressivo, quiescência longa, TT.
- * NÃO usado pelo computador (easy/medium/hard).
- */
-function coachNegamax(board, depth, alpha, beta, color, qply){
-  _nodes++;
-  if(_deadline && (_nodes&31)===0 && Date.now()>_deadline) return evaluateBoard(board, color);
-
-  var alphaOrig=alpha;
-  var key='C|'+boardHash(board)+'|'+depth+'|'+color+'|'+qply;
-  if(_tt && depth>=0 && qply===0){
-    var e=_tt.get(key);
-    if(e && e.d>=depth){
-      if(e.flag===0) return e.val;
-      if(e.flag===1 && e.val>=beta) return e.val;
-      if(e.flag===2 && e.val<=alpha) return e.val;
-    }
-  }
-
-  var moves=legalMoves(board, color);
-  if(!moves.length) return -100000 - depth;
-
-  if(depth<=0){
-    var stand=evaluateBoard(board, color);
-    if(qply>=16) return stand;
-    var caps=[];
-    for(var i=0;i<moves.length;i++) if((moves[i].captures||0)>0) caps.push(moves[i]);
-    if(!caps.length) return stand;
-    if(stand>=beta) return stand;
-    if(stand>alpha) alpha=stand;
-    orderMoves(caps, 0, null);
-    var bestQ=stand;
-    for(var j=0;j<caps.length;j++){
-      if(_deadline && Date.now()>_deadline) break;
-      var nq=applyMove(board, caps[j]);
-      var sq=-coachNegamax(nq, 0, -beta, -alpha, color==='w'?'b':'w', qply+1);
-      if(sq>bestQ) bestQ=sq;
-      if(sq>alpha) alpha=sq;
-      if(alpha>=beta) break;
-    }
-    return bestQ;
-  }
-
-  orderMoves(moves, depth, null);
-  var best=-1e15;
-  var bestMove=null;
-
-  for(var i2=0;i2<moves.length;i2++){
-    if(_deadline && Date.now()>_deadline) break;
-    var m=moves[i2];
-    var nb=applyMove(board, m);
-    var ext=0;
-    if((m.captures||0)>=1) ext=1;
-    try{
-      var fromP=parseSq(m.from), toP=parseSq(m.to);
-      var before=board[fromP.r][fromP.c];
-      var after=nb[toP.r][toP.c];
-      if(Math.abs(before)===1 && Math.abs(after)===2) ext=1;
-    }catch(e){}
-
-    var sc;
-    // PVS sem redução forte (coach precisa de precisão)
-    if(i2===0){
-      sc=-coachNegamax(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
-    } else {
-      sc=-coachNegamax(nb, depth-1+ext, -alpha-1, -alpha, color==='w'?'b':'w', 0);
-      if(sc>alpha && sc<beta){
-        sc=-coachNegamax(nb, depth-1+ext, -beta, -alpha, color==='w'?'b':'w', 0);
-      }
-    }
-    if(sc>best){ best=sc; bestMove=m; }
-    if(sc>alpha) alpha=sc;
-    if(alpha>=beta){
-      if(_killers && (m.captures||0)===0){
-        var kd=_killers[depth]||(_killers[depth]=[null,null]);
-        if(!kd[0]||kd[0].from!==m.from||kd[0].to!==m.to){ kd[1]=kd[0]; kd[0]={from:m.from,to:m.to}; }
-      }
-      if(_history){
-        var mk=moveKey(m);
-        _history[mk]=(_history[mk]||0)+depth*depth;
-      }
-      break;
-    }
-  }
-
-  if(best<=-1e14) return evaluateBoard(board, color);
-  if(_tt && _tt.size<400000 && qply===0){
-    var flag=0;
-    if(best<=alphaOrig) flag=2;
-    else if(best>=beta) flag=1;
-    _tt.set(key, {val:best, flag:flag, d:depth, m:bestMove});
-  }
-  return best;
-}
-
-/**
- * Busca do coach: muito mais tempo e profundidade que o PC Difícil
- * (PC hard ~ depth 11 / 140ms no simpleMinimax).
+ * Coach usa EXATAMENTE o mesmo motor do nível Difícil:
+ * searchBestMove(board, color, depth=11, timeMs=280)
+ * (searchBestMove limita o tempo internamente igual ao PC hard)
  */
 function searchCoachMove(board, color, opts){
   opts = opts || {};
-  var budgetMs = opts.budgetMs != null ? opts.budgetMs : 6000;
-  var maxDepth = opts.maxDepth != null ? opts.maxDepth : 36;
-  var moves=legalMoves(board, color);
-  if(!moves.length) return null;
-  if(moves.length===1) return {move:moves[0], score:0, nodes:1, depth:0, coach:true};
-
-  // Ordenação tática inicial
-  try{
-    moves.sort(function(a,b){
-      var ca=a.captures||0, cb=b.captures||0;
-      if(cb!==ca) return cb-ca;
-      var na=applyMove(board,a), nb=applyMove(board,b);
-      var ta=oppMaxCapture(na, color), tb=oppMaxCapture(nb, color);
-      if(ta!==tb) return ta-tb;
-      return evaluateBoard(nb, color)-evaluateBoard(na, color);
-    });
-  }catch(e){
-    moves.sort(function(a,b){ return (b.captures||0)-(a.captures||0); });
-  }
-
-  _tt=new Map(); _nodes=0; _killers=[]; _history={};
-  var t0=Date.now();
-  _deadline=t0+Math.max(1200, budgetMs);
-  var best=moves[0], bestScore=-1e15, completedDepth=0;
-  var rootPV=null;
-  var opp=color==='w'?'b':'w';
-
-  // Iterative deepening com coachNegamax
-  for(var d=1; d<=maxDepth; d++){
-    if(Date.now()>_deadline) break;
-    orderMoves(moves, d, rootPV);
-    var localBest=null, localScore=-1e15;
-    var alpha=-1e15, beta=1e15;
-    if(d>=6 && bestScore>-1e14 && bestScore<1e14){
-      var win = d>=14 ? 16 : 32;
-      alpha=bestScore-win; beta=bestScore+win;
-    }
-    var timedOut=false;
-    for(var i=0;i<moves.length;i++){
-      if(Date.now()>_deadline){ timedOut=true; break; }
-      var nb=applyMove(board, moves[i]);
-      var sc=-coachNegamax(nb, d-1, -beta, -alpha, opp, 0);
-      if(d>=6 && (sc<=alpha || sc>=beta)){
-        sc=-coachNegamax(nb, d-1, -1e15, 1e15, opp, 0);
-      }
-      if(sc>localScore){ localScore=sc; localBest=moves[i]; }
-      if(sc>alpha) alpha=sc;
-    }
-    if(localBest && (!timedOut || d<=8)){
-      best=localBest; bestScore=localScore; completedDepth=d; rootPV=localBest;
-      // PV na frente
-      for(var p=0;p<moves.length;p++){
-        if(moves[p].from===rootPV.from && moves[p].to===rootPV.to){
-          if(p>0){ var tmp=moves[0]; moves[0]=moves[p]; moves[p]=tmp; }
-          break;
-        }
-      }
-      if(bestScore>90000 || bestScore<-90000) break;
-    }
-    // garante pelo menos profundidade séria se ainda há tempo
-    if(timedOut && completedDepth>=10) break;
-  }
-
-  // Reforço: se não chegou a depth 10, busca dedicada por lance
-  if(completedDepth < 10 && Date.now()<_deadline){
-    var remain=_deadline-Date.now();
-    var per=Math.max(100, Math.floor(remain/Math.max(1,moves.length)));
-    for(var j=0;j<moves.length;j++){
-      if(Date.now()>_deadline) break;
-      var save=_deadline;
-      _deadline=Math.min(save, Date.now()+per);
-      var nb2=applyMove(board, moves[j]);
-      var sc2=-coachNegamax(nb2, 11, -1e15, 1e15, opp, 0);
-      _deadline=save;
-      if(sc2>bestScore){ bestScore=sc2; best=moves[j]; completedDepth=Math.max(completedDepth, 12); }
-    }
-  }
-
-  _deadline=0;
-  return {move:best, score:bestScore, nodes:_nodes, depth:completedDepth, coach:true};
+  // Mesmos parâmetros do aiPlay no nível hard
+  var depth = 11;
+  var budget = 280;
+  if(opts.budgetMs != null) budget = opts.budgetMs;
+  if(opts.maxDepth != null) depth = opts.maxDepth;
+  var res = searchBestMove(board, color, depth, budget);
+  if(!res || !res.move) return null;
+  return {
+    move: res.move,
+    score: res.score,
+    nodes: res.nodes,
+    depth: depth,
+    coach: true
+  };
 }
 
 
@@ -3928,7 +3768,7 @@ function setupCoach(){
   }
   coach.style.display='block';
   document.getElementById('coach-move').textContent='—';
-  document.getElementById('coach-text').textContent='♛ Coach automático · a dica aparece sozinha na sua vez.';
+  document.getElementById('coach-text').textContent='♛ Coach no mesmo nível do PC Difícil · dica automática.';
   scheduleAutoCoach(300);
 }
 
@@ -5645,12 +5485,12 @@ function coachBest(auto){
   var myGen=++_coachGen;
   _coachBusy=true;
   document.getElementById('coach-move').textContent='…';
-  // Tempo sério e estável (PC Difícil ~140ms — coach bem acima)
-  var budget = auto ? 4000 : 6500;
-  var depthCap = auto ? 22 : 30;
+  // Mesma inteligência do PC Difícil (rápido e estável)
+  var budget = 280;
+  var depthCap = 11;
   document.getElementById('coach-text').textContent=auto
-    ? '♛ Coach analisando…'
-    : '♛ Coach em busca profunda…';
+    ? '♛ Coach (nível Difícil)…'
+    : '♛ Coach (nível Difícil)…';
   var snapBoard=cloneBoard(board);
   var snapTurn=turn;
   var snapKey=boardHash(snapBoard)+'|'+snapTurn+'|'+(hist&&hist.length);
@@ -5668,13 +5508,28 @@ function coachBest(auto){
       scheduleAutoCoach(300);
       return;
     }
-    _coachLastKey=snapKey;
     if(!res||!res.move){
       document.getElementById('coach-move').textContent='—';
-      document.getElementById('coach-text').textContent='Sem lances disponíveis.';
+      document.getElementById('coach-text').textContent='Sem lances — toque em Jogada perfeita de novo.';
       return;
     }
     var m=res.move;
+    // garante que o lance é legal na posição atual
+    try{
+      var leg=legalMoves(board, turn)||[];
+      var found=null;
+      for(var li=0;li<leg.length;li++){
+        if(leg[li].from===m.from && leg[li].to===m.to){ found=leg[li]; break; }
+      }
+      if(!found){
+        document.getElementById('coach-text').textContent='Dica expirada — analisando de novo…';
+        _coachLastKey='';
+        scheduleAutoCoach(200);
+        return;
+      }
+      m=found;
+    }catch(e){}
+    _coachLastKey=snapKey;
     document.getElementById('coach-move').textContent=m.from.toUpperCase()+' → '+m.to.toUpperCase()+(m.captures?' ×'+m.captures:'');
     var to=parseSq(m.to);
     var landed = m.board ? m.board[to.r][to.c] : 0;
