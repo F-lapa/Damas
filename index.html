@@ -1143,10 +1143,18 @@ main{overflow-anchor:none!important}
 #install-banner{display:none!important}
 body.has-install-banner,body{padding-top:0!important}
 
-/* Desktop: tabuleiro centralizado e inteiro na tela (sem cortar) */
+/* Tabuleiro só aparece com .game-on (Lobby esconde de verdade) */
+#game{display:none!important}
+#game.game-on{
+  display:flex!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  overflow:auto!important;
+  padding:.55rem .75rem 1.1rem!important;
+  box-sizing:border-box!important;
+}
 @media (min-width:900px){
-  #game{
-    display:flex!important;
+  #game.game-on{
     justify-content:center!important;
     align-items:flex-start!important;
     overflow:auto!important;
@@ -1528,12 +1536,12 @@ body.has-install-banner,body{padding-top:0!important}
             <div class="who-wrap" style="flex:1"><div class="who" id="n-w">Brancas</div><div class="caps" id="caps-w"></div></div>
             <div class="clock" id="clock-w">∞</div>
           </div>
-          <div class="game-actions">
+          <div class="game-actions" id="game-actions">
+            <button type="button" id="btn-lobby" onclick="leaveToLobby()">🏠 Lobby</button>
             <button type="button" id="btn-undo" onclick="undo()">↩ Desfazer</button>
-            <button type="button" onclick="flipBoard()">🔄 Virar</button>
+            <button type="button" id="btn-flip" onclick="flipBoard()">🔄 Virar</button>
             <button type="button" id="btn-draw" class="hidden" onclick="offerDraw()">🤝 Empate</button>
-            <button type="button" onclick="resign()">Desistir</button>
-            <button type="button" onclick="toHome()">Lobby</button>
+            <button type="button" id="btn-resign" onclick="resign()">🏳 Desistir</button>
           </div>
         </div>
         <div class="game-side">
@@ -1619,7 +1627,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.24';
+const APP_VERSION='2026.08.17.25';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -4091,7 +4099,8 @@ function openGameUI(){
   ['v-home','v-dash','v-rank','v-settings','v-admin'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.classList.add('hidden');
   });
-  document.getElementById('game').style.display='block';
+  var gameEl=document.getElementById('game');
+  if(gameEl){ gameEl.classList.add('game-on'); gameEl.style.display='flex'; }
   document.getElementById('nav').style.display='none';
   document.getElementById('ov-end').style.display='none';
   // restore action buttons (may have been hidden in review)
@@ -4100,8 +4109,15 @@ function openGameUI(){
   document.querySelectorAll('.game-actions button').forEach(function(b){
     if(b.id==='btn-draw') return; // managed separately
     if(b.id==='btn-review-home') return;
+    if(b.id==='btn-review-back') return;
     b.style.display='';
+    b.style.visibility='visible';
   });
+  // Lobby sempre visível na partida
+  try{
+    var lb=document.getElementById('btn-lobby');
+    if(lb){ lb.style.display=''; lb.style.visibility='visible'; }
+  }catch(e){}
   refreshGameAvatars();
   // Trava retrato no APK — giro não joga o jogador para fora
   try{ lockGameOrientation(); }catch(e){}
@@ -5090,9 +5106,9 @@ function setPendingResult(result, delta, extraMsg){
 
 function leaveEndToResult(){
   document.getElementById('ov-end').style.display='none';
-  // Hide game, show nav home under the result modal
   try{
-    document.getElementById('game').style.display='none';
+    var ge=document.getElementById('game');
+    if(ge){ ge.classList.remove('game-on'); ge.style.display='none'; }
     document.getElementById('nav').style.display='flex';
     go('home');
   }catch(e){}
@@ -5561,13 +5577,22 @@ function exitReview(){
   // remove temporary review home button
   var bh=document.getElementById('btn-review-home');
   if(bh && bh.parentNode) bh.parentNode.removeChild(bh);
-  document.querySelectorAll('.game-actions button').forEach(function(b){ b.style.display=''; });
-  document.getElementById('game').style.display='none';
+  document.querySelectorAll('.game-actions button').forEach(function(b){ if(b.id==='btn-draw'&&mode!=='online'){b.style.display='none';return;} b.style.display=''; b.style.visibility='visible'; });
+  var ge=document.getElementById('game');
+  if(ge){ ge.classList.remove('game-on'); ge.style.display='none'; }
   document.getElementById('nav').style.display='flex';
   var coach=document.getElementById('coach'); if(coach) coach.style.display='none';
   setPresence('available');
   go('home');
   toast('Voltou para Jogar');
+}
+function leaveToLobby(){
+  try{
+    if(mode==='online' && !gameFinished){
+      try{ resign(); return; }catch(e){}
+    }
+  }catch(e){}
+  toHome();
 }
 function toHome(){
   stopClock();
@@ -5575,7 +5600,8 @@ function toHome(){
   clearActiveGame();
   document.getElementById('ov-end').style.display='none';
   try{ document.getElementById('ov-result').style.display='none'; }catch(e){}
-  document.getElementById('game').style.display='none';
+  var ge=document.getElementById('game');
+  if(ge){ ge.classList.remove('game-on'); ge.style.display='none'; }
   document.getElementById('nav').style.display='flex';
   stopLiveAnnounce();
   try{
@@ -6216,7 +6242,8 @@ function go(v){
   ['home','dash','rank','settings','admin'].forEach(function(k){
     var el=document.getElementById('v-'+k); if(el) el.classList.toggle('hidden',k!==v);
   });
-  document.getElementById('game').style.display='none';
+  var ge=document.getElementById('game');
+  if(ge){ ge.classList.remove('game-on'); ge.style.display='none'; }
   document.getElementById('nav').style.display='flex';
   document.querySelectorAll('#nav button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
   if(v==='settings') paintPreview();
