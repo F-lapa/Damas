@@ -1552,7 +1552,7 @@ main{overflow-anchor:none!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.22';
+const APP_VERSION='2026.08.17.23';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -3690,6 +3690,7 @@ function startOnlineGame(gid, opponent, color){
   pendingChallenge=null;
   mode='online'; gameId=gid; oppName=opponent; myColor=color;
   board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[]; posRepMap={}; _myTurnBuzzed=false;
+  window.__rankApplied=false; window.__finishingOnline=false; gameFinished=false;
   boardFlipped=(myColor==='b');
   lastEndMode='online'; lastEndResult=null;
   openGameUI();
@@ -3892,7 +3893,7 @@ function joinGameChannel(asSpectator){
       if(hisResult==='loss') myResult='win';
       else if(hisResult==='win') myResult='loss';
       else if(hisResult==='draw') myResult='draw';
-      finishOnline(myResult, d.msg|| (myResult==='loss'?'Derrota':'Fim de jogo'));
+      finishOnline(myResult, d.msg|| (myResult==='loss'?'Derrota':'Fim de jogo'), {fromRemote:true});
     });
     gameCh.subscribe(function(status){
       if(status==='SUBSCRIBED'){
@@ -4921,13 +4922,22 @@ function endOnlineFromBoard(){
   var iWon = turn!==myColor; // opponent to move and no moves → I won
   finishOnline(iWon?'win':'loss', iWon?'Você venceu!':'Derrota');
 }
-async function finishOnline(result, msg){
+async function finishOnline(result, msg, opts){
+  // Trava anti-duplicação: só aplica pontos UMA vez por partida
+  opts=opts||{};
+  if(gameFinished || window.__finishingOnline) return;
+  window.__finishingOnline=true;
+  gameFinished=true;
   stopClock();
   lastEndResult=result; lastEndMode='online';
   try{
-    if(gameCh) gameCh.send({type:'broadcast', event:'game_over', payload:{by:me.name, result:result, msg:msg||''}});
+    if(!opts.fromRemote && gameCh){
+      gameCh.send({type:'broadcast', event:'game_over', payload:{by:me.name, result:result, msg:msg||''}});
+    }
   }catch(e){}
-  await applyRank(result);
+  try{
+    await applyRank(result);
+  }catch(e){ console.error(e); }
   stopLiveAnnounce();
   try{
     if(gameId){
@@ -4940,20 +4950,24 @@ async function finishOnline(result, msg){
   setPresence('available');
   if(gameCh&&sb){try{await sb.removeChannel(gameCh)}catch(e){} gameCh=null}
   gameId=''; mode=null;
-  gameFinished=true;
   clearActiveGame();
   try{ unlockGameOrientation(); }catch(e){}
   renderLiveGames();
   var tt = result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate');
   showEnd(tt, msg);
+  window.__finishingOnline=false;
 }
 async function applyRank(result){
   if(!me||!sb) return;
+  // Evita somar 25+ vezes se finishOnline/endOnline disparar de novo
+  if(window.__rankApplied) return;
+  window.__rankApplied=true;
   try{
     var row=await dbGetPlayer(me.name);
     if(!row){
       console.warn('applyRank: player not found', me.name);
       toast('Não achou seu perfil para atualizar pontos');
+      window.__rankApplied=false;
       return;
     }
     var games=(row.games||0)+1, wins=row.wins||0, losses=row.losses||0, draws=row.draws||0;
@@ -4969,33 +4983,23 @@ async function applyRank(result){
       streak:streak, best_streak:best, points:newPts
     });
     if(!updated){
-      // segunda tentativa só pontos
-      updated=await dbUpdatePlayer(me.name,{points:newPts, losses:losses, games:games});
-    }
-    if(updated && updated.points!=null){
-      // confere se gravou
-      if((updated.points|0)!==(newPts|0)){
-        console.warn('applyRank mismatch', updated.points, newPts);
-        await dbUpdatePlayer(me.name,{points:newPts});
-      }
-    } else {
-      toast('Falha ao salvar pontos — tente de novo ao sair');
-      console.warn('applyRank update failed', me.name, newPts);
+      updated=await dbUpdatePlayer(me.name,{points:newPts, losses:losses, games:games, wins:wins, draws:draws});
     }
     if(updated && updated.username) me=rowToMe(updated);
-    me.points=fromPts; // UI anima depois
+    me.points=fromPts;
     pendingResult={
       result:result,
       delta:delta,
       fromPts:fromPts,
       toPts:newPts,
       title:result==='win'?'Vitória!':(result==='loss'?'Derrota':'Empate'),
-      sub:result==='win'?'Ótimo jogo online!':(result==='loss'?'Você perdeu '+Math.abs(delta)+' pts.':'Partida equilibrada.'),
+      sub:result==='win'?'+25 pontos':(result==='loss'?'−8 pontos':'Empate: 0 pts'),
       applied:true
     };
     try{ document.getElementById('h-pts').textContent=fromPts+' pts'; }catch(e){}
   }catch(e){
     console.error('applyRank', e);
+    window.__rankApplied=false;
     toast('Erro ao atualizar pontos');
   }
 }
