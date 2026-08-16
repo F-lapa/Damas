@@ -1426,10 +1426,7 @@ body.has-install-banner,body{padding-top:0!important}
         <div class="rank-stats">
           <span class="rs" id="rank-total">— jogadores</span>
           <span class="rs" id="rank-you">Sua pos. —</span>
-      <div class="card week-rank">
-        <div class="panel-title"><h2>📅 Ranking da semana</h2><span class="chip-soft" id="week-rank-label">local</span></div>
-        <div id="week-rank-list" class="empty" style="padding:.5rem 0">Jogue partidas esta semana para aparecer aqui.</div>
-      </div>
+
 
           <button type="button" class="rs" style="cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;color:#fff" onclick="paintRank()">↻ Atualizar</button>
         </div>
@@ -1648,7 +1645,7 @@ body.has-install-banner,body{padding-top:0!important}
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.32';
+const APP_VERSION='2026.08.17.33';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5787,39 +5784,13 @@ function checkAchFromStats(){
   if((ai.wins||0)>=10) unlockAch('ai10');
 }
 
-function loadWeekScores(){
-  try{
-    var o=JSON.parse(localStorage.getItem(WEEK_KEY)||'{}');
-    if(o.week!==weekKey()) return {week:weekKey(), scores:{}};
-    return o;
-  }catch(e){ return {week:weekKey(), scores:{}}; }
-}
-function saveWeekScores(o){ try{ localStorage.setItem(WEEK_KEY, JSON.stringify(o)); }catch(e){} }
-function addWeekPoints(user, delta){
-  if(!user || !delta) return;
-  var o=loadWeekScores();
-  if(o.week!==weekKey()) o={week:weekKey(), scores:{}};
-  o.scores[user]=(o.scores[user]|0)+delta;
-  saveWeekScores(o);
-}
-function paintWeekRank(){
-  var box=document.getElementById('week-rank-list'); if(!box) return;
-  var o=loadWeekScores();
-  var pairs=Object.keys(o.scores||{}).map(function(u){return {u:u, p:o.scores[u]|0};});
-  pairs.sort(function(a,b){return b.p-a.p});
-  if(!pairs.length){
-    box.innerHTML='<div class="empty">Jogue partidas esta semana para pontuar aqui.</div>';
-    return;
-  }
-  box.innerHTML=pairs.slice(0,15).map(function(x,i){
-    return '<div class="friend-row" style="cursor:default"><div style="width:28px;font-weight:900;color:var(--muted)">'+(i+1)+'</div>'+
-      '<div class="avatar" style="width:32px;height:32px">'+avatarHtml(x.u)+'</div>'+
-      '<div style="flex:1;font-weight:800">'+escapeHtml(x.u)+'</div>'+
-      '<div style="color:var(--gold);font-weight:900">'+x.p+' pts</div></div>';
-  }).join('');
-}
+function loadWeekScores(){ try{ localStorage.removeItem(WEEK_KEY); }catch(e){} return {week:'', scores:{}}; }
+function saveWeekScores(o){ /* ranking semanal removido */ }
+function addWeekPoints(user, delta){ /* ranking semanal removido */ }
+function paintWeekRank(){ /* ranking semanal removido */ }
 
 /* Tutorial */
+
 var TUT_STEPS=[
   {t:'Bem-vindo ao Damas Mestre', b:'Damas brasileiras: captura obrigatória, dama voadora e ranking online.'},
   {t:'Jogar online', b:'Na lista Online, toque em um jogador para ver o perfil e desafiar.'},
@@ -6298,32 +6269,6 @@ function paintHome(){
     '<div class="stat blue"><b>'+s.games+'</b><span>Online</span></div>'+
     '<div class="stat green"><b>'+s.wins+'</b><span>Vitórias</span></div>'+
     '<div class="stat red"><b>'+s.losses+'</b><span>Derrotas</span></div>';
-  // Ranking semanal visível na home
-  try{
-    var host=el.parentNode;
-    if(host){
-      var mini=document.getElementById('home-week-mini');
-      if(!mini){
-        mini=document.createElement('div');
-        mini.id='home-week-mini';
-        mini.className='home-week-mini';
-        host.appendChild(mini);
-      }
-      var o=loadWeekScores();
-      var arr=Object.keys(o.scores||{}).map(function(u){return {u:u,pts:o.scores[u]|0};});
-      arr.sort(function(a,b){return b.pts-a.pts});
-      arr=arr.slice(0,5);
-      if(!arr.length){
-        mini.innerHTML='<h3>📅 Ranking da semana</h3><div style="font-size:.82rem;color:var(--muted)">Jogue online esta semana para aparecer aqui.</div>';
-      } else {
-        mini.innerHTML='<h3>📅 Ranking da semana</h3>'+arr.map(function(x,i){
-          var you=me&&sameUser(x.u,me.name);
-          return '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0;'+(you?'color:var(--gold);font-weight:900':'')+'"><span>'+(i+1)+'. '+escapeHtml(x.u)+(you?' (você)':'')+'</span><span>'+x.pts+' pts</span></div>';
-        }).join('');
-      }
-    }
-  }catch(e){}
-  try{ paintWeekRank(); }catch(e){}
 }
 function getAiStatsMerged(){
   var ai=loadAiStats();
