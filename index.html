@@ -550,9 +550,14 @@ body.theme-sunset{--bg:#140a08;--card:rgba(36,20,16,.92);--blue:#fb923c;--violet
 .cell .coord{position:absolute;font-size:.55rem;font-weight:800;opacity:.5;pointer-events:none;line-height:1;z-index:1}
 .cell .coord.file{bottom:2px;right:3px}
 .cell .coord.rank{top:2px;left:3px}
-.must-capture{box-shadow:inset 0 0 0 999px rgba(52,211,153,.18)!important;outline:2px solid rgba(52,211,153,.75);outline-offset:-2px}
-@keyframes must-cap-pulse{0%,100%{box-shadow:inset 0 0 0 999px rgba(52,211,153,.14),0 0 0 0 rgba(52,211,153,.4)}50%{box-shadow:inset 0 0 0 999px rgba(52,211,153,.28),0 0 14px 2px rgba(52,211,153,.45)}}
-#board .cell.must-capture{animation:must-cap-pulse 1.1s ease-in-out infinite}
+.must-capture{box-shadow:inset 0 0 0 999px rgba(52,211,153,.32)!important;outline:3px solid #34d399;outline-offset:-2px}
+@keyframes must-cap-pulse{
+  0%,100%{box-shadow:inset 0 0 0 999px rgba(52,211,153,.22),0 0 0 0 rgba(52,211,153,.0);outline-color:#34d399;filter:brightness(1)}
+  50%{box-shadow:inset 0 0 0 999px rgba(16,185,129,.55),0 0 22px 4px rgba(52,211,153,.75);outline-color:#6ee7b7;filter:brightness(1.25)}
+}
+#board .cell.must-capture{animation:must-cap-pulse .75s ease-in-out infinite!important;z-index:3}
+#board .cell.must-capture .piece{filter:drop-shadow(0 0 8px rgba(52,211,153,.9))!important}
+
 .live-games{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.85rem}
 .live-card{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border-radius:14px;border:1px solid rgba(251,113,133,.25);background:linear-gradient(120deg,rgba(251,113,133,.08),rgba(91,157,255,.06));cursor:pointer;transition:.18s}
 .live-card:hover{transform:translateX(3px);border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.12)}
@@ -1913,13 +1918,19 @@ main{
   animation:trail-in .35s ease both;
 }
 #board .cell.trail-from{
-  box-shadow:inset 0 0 0 2px rgba(148,163,184,.4)!important;
-  background-image:linear-gradient(0deg,rgba(148,163,184,.12),rgba(148,163,184,.12))!important;
+  box-shadow:inset 0 0 0 3px rgba(226,232,240,.95),inset 0 0 18px rgba(148,163,184,.35)!important;
+  background-image:linear-gradient(0deg,rgba(226,232,240,.28),rgba(226,232,240,.28))!important;
+  z-index:2;
 }
 #board .cell.trail-to{
-  box-shadow:inset 0 0 0 2px rgba(245,197,66,.7)!important;
-  background-image:linear-gradient(0deg,rgba(245,197,66,.16),rgba(245,197,66,.16))!important;
+  box-shadow:inset 0 0 0 3px #f5c542,inset 0 0 24px rgba(245,197,66,.55),0 0 16px rgba(91,157,255,.35)!important;
+  background-image:linear-gradient(0deg,rgba(245,197,66,.38),rgba(91,157,255,.18))!important;
+  z-index:2;
 }
+#board .cell.trail-to .piece{
+  filter:drop-shadow(0 0 10px rgba(245,197,66,.85))!important;
+}
+
 #trail-layer{display:none!important;pointer-events:none!important}
 .trail-dot,.trail-line,.trail-arrow{display:none!important}
 
@@ -2661,7 +2672,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.52';
+const APP_VERSION='2026.08.17.53';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
