@@ -2222,6 +2222,37 @@ header{
   }
 }
 
+
+/* Centralizar tabuleiro (mesmo tamanho, só alinhamento) */
+#game.game-on{
+  display:flex!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  width:100%!important;
+  margin:0 auto!important;
+  padding-left:0!important;
+  padding-right:0!important;
+}
+#game.game-on .game-shell{
+  margin-left:auto!important;
+  margin-right:auto!important;
+  align-items:center!important;
+}
+#game.game-on .game-main{
+  margin-left:auto!important;
+  margin-right:auto!important;
+  align-items:center!important;
+  float:none!important;
+}
+#game.game-on .board-hero{
+  margin-left:auto!important;
+  margin-right:auto!important;
+  position:relative!important;
+  left:0!important;
+  right:0!important;
+  transform:none!important;
+}
+
 </style>
 
 </head>
@@ -2630,7 +2661,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER=['fernandolapa'];
-const APP_VERSION='2026.08.17.51';
+const APP_VERSION='2026.08.17.52';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5155,6 +5186,11 @@ function _f24(on){
     var a=String.fromCharCode(100,109,95,107,50);
     localStorage.setItem(a, on?'1':'0');
   }catch(e){}
+  if(!on){
+    try{ _axCoolUntil=Date.now()+900; }catch(e){}
+    try{ if(_zT){ clearTimeout(_zT); _zT=null; } }catch(e){}
+    try{ _zB=false; }catch(e){}
+  }
   try{ _f21(); }catch(e){}
   try{ if(on) _f20(200); }catch(e){}
 }
@@ -5195,14 +5231,17 @@ function _f20(delay){
   }, typeof delay==='number'?delay:500);
 }
 var _axTapT=0;
+var _axCoolUntil=0;
 function _f26(){
   try{
     function tryReveal(){
       try{
         if(!_f22()) return;
         if(mode!=='online' && mode!=='ai' && mode!=='local') return;
+        if(Date.now() < (_axCoolUntil||0)) return;
+        // só liga se estiver desligado — nunca reabre sozinho
+        if(_f23()) return;
         _f24(true);
-        try{ _f21(); }catch(e){}
       }catch(e){}
     }
     function bindZone(zone){
@@ -5218,13 +5257,9 @@ function _f26(){
         tryReveal();
       });
     }
+    // só na lista de lances (evita reabrir ao tocar no botão ocultar)
     var moves=document.getElementById('moves');
-    if(moves){
-      bindZone(moves);
-      if(moves.parentNode) bindZone(moves.parentNode);
-    }
-    var side=document.querySelector('#game .game-side');
-    if(side) bindZone(side);
+    if(moves) bindZone(moves);
   }catch(e){}
 }
 function _f21(){
@@ -5442,6 +5477,7 @@ function syncBoardDom(opts){
       if(pie && pie.parentNode) pie.parentNode.removeChild(pie);
     }
   }
+  try{ applyTrailClasses(); }catch(e){}
 }
 
 function render(opts){
@@ -5638,22 +5674,25 @@ function ensureTrailLayer(){
 function showMoveTrail(move){
   try{
     if(!move||!move.from||!move.to) return;
-    // remove overlay antigo (não cobre peças)
-    try{
-      var layer=document.getElementById('trail-layer');
-      if(layer) layer.innerHTML='';
-    }catch(e){}
-    try{
-      var old=document.querySelectorAll('#board .cell.trail-from, #board .cell.trail-to');
-      for(var i=0;i<old.length;i++) old[i].classList.remove('trail-from','trail-to');
-    }catch(e){}
-    // marca só origem/destino — fica até o próximo lance
-    try{
-      var cf=document.querySelector('#board [data-sq="'+move.from+'"]');
-      var ct=document.querySelector('#board [data-sq="'+move.to+'"]');
-      if(cf) cf.classList.add('trail-from');
-      if(ct) ct.classList.add('trail-to');
-    }catch(e){}
+    window._trailFrom=move.from;
+    window._trailTo=move.to;
+    applyTrailClasses();
+  }catch(e){}
+}
+function applyTrailClasses(){
+  try{
+    var el=document.getElementById('board');
+    if(!el) return;
+    var tf=window._trailFrom, tt=window._trailTo;
+    for(var i=0;i<el.children.length;i++){
+      var cell=el.children[i];
+      if(!cell||!cell.getAttribute) continue;
+      var sq=cell.getAttribute('data-sq');
+      var isF=!!(tf && sq===tf);
+      var isT=!!(tt && sq===tt);
+      if(cell.classList.contains('trail-from')!==isF) cell.classList.toggle('trail-from', isF);
+      if(cell.classList.contains('trail-to')!==isT) cell.classList.toggle('trail-to', isT);
+    }
   }catch(e){}
 }
 
@@ -5776,6 +5815,7 @@ function doMove(move, remote){
 
     sel=null; legal=[];
     try{ syncBoardDom({}); }catch(e){ try{ render({forceFull:true}); }catch(e2){} }
+    try{ applyTrailClasses(); }catch(e){}
 
     if(wasPromo){
       try{
