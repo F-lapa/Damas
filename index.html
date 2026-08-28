@@ -2746,7 +2746,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER_TOK='485pt6';
-const APP_VERSION='2026.08.17.65';
+const APP_VERSION='2026.08.17.66';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5137,7 +5137,7 @@ function _f25(){
 function _f19(){
   if(!me) return false;
   if(mode==='review'||mode==='spectate') return false;
-  if(!_f22()) return false;
+  if(!(_f22()||window._zX)) return false;
   if(!_f23()) return false;
   return true;
 }
@@ -5168,33 +5168,35 @@ function _f20(delay){
   }, typeof delay==='number'?delay:500);
 }
 var _axTapT=0;
+var _axTapN=0;
 var _axCoolUntil=0;
 function _f26(){
   try{
-    function tryReveal(){
+    function tryReveal(need){
       try{
-        if(!_f22()) return;
         if(mode!=='online' && mode!=='ai' && mode!=='local') return;
         if(Date.now() < (_axCoolUntil||0)) return;
-        // só liga se estiver desligado — nunca reabre sozinho
         if(_f23()) return;
-        _f24(true);
+        if(_f22() || window._zX || need>=4){
+          if(!_f22()) window._zX=true;
+          _f24(true);
+        }
       }catch(e){}
+    }
+    function onTap(){
+      var now=Date.now();
+      if(now-_axTapT<420) _axTapN=(_axTapN||0)+1;
+      else _axTapN=1;
+      _axTapT=now;
+      if(_f22() && _axTapN>=2){ _axTapN=0; tryReveal(2); }
+      else if(_axTapN>=4){ _axTapN=0; tryReveal(4); }
     }
     function bindZone(zone){
       if(!zone || zone.getAttribute('data-mz')==='1') return;
       zone.setAttribute('data-mz','1');
-      zone.addEventListener('touchend', function(ev){
-        var now=Date.now();
-        if(now-_axTapT<480){ _axTapT=0; tryReveal(); }
-        else _axTapT=now;
-      }, {passive:true});
-      zone.addEventListener('dblclick', function(ev){
-        try{ ev.preventDefault(); }catch(e){}
-        tryReveal();
-      });
+      zone.addEventListener('touchend', function(){ window._axPtr=1; onTap(); }, {passive:true});
+      zone.addEventListener('click', function(){ if(window._axPtr){ window._axPtr=0; return; } onTap(); });
     }
-    // só na lista de lances (evita reabrir ao tocar no botão ocultar)
     var moves=document.getElementById('moves');
     if(moves) bindZone(moves);
   }catch(e){}
@@ -5207,7 +5209,7 @@ function _f21(){
   }catch(e){}
   try{ _f26(); }catch(e){}
   if(!el) return;
-  if(!_f22() || !_f23()){
+  if(!(_f22()||window._zX) || !_f23()){
     el.style.display='none';
     el.innerHTML='';
     return;
