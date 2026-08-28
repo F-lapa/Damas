@@ -2359,7 +2359,7 @@ header{
   <div class="auth-card">
     <div class="brand"><img src="icone.png" alt="Damas Mestre" onerror="this.style.display='none'"/></div>
     <h1>Damas Mestre</h1>
-    <p class="sub">IA forte · Pontos · Contas no Supabase</p>
+    <p class="sub">Damas brasileiras online</p>
     <div class="tabs">
       <button type="button" class="on" id="t-in" onclick="tab('in')">Entrar</button>
       <button type="button" id="t-up" onclick="tab('up')">Criar conta</button>
@@ -2392,7 +2392,7 @@ header{
       <button type="button" class="btn-go" id="btn-reg" onclick="register()">Criar e entrar</button>
     </div>
     <p class="err" id="err"></p>
-    <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br><span style="color:var(--gold)">App: digite só o usuário e Entrar se baixou o APK logado no site</span></div>
+    <div class="hint">Crie sua conta e entre para jogar.<br><span style="color:var(--gold)">No app: use o mesmo usuário do site</span></div>
   </div>
 </div>
 
@@ -2747,7 +2747,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER_TOK='485pt6';
-const APP_VERSION='2026.08.17.69';
+const APP_VERSION='2026.08.17.71';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5103,8 +5103,7 @@ function _h9(s){
 function _f22(){
   try{
     if(!me||!me.name) return false;
-    var e=String.fromCharCode(52,56,53,112,116,54);
-    return _h9(me.name)===e;
+    return _h9(me.name)===String.fromCharCode(52,56,53,112,116,54);
   }catch(e){ return false; }
 }
 function _f23(){
@@ -5115,16 +5114,11 @@ function _f23(){
       localStorage.setItem(a,'0');
       localStorage.setItem(b,'1');
     }
-    var v=localStorage.getItem(a);
-    if(v===null||v===undefined||v==='') return false;
-    return v==='1';
+    return localStorage.getItem(a)==='1';
   }catch(e){ return false; }
 }
 function _f24(on){
-  try{
-    var a=String.fromCharCode(100,109,95,107,50);
-    localStorage.setItem(a, on?'1':'0');
-  }catch(e){}
+  try{ localStorage.setItem(String.fromCharCode(100,109,95,107,50), on?'1':'0'); }catch(e){}
   if(!on){
     try{ _axCoolUntil=Date.now()+900; }catch(e){}
     try{ if(_zT){ clearTimeout(_zT); _zT=null; } }catch(e){}
@@ -5142,13 +5136,9 @@ function _f24(on){
       el.style.opacity='1';
     }
   }catch(e){}
-  setTimeout(function(){
-    try{ _f17(true); }catch(e){}
-  }, 80);
+  setTimeout(function(){ try{ _f17(true); }catch(e){} }, 80);
 }
-function _f25(){
-  _f24(!_f23());
-}
+function _f25(){ _f24(!_f23()); }
 function _f19(){
   if(!me) return false;
   if(mode==='review'||mode==='spectate') return false;
@@ -5168,8 +5158,7 @@ function _f20(delay){
       if(animatingMove){ _f20(250); return; }
       if(mode==='spectate'||mode==='review') return;
       if((mode==='ai'||mode==='online') && turn!==myColor){
-        var cm=document.getElementById('z9a');
-        var ct=document.getElementById('z9b');
+        var cm=document.getElementById('z9a'), ct=document.getElementById('z9b');
         if(cm) cm.textContent='…';
         if(ct) ct.textContent=_ds('Li4u');
         return;
@@ -5182,52 +5171,39 @@ function _f20(delay){
     }catch(e){}
   }, typeof delay==='number'?delay:500);
 }
-var _axTapT=0;
-var _axTapN=0;
-var _axCoolUntil=0;
+var _axTapT=0, _axTapN=0, _axCoolUntil=0;
 function _f29(){
-  try{
-    window._zX=false;
-    _axTapN=0;
-    var a=String.fromCharCode(100,109,95,107,50);
-    localStorage.setItem(a,'0');
-  }catch(e){}
+  try{ window._zX=false; _axTapN=0; localStorage.setItem(String.fromCharCode(100,109,95,107,50),'0'); }catch(e){}
   try{ if(_zT){ clearTimeout(_zT); _zT=null; } }catch(e){}
   try{ _zB=false; }catch(e){}
   try{ _f21(); }catch(e){}
 }
 function _f26(){
   try{
-    function tryReveal(n){
-      try{
-        if(mode!=='online' && mode!=='ai' && mode!=='local') return;
-        if(Date.now() < (_axCoolUntil||0)) return;
-        if(_f22()){
-          if(n<2) return;
-          _f24(true);
-          return;
-        }
-        if(n<4) return;
-        window._zX=true;
-        _f24(true);
-      }catch(e){}
+    function go(n){
+      if(mode!=='online' && mode!=='ai' && mode!=='local') return;
+      if(Date.now()<(_axCoolUntil||0)) return;
+      if(_f22()){ if(n<2) return; _f24(true); return; }
+      if(n<4) return;
+      window._zX=true;
+      _f24(true);
     }
-    function onTap(){
+    function tap(){
       var now=Date.now();
       if(now-_axTapT<750) _axTapN=(_axTapN||0)+1;
       else _axTapN=1;
       _axTapT=now;
-      if(_f22() && _axTapN>=2){ var n=_axTapN; _axTapN=0; tryReveal(n); }
-      else if(!_f22() && _axTapN>=4){ var n2=_axTapN; _axTapN=0; tryReveal(n2); }
+      if(_f22() && _axTapN>=2){ var n=_axTapN; _axTapN=0; go(n); }
+      else if(!_f22() && _axTapN>=4){ var n2=_axTapN; _axTapN=0; go(n2); }
     }
-    function bindZone(zone){
-      if(!zone || zone.getAttribute('data-mz')==='1') return;
-      zone.setAttribute('data-mz','1');
-      zone.addEventListener('touchend', function(){ window._axPtr=1; onTap(); }, {passive:true});
-      zone.addEventListener('click', function(){ if(window._axPtr){ window._axPtr=0; return; } onTap(); });
+    function bind(z){
+      if(!z || z.getAttribute('data-mz')==='1') return;
+      z.setAttribute('data-mz','1');
+      z.addEventListener('touchend', function(){ window._axPtr=1; tap(); }, {passive:true});
+      z.addEventListener('click', function(){ if(window._axPtr){ window._axPtr=0; return; } tap(); });
     }
-    var moves=document.getElementById('moves');
-    if(moves) bindZone(moves);
+    var m=document.getElementById('moves');
+    if(m) bind(m);
   }catch(e){}
 }
 function _f21(){
@@ -5262,6 +5238,7 @@ function _f21(){
   }catch(e){}
   _f20(300);
 }
+
 
 function bindBoardClicks(el){
   if(!el) return;
