@@ -2678,6 +2678,7 @@ header{
             <h3>📜 Lances</h3>
             <div class="moves-box" id="moves"></div>
           </div>
+          <div id="z9" style="display:none"></div>
           <div class="chat-modern" id="chat">
             <div class="head"><h3>💬 Chat</h3></div>
             <div class="log" id="chat-log"></div>
@@ -2686,7 +2687,6 @@ header{
               <button type="button" onclick="sendChat()">Enviar</button>
             </div>
           </div>
-          <div id="z9" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -2747,7 +2747,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER_TOK='485pt6';
-const APP_VERSION='2026.08.17.68';
+const APP_VERSION='2026.08.17.69';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5129,9 +5129,22 @@ function _f24(on){
     try{ _axCoolUntil=Date.now()+900; }catch(e){}
     try{ if(_zT){ clearTimeout(_zT); _zT=null; } }catch(e){}
     try{ _zB=false; }catch(e){}
+    try{ _f21(); }catch(e){}
+    return;
   }
+  try{ _zB=false; _zK=''; }catch(e){}
   try{ _f21(); }catch(e){}
-  try{ if(on) _f20(200); }catch(e){}
+  try{
+    var el=document.getElementById('z9');
+    if(el){
+      el.style.setProperty('display','block','important');
+      el.style.visibility='visible';
+      el.style.opacity='1';
+    }
+  }catch(e){}
+  setTimeout(function(){
+    try{ _f17(true); }catch(e){}
+  }, 80);
 }
 function _f25(){
   _f24(!_f23());
