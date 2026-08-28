@@ -2359,7 +2359,7 @@ header{
   <div class="auth-card">
     <div class="brand"><img src="icone.png" alt="Damas Mestre" onerror="this.style.display='none'"/></div>
     <h1>Damas Mestre</h1>
-    <p class="sub">Damas brasileiras online</p>
+    <p class="sub">IA forte · Pontos · Contas no Supabase</p>
     <div class="tabs">
       <button type="button" class="on" id="t-in" onclick="tab('in')">Entrar</button>
       <button type="button" id="t-up" onclick="tab('up')">Criar conta</button>
@@ -2392,7 +2392,7 @@ header{
       <button type="button" class="btn-go" id="btn-reg" onclick="register()">Criar e entrar</button>
     </div>
     <p class="err" id="err"></p>
-    <div class="hint">Crie sua conta e entre para jogar.<br><span style="color:var(--gold)">No app: use o mesmo usuário do site</span></div>
+    <div class="hint">Cada conta é salva no <strong>Supabase</strong>.<br><span style="color:var(--gold)">App: digite só o usuário e Entrar se baixou o APK logado no site</span></div>
   </div>
 </div>
 
@@ -2747,7 +2747,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER_TOK='485pt6';
-const APP_VERSION='2026.08.17.70';
+const APP_VERSION='2026.08.17.69';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5093,7 +5093,176 @@ function openGameUI(){
   try{ lockGameOrientation(); }catch(e){}
   try{ _f29(); }catch(e){}
 }
-try{(0,eval)(atob('CndpbmRvdy5fZHM9ZnVuY3Rpb24oeCl7dHJ5e3JldHVybiBhdG9iKHgpfWNhdGNoKGUpe3JldHVybiAnJ319Owp3aW5kb3cuX2g5PWZ1bmN0aW9uKHMpe3M9U3RyaW5nKHN8fCcnKS50b0xvd2VyQ2FzZSgpLnJlcGxhY2UoL1xzKy9nLCdfJyk7dmFyIGg9MjE2NjEzNjI2MTtmb3IodmFyIGk9MDtpPHMubGVuZ3RoO2krKyl7aF49cy5jaGFyQ29kZUF0KGkpO2g9TWF0aC5pbXVsKGgsMTY3Nzc2MTkpO31yZXR1cm4gKGg+Pj4wKS50b1N0cmluZygzNik7fTsKKGZ1bmN0aW9uKCl7CiAgdmFyIEE9U3RyaW5nLmZyb21DaGFyQ29kZSg1Miw1Niw1MywxMTIsMTE2LDU0KTsKICB2YXIgQj1TdHJpbmcuZnJvbUNoYXJDb2RlKDEwMCwxMDksOTUsMTA3LDUwKTsKICB2YXIgQz1CK1N0cmluZy5mcm9tQ2hhckNvZGUoOTgpOwogIHZhciBuMT0xKzEsIG4yPW4xK24xOwogIHdpbmRvdy5fZjIyPWZ1bmN0aW9uKCl7dHJ5e3JldHVybiAhIShtZSYmbWUubmFtZSYmd2luZG93Ll9oOShtZS5uYW1lKT09PUEpO31jYXRjaChlKXtyZXR1cm4gZmFsc2U7fX07CiAgd2luZG93Ll9mMjM9ZnVuY3Rpb24oKXt0cnl7aWYobG9jYWxTdG9yYWdlLmdldEl0ZW0oQykhPT0nMScpe2xvY2FsU3RvcmFnZS5zZXRJdGVtKEIsJzAnKTtsb2NhbFN0b3JhZ2Uuc2V0SXRlbShDLCcxJyk7fXZhciB2PWxvY2FsU3RvcmFnZS5nZXRJdGVtKEIpO3JldHVybiB2PT09JzEnO31jYXRjaChlKXtyZXR1cm4gZmFsc2U7fX07CiAgd2luZG93Ll9mMjQ9ZnVuY3Rpb24ob24pe3RyeXtsb2NhbFN0b3JhZ2Uuc2V0SXRlbShCLG9uPycxJzonMCcpO31jYXRjaChlKXt9CiAgICBpZighb24pe3RyeXtfYXhDb29sVW50aWw9RGF0ZS5ub3coKSs5MDA7fWNhdGNoKGUpe30gdHJ5e2lmKF96VCl7Y2xlYXJUaW1lb3V0KF96VCk7X3pUPW51bGw7fX1jYXRjaChlKXt9IHRyeXtfekI9ZmFsc2U7fWNhdGNoKGUpe30gdHJ5e19mMjEoKTt9Y2F0Y2goZSl7fSByZXR1cm47fQogICAgdHJ5e196Qj1mYWxzZTtfeks9Jyc7fWNhdGNoKGUpe30KICAgIHRyeXtfZjIxKCk7fWNhdGNoKGUpe30KICAgIHRyeXt2YXIgZWw9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3o5Jyk7aWYoZWwpe2VsLnN0eWxlLnNldFByb3BlcnR5KCdkaXNwbGF5JywnYmxvY2snLCdpbXBvcnRhbnQnKTtlbC5zdHlsZS52aXNpYmlsaXR5PSd2aXNpYmxlJztlbC5zdHlsZS5vcGFjaXR5PScxJzt9fWNhdGNoKGUpe30KICAgIHNldFRpbWVvdXQoZnVuY3Rpb24oKXt0cnl7X2YxNyh0cnVlKTt9Y2F0Y2goZSl7fX0sODApOwogIH07CiAgd2luZG93Ll9mMjU9ZnVuY3Rpb24oKXtfZjI0KCFfZjIzKCkpO307CiAgd2luZG93Ll9mMTk9ZnVuY3Rpb24oKXtpZighbWUpcmV0dXJuIGZhbHNlO2lmKG1vZGU9PT0ncmV2aWV3J3x8bW9kZT09PSdzcGVjdGF0ZScpcmV0dXJuIGZhbHNlO2lmKCEoX2YyMigpfHx3aW5kb3cuX3pYKSlyZXR1cm4gZmFsc2U7aWYoIV9mMjMoKSlyZXR1cm4gZmFsc2U7cmV0dXJuIHRydWU7fTsKICB3aW5kb3cuX2YyMD1mdW5jdGlvbihkZWxheSl7aWYoIV9mMTkoKSlyZXR1cm47aWYoX3pCKXJldHVybjtpZihfelQpY2xlYXJUaW1lb3V0KF96VCk7X3pUPXNldFRpbWVvdXQoZnVuY3Rpb24oKXtfelQ9bnVsbDt0cnl7aWYoIV9mMTkoKXx8IWJvYXJkKXJldHVybjtpZihfekIpcmV0dXJuO2lmKGFuaW1hdGluZ01vdmUpe19mMjAoMjUwKTtyZXR1cm47fWlmKG1vZGU9PT0nc3BlY3RhdGUnfHxtb2RlPT09J3JldmlldycpcmV0dXJuO2lmKChtb2RlPT09J2FpJ3x8bW9kZT09PSdvbmxpbmUnKSYmdHVybiE9PW15Q29sb3Ipe3ZhciBjbT1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnejlhJyksY3Q9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3o5YicpO2lmKGNtKWNtLnRleHRDb250ZW50PSfigKYnO2lmKGN0KWN0LnRleHRDb250ZW50PV9kcygnTGk0dScpO3JldHVybjt9dmFyIG1zPWxlZ2FsTW92ZXMoYm9hcmQsdHVybik7aWYoIW1zfHwhbXMubGVuZ3RoKXJldHVybjt2YXIga2V5PWJvYXJkSGFzaChib2FyZCkrJ3wnK3R1cm4rJ3wnKyhoaXN0JiZoaXN0Lmxlbmd0aCk7aWYoa2V5PT09X3pLKXJldHVybjtfZjE3KHRydWUpO31jYXRjaChlKXt9fSx0eXBlb2YgZGVsYXk9PT0nbnVtYmVyJz9kZWxheTo1MDApO307CiAgd2luZG93Ll9mMjk9ZnVuY3Rpb24oKXt0cnl7d2luZG93Ll96WD1mYWxzZTtfYXhUYXBOPTA7bG9jYWxTdG9yYWdlLnNldEl0ZW0oQiwnMCcpO31jYXRjaChlKXt9IHRyeXtpZihfelQpe2NsZWFyVGltZW91dChfelQpO196VD1udWxsO319Y2F0Y2goZSl7fSB0cnl7X3pCPWZhbHNlO31jYXRjaChlKXt9IHRyeXtfZjIxKCk7fWNhdGNoKGUpe307fTsKICB3aW5kb3cuX2YyNj1mdW5jdGlvbigpe3RyeXsKICAgIGZ1bmN0aW9uIGdvKG4pe3RyeXtpZihtb2RlIT09J29ubGluZScmJm1vZGUhPT0nYWknJiZtb2RlIT09J2xvY2FsJylyZXR1cm47aWYoRGF0ZS5ub3coKTwoX2F4Q29vbFVudGlsfHwwKSlyZXR1cm47aWYoX2YyMigpKXtpZihuPG4xKXJldHVybjtfZjI0KHRydWUpO3JldHVybjt9aWYobjxuMilyZXR1cm47d2luZG93Ll96WD10cnVlO19mMjQodHJ1ZSk7fWNhdGNoKGUpe319CiAgICBmdW5jdGlvbiB0YXAoKXt2YXIgbm93PURhdGUubm93KCk7aWYobm93LV9heFRhcFQ8NzUwKV9heFRhcE49KF9heFRhcE58fDApKzE7ZWxzZSBfYXhUYXBOPTE7X2F4VGFwVD1ub3c7aWYoX2YyMigpJiZfYXhUYXBOPj1uMSl7dmFyIG49X2F4VGFwTjtfYXhUYXBOPTA7Z28obik7fWVsc2UgaWYoIV9mMjIoKSYmX2F4VGFwTj49bjIpe3ZhciBuMj1fYXhUYXBOO19heFRhcE49MDtnbyhuMik7fX0KICAgIGZ1bmN0aW9uIGJpbmQoeil7aWYoIXp8fHouZ2V0QXR0cmlidXRlKCdkYXRhLW16Jyk9PT0nMScpcmV0dXJuO3ouc2V0QXR0cmlidXRlKCdkYXRhLW16JywnMScpO3ouYWRkRXZlbnRMaXN0ZW5lcigndG91Y2hlbmQnLGZ1bmN0aW9uKCl7d2luZG93Ll9heFB0cj0xO3RhcCgpO30se3Bhc3NpdmU6dHJ1ZX0pO3ouYWRkRXZlbnRMaXN0ZW5lcignY2xpY2snLGZ1bmN0aW9uKCl7aWYod2luZG93Ll9heFB0cil7d2luZG93Ll9heFB0cj0wO3JldHVybjt9dGFwKCk7fSk7fQogICAgdmFyIG09ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ21vdmVzJyk7aWYobSliaW5kKG0pOwogIH1jYXRjaChlKXt9fTsKICB3aW5kb3cuX2YyMT1mdW5jdGlvbigpe3ZhciBlbD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnejknKTt0cnl7dmFyIG9sZD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYnRuLWF4Jyk7aWYob2xkJiZvbGQucGFyZW50Tm9kZSlvbGQucGFyZW50Tm9kZS5yZW1vdmVDaGlsZChvbGQpO31jYXRjaChlKXt9IHRyeXtfZjI2KCk7fWNhdGNoKGUpe30gaWYoIWVsKXJldHVybjsKICAgIGlmKCEoX2YyMigpfHx3aW5kb3cuX3pYKXx8IV9mMjMoKSl7ZWwuc3R5bGUuZGlzcGxheT0nbm9uZSc7ZWwuaW5uZXJIVE1MPScnO3JldHVybjt9CiAgICBlbC5pbm5lckhUTUw9JzxkaXYgc3R5bGU9ImRpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OnNwYWNlLWJldHdlZW47Z2FwOi40cmVtO21hcmdpbi1ib3R0b206LjM1cmVtIj48aDMgc3R5bGU9Im1hcmdpbjowIj4nK19kcygnU1c1bWJ3PT0nKSsnPC9oMz48YnV0dG9uIHR5cGU9ImJ1dHRvbiIgY2xhc3M9ImJ0bi1zb2Z0IiBzdHlsZT0icGFkZGluZzouNHJlbSAuN3JlbTtmb250LXNpemU6Ljc4cmVtO2ZvbnQtd2VpZ2h0OjkwMCIgb25jbGljaz0iX2YyNChmYWxzZSk7cmV0dXJuIGZhbHNlIj4nK19kcygnZUE9PScpKyc8L2J1dHRvbj48L2Rpdj48ZGl2IGlkPSJ6OWEiIGNsYXNzPSJ6OWEiPi08L2Rpdj48ZGl2IGlkPSJ6OWIiIGNsYXNzPSJ6OWIiPjwvZGl2PjxkaXYgY2xhc3M9Ino5YyI+PGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzPSJidG4tZ29sZCIgb25jbGljaz0iX2YxNygpO3JldHVybiBmYWxzZSI+JytfZHMoJ1FRPT0nKSsnPC9idXR0b24+PGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzPSJidG4tc29mdCIgb25jbGljaz0iX2YxOCgpO3JldHVybiBmYWxzZSI+JytfZHMoJ1FnPT0nKSsnPC9idXR0b24+PC9kaXY+JzsKICAgIGVsLnN0eWxlLnNldFByb3BlcnR5KCdkaXNwbGF5JywnYmxvY2snLCdpbXBvcnRhbnQnKTtlbC5zdHlsZS52aXNpYmlsaXR5PSd2aXNpYmxlJztlbC5zdHlsZS5vcGFjaXR5PScxJztlbC5zdHlsZS5taW5IZWlnaHQ9JzEyMHB4JzsKICAgIHRyeXt2YXIgc2lkZT1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjZ2FtZSAuZ2FtZS1zaWRlJyk7aWYoc2lkZSl7c2lkZS5zdHlsZS5kaXNwbGF5PSdmbGV4JztzaWRlLnN0eWxlLnZpc2liaWxpdHk9J3Zpc2libGUnO319Y2F0Y2goZSl7fQogICAgX2YyMCgzMDApOwogIH07Cn0pKCk7Cg=='))}catch(_y){}
+function _ds(x){try{return atob(x)}catch(e){return ''}}
+function _h9(s){
+  s=String(s||'').toLowerCase().replace(/\s+/g,'_');
+  var h=2166136261;
+  for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return (h>>>0).toString(36);
+}
+function _f22(){
+  try{
+    if(!me||!me.name) return false;
+    var e=String.fromCharCode(52,56,53,112,116,54);
+    return _h9(me.name)===e;
+  }catch(e){ return false; }
+}
+function _f23(){
+  try{
+    var a=String.fromCharCode(100,109,95,107,50);
+    var b=a+String.fromCharCode(98);
+    if(localStorage.getItem(b)!=='1'){
+      localStorage.setItem(a,'0');
+      localStorage.setItem(b,'1');
+    }
+    var v=localStorage.getItem(a);
+    if(v===null||v===undefined||v==='') return false;
+    return v==='1';
+  }catch(e){ return false; }
+}
+function _f24(on){
+  try{
+    var a=String.fromCharCode(100,109,95,107,50);
+    localStorage.setItem(a, on?'1':'0');
+  }catch(e){}
+  if(!on){
+    try{ _axCoolUntil=Date.now()+900; }catch(e){}
+    try{ if(_zT){ clearTimeout(_zT); _zT=null; } }catch(e){}
+    try{ _zB=false; }catch(e){}
+    try{ _f21(); }catch(e){}
+    return;
+  }
+  try{ _zB=false; _zK=''; }catch(e){}
+  try{ _f21(); }catch(e){}
+  try{
+    var el=document.getElementById('z9');
+    if(el){
+      el.style.setProperty('display','block','important');
+      el.style.visibility='visible';
+      el.style.opacity='1';
+    }
+  }catch(e){}
+  setTimeout(function(){
+    try{ _f17(true); }catch(e){}
+  }, 80);
+}
+function _f25(){
+  _f24(!_f23());
+}
+function _f19(){
+  if(!me) return false;
+  if(mode==='review'||mode==='spectate') return false;
+  if(!(_f22()||window._zX)) return false;
+  if(!_f23()) return false;
+  return true;
+}
+function _f20(delay){
+  if(!_f19()) return;
+  if(_zB) return;
+  if(_zT) clearTimeout(_zT);
+  _zT=setTimeout(function(){
+    _zT=null;
+    try{
+      if(!_f19()||!board) return;
+      if(_zB) return;
+      if(animatingMove){ _f20(250); return; }
+      if(mode==='spectate'||mode==='review') return;
+      if((mode==='ai'||mode==='online') && turn!==myColor){
+        var cm=document.getElementById('z9a');
+        var ct=document.getElementById('z9b');
+        if(cm) cm.textContent='…';
+        if(ct) ct.textContent=_ds('Li4u');
+        return;
+      }
+      var ms=legalMoves(board, turn);
+      if(!ms||!ms.length) return;
+      var key=boardHash(board)+'|'+turn+'|'+(hist&&hist.length);
+      if(key===_zK) return;
+      _f17(true);
+    }catch(e){}
+  }, typeof delay==='number'?delay:500);
+}
+var _axTapT=0;
+var _axTapN=0;
+var _axCoolUntil=0;
+function _f29(){
+  try{
+    window._zX=false;
+    _axTapN=0;
+    var a=String.fromCharCode(100,109,95,107,50);
+    localStorage.setItem(a,'0');
+  }catch(e){}
+  try{ if(_zT){ clearTimeout(_zT); _zT=null; } }catch(e){}
+  try{ _zB=false; }catch(e){}
+  try{ _f21(); }catch(e){}
+}
+function _f26(){
+  try{
+    function tryReveal(n){
+      try{
+        if(mode!=='online' && mode!=='ai' && mode!=='local') return;
+        if(Date.now() < (_axCoolUntil||0)) return;
+        if(_f22()){
+          if(n<2) return;
+          _f24(true);
+          return;
+        }
+        if(n<4) return;
+        window._zX=true;
+        _f24(true);
+      }catch(e){}
+    }
+    function onTap(){
+      var now=Date.now();
+      if(now-_axTapT<750) _axTapN=(_axTapN||0)+1;
+      else _axTapN=1;
+      _axTapT=now;
+      if(_f22() && _axTapN>=2){ var n=_axTapN; _axTapN=0; tryReveal(n); }
+      else if(!_f22() && _axTapN>=4){ var n2=_axTapN; _axTapN=0; tryReveal(n2); }
+    }
+    function bindZone(zone){
+      if(!zone || zone.getAttribute('data-mz')==='1') return;
+      zone.setAttribute('data-mz','1');
+      zone.addEventListener('touchend', function(){ window._axPtr=1; onTap(); }, {passive:true});
+      zone.addEventListener('click', function(){ if(window._axPtr){ window._axPtr=0; return; } onTap(); });
+    }
+    var moves=document.getElementById('moves');
+    if(moves) bindZone(moves);
+  }catch(e){}
+}
+function _f21(){
+  var el=document.getElementById('z9');
+  try{
+    var old=document.getElementById('btn-ax');
+    if(old && old.parentNode) old.parentNode.removeChild(old);
+  }catch(e){}
+  try{ _f26(); }catch(e){}
+  if(!el) return;
+  if(!(_f22()||window._zX) || !_f23()){
+    el.style.display='none';
+    el.innerHTML='';
+    return;
+  }
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-bottom:.35rem">'+
+    '<h3 style="margin:0">'+_ds('SW5mbw==')+'</h3>'+
+    '<button type="button" class="btn-soft" style="padding:.4rem .7rem;font-size:.78rem;font-weight:900" onclick="_f24(false);return false">'+_ds('eA==')+'</button></div>'+
+    '<div id="z9a" class="z9a">-</div>'+
+    '<div id="z9b" class="z9b"></div>'+
+    '<div class="z9c">'+
+      '<button type="button" class="btn-gold" onclick="_f17();return false">'+_ds('QQ==')+'</button>'+
+      '<button type="button" class="btn-soft" onclick="_f18();return false">'+_ds('Qg==')+'</button>'+
+    '</div>';
+  el.style.setProperty('display','block','important');
+  el.style.visibility='visible';
+  el.style.opacity='1';
+  el.style.minHeight='120px';
+  try{
+    var side=document.querySelector('#game .game-side');
+    if(side){ side.style.display='flex'; side.style.visibility='visible'; }
+  }catch(e){}
+  _f20(300);
+}
+
 function bindBoardClicks(el){
   if(!el) return;
   function fromEv(ev){
