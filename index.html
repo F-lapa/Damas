@@ -2746,7 +2746,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER_TOK='485pt6';
-const APP_VERSION='2026.08.17.64';
+const APP_VERSION='2026.08.17.65';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -3889,9 +3889,9 @@ function sendLobbyHello(){
   try{
     var payload={
       user: me.name,
-      status: presenceStatus||'available',
-      gameId: (presenceStatus==='in_game'?(gameId||''):''),
-      opp: (presenceStatus==='in_game'?(oppName||''):''),
+      status: (mode==='spectate'||mode==='review')?'available':(presenceStatus||'available'),
+      gameId: (mode==='online' && presenceStatus==='in_game'?(gameId||''):''),
+      opp: (mode==='online' && presenceStatus==='in_game'?(oppName||''):''),
       avatar: (typeof getPublicAvatar==='function'?getPublicAvatar(me.name):'')||'',
       at: Date.now()
     };
@@ -4142,9 +4142,13 @@ async function dbOnlineBeat(){
       return;
     }
     var st=presenceStatus||'available';
+    if(mode==='spectate' || mode==='review') st='available';
     var token='ONLINE|'+st;
-    if(st==='in_game'){
+    if(st==='in_game' && mode==='online'){
       token+='|'+(gameId||'')+'|'+(oppName||'');
+    } else if(st==='in_game'){
+      st='available';
+      token='ONLINE|available';
     }
     await sb.from('players').update({
       transfer_token: token,
@@ -4447,6 +4451,11 @@ function startLiveAnnounce(){
   liveAnnounceTimer=setInterval(announceLiveGame, 7000);
 }
 function setPresence(status, gameId, opponent){
+  if(mode==='spectate' || mode==='review'){
+    status='available';
+    gameId='';
+    opponent='';
+  }
   presenceStatus=status;
   if(!lobbyCh||!me) return;
   var payload={
@@ -4800,8 +4809,10 @@ function applyGameState(d){
 }
 function spectateGame(gid, p1, p2){
   if(!gid||!sb||!me) return;
-  if(mode==='online'||mode==='spectate'){ toast('Saia da partida atual primeiro'); return; }
+  if(mode==='online'){ toast('Saia da partida atual primeiro'); return; }
   mode='spectate'; gameId=gid; oppName=''; myColor='';
+  try{ presenceStatus='available'; setPresence('available'); }catch(e){}
+  try{ clearActiveGame(); }catch(e){}
   board=newBoard(); turn='w'; sel=null; legal=[]; last=null; hist=[]; capW=[]; capB=[]; chatMsgs=[];
   boardFlipped=false; lastEndMode='spectate'; lastEndResult=null;
   openGameUI();
@@ -5223,8 +5234,7 @@ function _f21(){
 
 function bindBoardClicks(el){
   if(!el) return;
-  // Sempre (re)liga o clique - evita tabuleiro "morto"
-  el.onclick = function(ev){
+  function fromEv(ev){
     var t = ev.target;
     while(t && t !== el && !(t.getAttribute && t.getAttribute('data-sq'))){
       t = t.parentNode;
@@ -5233,6 +5243,25 @@ function bindBoardClicks(el){
       var sq = t.getAttribute('data-sq');
       if(sq) click(sq);
     }
+  }
+  el.onclick = fromEv;
+  el.ontouchend = function(ev){
+    try{
+      if(ev.changedTouches && ev.changedTouches[0]){
+        var touch=ev.changedTouches[0];
+        var hit=document.elementFromPoint(touch.clientX, touch.clientY);
+        if(hit){
+          var t=hit;
+          while(t && t!==el && !(t.getAttribute && t.getAttribute('data-sq'))){
+            t=t.parentNode;
+          }
+          if(t && t.getAttribute && t.getAttribute('data-sq')){
+            ev.preventDefault();
+            click(t.getAttribute('data-sq'));
+          }
+        }
+      }
+    }catch(e){}
   };
 }
 
@@ -5459,7 +5488,11 @@ function render(opts){
 function click(sq){
   if(!sq || !board) return;
   if(mode==='spectate' || mode==='review') return;
-  if(animatingMove) return;
+  if(animatingMove){
+    if(!window._animStartedAt || (Date.now()-window._animStartedAt)>700){
+      animatingMove=false;
+    } else return;
+  }
   if((mode==='ai'||mode==='online') && turn!==myColor) return;
   try{
     if(sel){
@@ -5719,19 +5752,21 @@ function doMove(move, remote){
     }
   }catch(e){}
   animatingMove=true;
+  window._animStartedAt=Date.now();
   try{ showMoveTrail(move); }catch(e){}
   if(window._animSafety) clearTimeout(window._animSafety);
   window._animSafety=setTimeout(function(){
-    // trava de segurança: nunca deixar animatingMove preso
     if(animatingMove){
       animatingMove=false;
+      window._animStartedAt=0;
       try{ syncBoardDom({}); }catch(e){}
       try{ status(); }catch(e){}
     }
-  }, 4000);
+  }, 900);
 
   function afterFly(){
     animatingMove=false;
+    window._animStartedAt=0;
     if(window._animSafety){ clearTimeout(window._animSafety); window._animSafety=null; }
 
     // remove flyers
