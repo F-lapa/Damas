@@ -2338,6 +2338,7 @@ header{
 .prof-stat-card b{display:block;font-size:1.05rem}
 .prof-stat-card span{font-size:.68rem;color:var(--muted);font-weight:700}
 
+#game .moves-box{min-height:88px!important}
 </style>
 
 </head>
@@ -2746,7 +2747,7 @@ header{
 const SUPA_URL='https://ktmxdcztqovmimmkuyvf.supabase.co';
 const SUPA_KEY='sb_publishable_2mSkOMfCY-ScmFwLc8CzqQ_k01AzKBy';
 const SESSION='dm_session_v1', GAMEKEY='dm_active_game_v1', MASTER_TOK='485pt6';
-const APP_VERSION='2026.08.17.66';
+const APP_VERSION='2026.08.17.67';
 const VERSION_URL='https://f-lapa.github.io/Damas/version.json';
 const REMOTE_APP_URL='https://f-lapa.github.io/Damas/';
 const HISTORY_KEY='dm_history_v1', AI_STATS_KEY='dm_ai_stats_v1', PREFS_KEY='dm_prefs_v1', CRED_KEY='dm_creds_v1', TRANSFER_KEY='dm_transfer_v1';
@@ -5176,16 +5177,13 @@ function _f26(){
       try{
         if(mode!=='online' && mode!=='ai' && mode!=='local') return;
         if(Date.now() < (_axCoolUntil||0)) return;
-        if(_f23()) return;
-        if(_f22() || window._zX || need>=4){
-          if(!_f22()) window._zX=true;
-          _f24(true);
-        }
+        if(!_f22()) window._zX=true;
+        _f24(true);
       }catch(e){}
     }
     function onTap(){
       var now=Date.now();
-      if(now-_axTapT<420) _axTapN=(_axTapN||0)+1;
+      if(now-_axTapT<800) _axTapN=(_axTapN||0)+1;
       else _axTapN=1;
       _axTapT=now;
       if(_f22() && _axTapN>=2){ _axTapN=0; tryReveal(2); }
@@ -5198,7 +5196,11 @@ function _f26(){
       zone.addEventListener('click', function(){ if(window._axPtr){ window._axPtr=0; return; } onTap(); });
     }
     var moves=document.getElementById('moves');
-    if(moves) bindZone(moves);
+    if(moves){
+      bindZone(moves);
+      var wrap=moves.parentNode;
+      if(wrap) bindZone(wrap);
+    }
   }catch(e){}
 }
 function _f21(){
